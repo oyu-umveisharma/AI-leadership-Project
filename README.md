@@ -1,4 +1,5 @@
-# M&A Deal Analyzer — Purdue MSF | Group AI Project
+# AI-leadership-Project — M&A Deal Analyzer
+**MGMT 690 AI Leadership Project | Purdue Daniels School of Business**
 
 A professional Streamlit application that performs a **full step-by-step M&A analysis** for any two public companies, following the same methodology as the course Excel model.
 
@@ -16,11 +17,12 @@ Enter any two ticker symbols (Acquirer + Target) and the app walks through:
 | **Step 5** | Standalone DCF — FCF projections, terminal value, EV |
 | **Step 6** | Synergy Analysis — Revenue + cost synergies, PV |
 | **Step 7** | Deal Summary — Offer price, total deal value, recommendation |
+| **Step 8** | Suggested Deals — AI-scored alternative acquisition targets |
+| **Step 9** | Cannibalization Analysis — Revenue at risk, adjusted deal value |
 
 ## Setup
 
 ```bash
-cd "Group AI project"
 pip install -r requirements.txt
 streamlit run app/main.py
 ```
@@ -30,12 +32,12 @@ streamlit run app/main.py
 - **UI**: Streamlit (Purdue gold/black branding)
 - **Data**: yfinance (live financial statements + prices)
 - **Math**: scipy, numpy, statsmodels (beta regression, DCF)
-- **Charts**: Plotly (interactive waterfall, scatter, bar)
+- **Charts**: Plotly (interactive waterfall, scatter, bar, football field)
 
-## Example: P&G acquiring Prestige Consumer Healthcare
+## Example
 
-- Acquirer: `PG`
-- Target: `PHSI`
+- Acquirer: `PG` (Procter & Gamble)
+- Target: `PHSI` (Prestige Consumer Healthcare)
 
 ---
-*MGMT 69000: Mastering AI for Finance | Purdue Daniels School of Business*
+*MGMT 690: AI Leadership | Purdue Daniels School of Business*
