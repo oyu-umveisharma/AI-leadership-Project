@@ -26,9 +26,13 @@ from src.cre_agents import (
     start_scheduler, force_run, read_cache, cache_age_label, get_status,
 )
 
-if "scheduler_started" not in st.session_state:
+@st.cache_resource
+def _init_scheduler():
+    """Called once per server process — keeps one scheduler alive regardless of reruns or new sessions."""
     start_scheduler()
-    st.session_state.scheduler_started = True
+    return True
+
+_init_scheduler()
 
 # ── Brand ────────────────────────────────────────────────────────────────────
 GOLD      = "#CFB991"
@@ -170,10 +174,11 @@ def stale_banner(cache_key: str):
         st.caption(f"🔄 Last updated: {age} · Auto-refreshes in background")
     return True
 
-def agent_force_button(agent_name: str, label: str):
+def agent_force_button(agent_name: str, label: str, key_suffix: str = ""):
+    key = f"force_{agent_name}{key_suffix}"
     col_btn, col_age = st.columns([2, 3])
     with col_btn:
-        if st.button(f"⚡ Force Refresh {label}", key=f"force_{agent_name}"):
+        if st.button(f"⚡ Force Refresh {label}", key=key):
             force_run(agent_name)
             st.toast(f"{label} triggered — data will update in ~15s", icon="⚡")
     with col_age:
@@ -183,11 +188,12 @@ def agent_force_button(agent_name: str, label: str):
 # ═══════════════════════════════════════════════════════════════════════════════
 #  TABS
 # ═══════════════════════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🗺️  Migration Intelligence",
     "💰  Pricing & Profit",
     "🔮  Company Predictions",
     "🏗️  Cheapest Buildings",
+    "📰  Industry Announcements",
     "🛠️  System Monitor",
 ])
 
@@ -264,7 +270,7 @@ with tab1:
             paper_bgcolor="white",
             margin=dict(t=10, b=10, l=0, r=0),
             height=460,
-            font=dict(family="Source Sans Pro"),
+            font=dict(family="Source Sans Pro", color="#1a1a1a"),
         )
         st.plotly_chart(fig_map, use_container_width=True)
 
@@ -296,6 +302,7 @@ with tab1:
                     colorscale=[[0, GOLD_DARK], [1, GOLD]], showscale=False),
         text=top10["composite_score"].apply(lambda x: f"{x:.0f}"),
         textposition="outside",
+        textfont=dict(color="#1a1a1a", size=12),
         customdata=top10[["state_name", "pop_growth_pct", "key_companies"]].values,
         hovertemplate=(
             "<b>%{customdata[0]}</b><br>"
@@ -305,10 +312,11 @@ with tab1:
     ))
     fig_bar.update_layout(
         plot_bgcolor="white", paper_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#f0f0f0", range=[0, 110]),
-        yaxis=dict(autorange="reversed"),
+        xaxis=dict(showgrid=True, gridcolor="#f0f0f0", range=[0, 110],
+                   tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+        yaxis=dict(autorange="reversed", tickfont=dict(color="#1a1a1a", size=12)),
         margin=dict(t=20, b=20, l=60, r=60),
-        height=320, font=dict(family="Source Sans Pro"),
+        height=320, font=dict(family="Source Sans Pro", color="#1a1a1a"),
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -347,13 +355,15 @@ with tab1:
                 "composite_score": "Composite"},
         hover_data={"state_name": True, "key_companies": True, "growth_drivers": True},
     )
-    fig_bubble.update_traces(textposition="middle center", textfont=dict(size=9, color="white"))
+    fig_bubble.update_traces(textposition="middle center", textfont=dict(size=9, color="#1a1a1a"))
     fig_bubble.update_layout(
         plot_bgcolor="white", paper_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc"),
-        yaxis=dict(showgrid=True, gridcolor="#f0f0f0"),
+        xaxis=dict(showgrid=True, gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
+                   tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+        yaxis=dict(showgrid=True, gridcolor="#f0f0f0",
+                   tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
         coloraxis_showscale=False, margin=dict(t=20, b=40),
-        height=380, font=dict(family="Source Sans Pro"),
+        height=380, font=dict(family="Source Sans Pro", color="#1a1a1a"),
     )
     st.plotly_chart(fig_bubble, use_container_width=True)
 
@@ -428,10 +438,11 @@ with tab2:
                     fig_p.update_layout(
                         plot_bgcolor="white", paper_bgcolor="white",
                         yaxis_title="Price ($)", margin=dict(t=30, b=30),
-                        height=260, font=dict(family="Source Sans Pro"),
+                        height=260, font=dict(family="Source Sans Pro", color="#1a1a1a"),
                     )
-                    fig_p.update_xaxes(showgrid=False)
-                    fig_p.update_yaxes(gridcolor="#f0f0f0")
+                    fig_p.update_xaxes(showgrid=False, tickfont=dict(color="#1a1a1a"))
+                    fig_p.update_yaxes(gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
+                                       title_font=dict(color="#1a1a1a"))
                     st.plotly_chart(fig_p, use_container_width=True)
             with col2:
                 bench = CAP_RATE_BENCHMARKS.get(pt, {})
@@ -467,16 +478,17 @@ with tab2:
         z=pivot.values * 100, x=list(pivot.columns), y=list(pivot.index),
         colorscale=[[0.0, "#b71c1c"], [0.3, "#ef9a9a"], [0.5, "#fff9c4"], [0.7, "#a5d6a7"], [1.0, "#1b5e20"]],
         text=[[f"{v:.1f}%" for v in row] for row in pivot.values * 100],
-        texttemplate="%{text}", textfont=dict(size=9),
+        texttemplate="%{text}", textfont=dict(size=9, color="#1a1a1a"),
         hovertemplate="<b>%{y}</b><br>%{x}<br>Margin: %{z:.1f}%<extra></extra>",
-        colorbar=dict(title="Eff Margin %", thickness=14, len=0.8),
+        colorbar=dict(title="Eff Margin %", thickness=14, len=0.8,
+                      tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
     ))
     fig_heat.update_layout(
         paper_bgcolor="white",
-        xaxis=dict(tickangle=-35, tickfont=dict(size=9)),
-        yaxis=dict(tickfont=dict(size=9)),
+        xaxis=dict(tickangle=-35, tickfont=dict(size=9, color="#1a1a1a")),
+        yaxis=dict(tickfont=dict(size=9, color="#1a1a1a")),
         margin=dict(t=20, b=100, l=180, r=20),
-        height=420, font=dict(family="Source Sans Pro"),
+        height=420, font=dict(family="Source Sans Pro", color="#1a1a1a"),
     )
     st.plotly_chart(fig_heat, use_container_width=True)
     st.caption("Effective Profit Margin = NOI Margin × (1 − Vacancy) × (1 + Rent Growth).")
@@ -505,12 +517,15 @@ with tab2:
     ))
     fig_pt.update_layout(
         plot_bgcolor="white", paper_bgcolor="white",
-        yaxis=dict(title="Effective Profit Margin (%)", gridcolor="#f0f0f0"),
-        yaxis2=dict(title="Cap Rate (%)", overlaying="y", side="right", showgrid=False),
-        legend=dict(orientation="h", y=1.1), margin=dict(t=40, b=60),
-        height=360, font=dict(family="Source Sans Pro"),
+        yaxis=dict(title="Effective Profit Margin (%)", gridcolor="#f0f0f0",
+                   tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+        yaxis2=dict(title="Cap Rate (%)", overlaying="y", side="right", showgrid=False,
+                    tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+        legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a")),
+        margin=dict(t=40, b=60),
+        height=360, font=dict(family="Source Sans Pro", color="#1a1a1a"),
     )
-    fig_pt.update_xaxes(showgrid=False, tickangle=-15)
+    fig_pt.update_xaxes(showgrid=False, tickangle=-15, tickfont=dict(color="#1a1a1a"))
     st.plotly_chart(fig_pt, use_container_width=True)
 
     st.caption(
@@ -570,7 +585,7 @@ with tab4:
         "migration and business growth scores — identifying acquisition opportunities before demand peaks. "
         "Updates every 24 hours alongside company predictions."
     )
-    agent_force_button("predictions", "Listings Agent")
+    agent_force_button("predictions", "Listings Agent", key_suffix="_listings")
 
     cache4 = read_cache("predictions")
     if not stale_banner("predictions") or cache4["data"] is None:
@@ -651,6 +666,89 @@ with tab4:
 #  TAB 5 — SYSTEM MONITOR / DEBUGGER
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab5:
+    st.markdown("#### Where are companies building? Live facility & investment announcements across the US")
+    st.markdown(
+        "Agent 5 monitors **news wires, government press releases, and industry publications** "
+        "every 4 hours — surfacing companies that have announced new manufacturing plants, "
+        "training centers, data centers, warehouses, and other large facilities. "
+        "Sources include Reuters, IndustryWeek, PR Newswire, DOE, Commerce Dept, and EDA."
+    )
+    agent_force_button("news", "News Agent", key_suffix="_news")
+
+    cache_news = read_cache("news")
+    if not stale_banner("news") or cache_news["data"] is None:
+        st.stop()
+
+    ndata = cache_news["data"]
+
+    # ── KPI strip ─────────────────────────────────────────────────────────
+    c1, c2, c3 = st.columns(3)
+    c1.markdown(metric_card("Articles Found", str(ndata.get("article_count", 0)), "Facility announcements"), unsafe_allow_html=True)
+    c2.markdown(metric_card("Sources Checked", str(ndata.get("sources_checked", 0)), "News + gov feeds"), unsafe_allow_html=True)
+    fetched = ndata.get("fetched_at", "")
+    fetched_label = datetime.fromisoformat(fetched).strftime("%b %d, %Y %I:%M %p") if fetched else "N/A"
+    c3.markdown(metric_card("Last Scan", fetched_label, "Updates every 4 hours"), unsafe_allow_html=True)
+
+    # ── AI Summary ────────────────────────────────────────────────────────
+    section("🤖 Agent 5 — AI Investment Brief: Facility Announcements")
+    summary = ndata.get("summary", "")
+    if summary:
+        st.markdown(f"""
+        <div class="agent-card">
+          <div class="agent-label">🤖 Agent 5 · Industry Announcements · {datetime.today().strftime('%b %d, %Y')}</div>
+          <div class="agent-text">{summary}</div>
+        </div>""", unsafe_allow_html=True)
+    else:
+        st.info("Summary not yet available. Click Force Refresh or ensure GROQ_API_KEY is set in .env")
+
+    # ── Raw Article Feed ─────────────────────────────────────────────────
+    raw = ndata.get("raw_articles", [])
+    if raw:
+        section(f"📋 Raw Announcement Feed ({len(raw)} articles)")
+
+        feed_type_filter = st.selectbox(
+            "Filter by source type",
+            options=["All", "news", "industry", "press", "government"],
+            key="news_filter",
+        )
+
+        source_colors = {
+            "government": "#1565c0",
+            "industry":   "#2e7d32",
+            "press":      "#6a1b9a",
+            "news":       "#bf360c",
+        }
+
+        for art in raw:
+            if feed_type_filter != "All" and art.get("feed_type") != feed_type_filter:
+                continue
+            ft    = art.get("feed_type", "news")
+            color = source_colors.get(ft, "#555")
+            link  = art.get("link", "#")
+            title = art.get("title", "No title")
+            desc  = art.get("description", "")[:280]
+            src   = art.get("source", "")
+            date  = art.get("pub_date", "")[:22]
+
+            href = f'<a href="{link}" target="_blank" style="color:{color};font-weight:700;text-decoration:none;">{title}</a>' if link and link != "#" else f'<span style="font-weight:700;">{title}</span>'
+
+            st.markdown(f"""
+            <div style="border-left:3px solid {color};padding:10px 14px;margin:6px 0;background:#fafafa;border-radius:4px;">
+              <div style="font-size:0.7rem;color:{color};text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">
+                {src} &nbsp;·&nbsp; {ft.upper()} &nbsp;·&nbsp; {date}
+              </div>
+              <div style="font-size:0.9rem;margin-bottom:4px;">{href}</div>
+              <div style="font-size:0.8rem;color:#555;">{desc}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.caption(
+        "Sources: Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, "
+        "US Dept of Energy, US Dept of Commerce, EDA, Expansion Solutions, Site Selection Magazine."
+    )
+
+
+with tab6:
     st.markdown("#### Background Agent Monitor — Agent 4 runs every 30 minutes")
     st.markdown(
         "Agent 4 continuously verifies that all data sources are live, caches are fresh, "
@@ -672,9 +770,10 @@ with tab5:
         "pricing":     ("Agent 2", "REIT Pricing",           "Every 1h"),
         "predictions": ("Agent 3", "Company Predictions",    "Every 24h"),
         "debugger":    ("Agent 4", "Debugger / Monitor",     "Every 30min"),
+        "news":        ("Agent 5", "Industry Announcements", "Every 4h"),
     }
 
-    cols = st.columns(4)
+    cols = st.columns(5)
     for col, (agent_key, (num, name, freq)) in zip(cols, agent_labels.items()):
         s = status.get(agent_key, {})
         st_val = s.get("status", "idle")
@@ -700,8 +799,9 @@ with tab5:
         ("pricing",     "Every 1h",   2),
         ("predictions", "Every 24h",  25),
         ("debugger",    "Every 30min", 1),
+        ("news",        "Every 4h",   5),
     ]
-    c_cols = st.columns(4)
+    c_cols = st.columns(5)
     for col, (key, freq, max_h) in zip(c_cols, cache_keys):
         c = read_cache(key)
         age_label = cache_age_label(key)
@@ -764,7 +864,7 @@ with tab5:
     st.markdown("<br>", unsafe_allow_html=True)
     section("⚡ Manual Agent Triggers")
     st.markdown("Force any agent to run immediately (runs in background — data appears after ~15-30s refresh):")
-    b1, b2, b3, b4 = st.columns(4)
+    b1, b2, b3, b4, b5 = st.columns(5)
     with b1:
         if st.button("🗺️ Run Migration Agent"):
             force_run("migration")
@@ -781,6 +881,10 @@ with tab5:
         if st.button("🛠️ Run Debugger Agent"):
             force_run("debugger")
             st.toast("Debugger agent triggered", icon="🛠️")
+    with b5:
+        if st.button("📰 Run News Agent"):
+            force_run("news")
+            st.toast("News agent triggered (takes ~20s)", icon="📰")
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.caption(
@@ -788,3 +892,30 @@ with tab5:
         "Data is stored in JSON cache files and survives Streamlit reruns. "
         "Requires GROQ_API_KEY in .env for Agent 3 predictions."
     )
+
+# ── Meet the Team ─────────────────────────────────────────────────────────────
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown(f"""
+<div style="background:{BLACK};padding:28px 32px;border-top:4px solid {GOLD};text-align:center;">
+  <div style="color:{GOLD};font-size:0.72rem;text-transform:uppercase;letter-spacing:3px;margin-bottom:16px;">Meet the Team</div>
+  <div style="display:flex;justify-content:center;gap:40px;flex-wrap:wrap;">
+    <a href="https://www.linkedin.com/in/aayman-afzal/" target="_blank"
+       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+      Aayman Afzal
+    </a>
+    <a href="https://www.linkedin.com/in/ajinkyakodnikar/" target="_blank"
+       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+      Ajinkya Kodnikar
+    </a>
+    <a href="https://www.linkedin.com/in/oyu-amar/" target="_blank"
+       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+      Oyu Amar
+    </a>
+    <a href="https://www.linkedin.com/in/ricardo-ruiz1/" target="_blank"
+       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+      Ricardo Ruiz
+    </a>
+  </div>
+  <div style="color:#666;font-size:0.75rem;margin-top:16px;">MGMT 690 · AI Leadership · Purdue Daniels School of Business</div>
+</div>
+""", unsafe_allow_html=True)

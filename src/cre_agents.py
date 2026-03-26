@@ -70,6 +70,7 @@ _agent_status = {
     "pricing":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "predictions":  {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "debugger":     {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "news":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
 def get_status() -> dict:
@@ -267,6 +268,19 @@ def run_debugger_agent():
         _set_status("debugger", "error", traceback.format_exc())
 
 
+# ── Agent 5 · News & Facility Announcements ──────────────────────────────────
+
+def run_news_agent():
+    _set_status("news", "running")
+    try:
+        from src.cre_news import run_news_fetch
+        result = run_news_fetch()
+        write_cache("news", result)
+        _set_status("news", "ok")
+    except Exception as e:
+        _set_status("news", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -285,11 +299,12 @@ def start_scheduler():
         _scheduler.add_job(run_pricing_agent,      IntervalTrigger(hours=1),        id="pricing",     replace_existing=True)
         _scheduler.add_job(run_predictions_agent,  IntervalTrigger(hours=24),       id="predictions", replace_existing=True)
         _scheduler.add_job(run_debugger_agent,     IntervalTrigger(minutes=30),     id="debugger",    replace_existing=True)
+        _scheduler.add_job(run_news_agent,         IntervalTrigger(hours=4),        id="news",        replace_existing=True)
 
         _scheduler.start()
 
         # Run all agents immediately on first start (in background threads)
-        for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent]:
+        for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent, run_news_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -301,6 +316,7 @@ def force_run(agent_name: str):
         "pricing":     run_pricing_agent,
         "predictions": run_predictions_agent,
         "debugger":    run_debugger_agent,
+        "news":        run_news_agent,
     }
     fn = agents.get(agent_name)
     if fn:
