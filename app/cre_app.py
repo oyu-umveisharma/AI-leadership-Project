@@ -185,29 +185,56 @@ def agent_force_button(agent_name: str, label: str, key_suffix: str = ""):
         st.caption(f"Last run: {cache_age_label(agent_name)}")
 
 
-# ── Meet the Team ─────────────────────────────────────────────────────────────
+# ── Meet the Team (fixed footer) ──────────────────────────────────────────────
 st.markdown(f"""
-<div style="background:{BLACK};padding:22px 32px;border-top:4px solid {GOLD};border-bottom:1px solid #222;text-align:center;margin-bottom:16px;">
-  <div style="color:{GOLD};font-size:0.72rem;text-transform:uppercase;letter-spacing:3px;margin-bottom:12px;">Meet the Team</div>
-  <div style="display:flex;justify-content:center;gap:40px;flex-wrap:wrap;">
-    <a href="https://www.linkedin.com/in/aayman-afzal/" target="_blank"
-       style="color:{GOLD} !important;text-decoration:underline !important;font-size:0.95rem;font-weight:600;padding-bottom:2px;">
-      Aayman Afzal
-    </a>
-    <a href="https://www.linkedin.com/in/ajinkyakodnikar/" target="_blank"
-       style="color:{GOLD} !important;text-decoration:underline !important;font-size:0.95rem;font-weight:600;padding-bottom:2px;">
-      Ajinkya Kodnikar
-    </a>
-    <a href="https://www.linkedin.com/in/oyu-amar/" target="_blank"
-       style="color:{GOLD} !important;text-decoration:underline !important;font-size:0.95rem;font-weight:600;padding-bottom:2px;">
-      Oyu Amar
-    </a>
-    <a href="https://www.linkedin.com/in/ricardo-ruiz1/" target="_blank"
-       style="color:{GOLD} !important;text-decoration:underline !important;font-size:0.95rem;font-weight:600;padding-bottom:2px;">
-      Ricardo Ruiz
-    </a>
+<style>
+  .meet-team-footer {{
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: {BLACK};
+    padding: 14px 32px;
+    border-top: 3px solid {GOLD};
+    text-align: center;
+  }}
+  .meet-team-footer .label {{
+    color: {GOLD};
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }}
+  .meet-team-footer .names {{
+    display: flex;
+    justify-content: center;
+    gap: 36px;
+    flex-wrap: wrap;
+  }}
+  .meet-team-footer a {{
+    color: {GOLD} !important;
+    text-decoration: underline !important;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }}
+  .meet-team-footer .course {{
+    color: #888;
+    font-size: 0.7rem;
+    margin-top: 6px;
+  }}
+  /* Push page content up so footer doesn't overlap last element */
+  .main .block-container {{ padding-bottom: 90px; }}
+</style>
+<div class="meet-team-footer">
+  <div class="label">Meet the Team</div>
+  <div class="names">
+    <a href="https://www.linkedin.com/in/aayman-afzal/" target="_blank">Aayman Afzal</a>
+    <a href="https://www.linkedin.com/in/ajinkyakodnikar/" target="_blank">Ajinkya Kodnikar</a>
+    <a href="https://www.linkedin.com/in/oyu-amar/" target="_blank">Oyu Amar</a>
+    <a href="https://www.linkedin.com/in/ricardo-ruiz1/" target="_blank">Ricardo Ruiz</a>
   </div>
-  <div style="color:#888;font-size:0.75rem;margin-top:10px;">MGMT 690 · AI Leadership · Purdue Daniels School of Business</div>
+  <div class="course">MGMT 690 · AI Leadership · Purdue Daniels School of Business</div>
 </div>
 """, unsafe_allow_html=True)
 
