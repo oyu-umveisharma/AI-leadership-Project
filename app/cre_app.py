@@ -896,29 +896,30 @@ with main_tab:
             "Requires GROQ_API_KEY in .env for Agent 3 predictions."
         )
 
-    # ── Meet the Team ─────────────────────────────────────────────────────────────
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown(f"""
-    <div style="background:{BLACK};padding:28px 32px;border-top:4px solid {GOLD};text-align:center;">
-      <div style="color:{GOLD};font-size:0.72rem;text-transform:uppercase;letter-spacing:3px;margin-bottom:16px;">Meet the Team</div>
-      <div style="display:flex;justify-content:center;gap:40px;flex-wrap:wrap;">
-        <a href="https://www.linkedin.com/in/aayman-afzal/" target="_blank"
-           style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
-          Aayman Afzal
-        </a>
-        <a href="https://www.linkedin.com/in/ajinkyakodnikar/" target="_blank"
-           style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
-          Ajinkya Kodnikar
-        </a>
-        <a href="https://www.linkedin.com/in/oyu-amar/" target="_blank"
-           style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
-          Oyu Amar
-        </a>
-        <a href="https://www.linkedin.com/in/ricardo-ruiz1/" target="_blank"
-           style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
-          Ricardo Ruiz
-        </a>
-      </div>
-      <div style="color:#666;font-size:0.75rem;margin-top:16px;">MGMT 690 · AI Leadership · Purdue Daniels School of Business</div>
-    </div>
-    """, unsafe_allow_html=True)
+
+# ── Meet the Team ─────────────────────────────────────────────────────────────
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown(f"""
+<div style="background:{BLACK};padding:28px 32px;border-top:4px solid {GOLD};text-align:center;">
+  <div style="color:{GOLD};font-size:0.72rem;text-transform:uppercase;letter-spacing:3px;margin-bottom:16px;">Meet the Team</div>
+  <div style="display:flex;justify-content:center;gap:40px;flex-wrap:wrap;">
+    <a href="https://www.linkedin.com/in/aayman-afzal/" target="_blank"
+       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+      Aayman Afzal
+    </a>
+    <a href="https://www.linkedin.com/in/ajinkyakodnikar/" target="_blank"
+       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+      Ajinkya Kodnikar
+    </a>
+    <a href="https://www.linkedin.com/in/oyu-amar/" target="_blank"
+       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+      Oyu Amar
+    </a>
+    <a href="https://www.linkedin.com/in/ricardo-ruiz1/" target="_blank"
+       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+      Ricardo Ruiz
+    </a>
+  </div>
+  <div style="color:#666;font-size:0.75rem;margin-top:16px;">MGMT 690 · AI Leadership · Purdue Daniels School of Business</div>
+</div>
+""", unsafe_allow_html=True)
