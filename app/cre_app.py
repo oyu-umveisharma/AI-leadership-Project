@@ -904,19 +904,19 @@ st.markdown(f"""
   <div style="color:{GOLD};font-size:0.72rem;text-transform:uppercase;letter-spacing:3px;margin-bottom:16px;">Meet the Team</div>
   <div style="display:flex;justify-content:center;gap:40px;flex-wrap:wrap;">
     <a href="https://www.linkedin.com/in/aayman-afzal/" target="_blank"
-       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+       style="color:{GOLD} !important;text-decoration:underline !important;font-size:0.95rem;font-weight:600;padding-bottom:2px;">
       Aayman Afzal
     </a>
     <a href="https://www.linkedin.com/in/ajinkyakodnikar/" target="_blank"
-       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+       style="color:{GOLD} !important;text-decoration:underline !important;font-size:0.95rem;font-weight:600;padding-bottom:2px;">
       Ajinkya Kodnikar
     </a>
     <a href="https://www.linkedin.com/in/oyu-amar/" target="_blank"
-       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+       style="color:{GOLD} !important;text-decoration:underline !important;font-size:0.95rem;font-weight:600;padding-bottom:2px;">
       Oyu Amar
     </a>
     <a href="https://www.linkedin.com/in/ricardo-ruiz1/" target="_blank"
-       style="color:white;text-decoration:none;font-size:0.95rem;font-weight:600;border-bottom:2px solid {GOLD};padding-bottom:2px;">
+       style="color:{GOLD} !important;text-decoration:underline !important;font-size:0.95rem;font-weight:600;padding-bottom:2px;">
       Ricardo Ruiz
     </a>
   </div>
