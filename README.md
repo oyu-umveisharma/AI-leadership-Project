@@ -46,4 +46,67 @@ streamlit run app/cre_app.py
 - **Charts**: Plotly (choropleth maps, heatmaps, scatter, bar)
 
 ---
+
+## Chief of Staff — AI Executive Assistant
+
+A CLI tool for managing and coordinating work across the codebase. Tracks tasks, decisions, follow-ups, and generates briefings — with optional Groq LLM enhancement.
+
+### Setup
+
+```bash
+chmod +x chief-of-staff/cos
+
+# Run directly
+./chief-of-staff/cos briefing
+
+# Or add to PATH for global access
+export PATH="$PATH:$(pwd)/chief-of-staff"
+cos briefing
+```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `cos briefing` | Daily status: recent commits, open PRs, TODOs, cache health |
+| `cos triage` | Score-ranked task prioritization from `tasks.md` |
+| `cos prep "<topic>"` | Meeting prep doc with codebase context and talking points |
+| `cos decide "<title>"` | Log an architectural/product decision |
+| `cos decisions` | List recent decision log entries |
+| `cos follow-up add "<item>" --owner --due` | Add a tracked action item |
+| `cos follow-up list [--filter open\|overdue\|done\|all]` | List follow-ups |
+| `cos follow-up done <id>` | Mark a follow-up complete |
+| `cos weekly` | Weekly digest: shipped, in-progress, blocked, next week |
+
+### State Files
+
+All state is plain markdown in `chief-of-staff/state/`:
+
+- `tasks.md` — edit manually to manage your task list
+- `decisions.md` — auto-maintained decision log
+- `follow-ups.md` — auto-maintained action item tracker
+
+### AI Mode
+
+Works fully offline without an API key. With `GROQ_API_KEY` set in `.env`, commands are enhanced with LLM summaries, strategic recommendations, and talking points.
+
+See [`chief-of-staff/README.md`](chief-of-staff/README.md) for full documentation.
+
+---
+
+## Autonomous Sync Agent
+
+Monitors the GitHub repo for new commits and automatically pulls updates on each team member's machine.
+
+```bash
+# One-time setup per machine
+bash .pipeline/setup.sh
+
+# Check sync status
+python3 .pipeline/status.py
+```
+
+The agent runs every 5 minutes via macOS launchd and re-installs dependencies on each pull.
+
+---
 *MGMT 690: AI Leadership | Purdue Daniels School of Business*
