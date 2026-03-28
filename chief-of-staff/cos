@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Chief of Staff shell wrapper
+# Usage: cos <command> [options]
+# Add this directory to PATH or symlink to ~/bin/cos for global access.
+exec python3 "$(dirname "$0")/cos.py" "$@"
