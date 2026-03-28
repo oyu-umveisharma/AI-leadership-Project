@@ -1,10 +1,12 @@
 """
-Background Agent Runner — four independent agents updating on schedules.
+Background Agent Runner — six independent agents updating on schedules.
 
 Agent 1 · Migration Tracker    — every 6 hours
 Agent 2 · REIT Pricing          — every 1 hour
 Agent 3 · Company Predictions   — every 24 hours (LLM)
 Agent 4 · Debugger / Monitor    — every 30 minutes
+Agent 5 · News & Announcements  — every 4 hours
+Agent 6 · Interest Rate & Debt  — every 1 hour  (requires FRED_API_KEY)
 
 Uses APScheduler + file-based JSON cache so results survive Streamlit reruns.
 """
@@ -71,6 +73,7 @@ _agent_status = {
     "predictions":  {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "debugger":     {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "news":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "rates":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
 def get_status() -> dict:
@@ -208,6 +211,22 @@ Format as a clean table then a brief paragraph for each top state.
         return f"_Prediction generation failed: {e}_"
 
 
+# ── Agent 6 · Interest Rate & Debt Markets ───────────────────────────────────
+
+def run_rate_agent():
+    _set_status("rates", "running")
+    try:
+        from src.rate_agent import run_rate_agent as _run
+        result = _run()
+        write_cache("rates", result)
+        if result.get("error"):
+            _set_status("rates", "error", result["error"])
+        else:
+            _set_status("rates", "ok")
+    except Exception as e:
+        _set_status("rates", "error", str(e))
+
+
 # ── Agent 4 · Debugger / Monitor ─────────────────────────────────────────────
 
 def run_debugger_agent():
@@ -257,6 +276,22 @@ def run_debugger_agent():
         else:
             issues.append("⚠️  Groq API key: not set (.env missing GROQ_API_KEY)")
 
+        # Check FRED API key
+        fred_key = os.getenv("FRED_API_KEY", "")
+        if fred_key:
+            healthy.append("✅ FRED API key: present")
+        else:
+            issues.append("⚠️  FRED API key: not set (.env missing FRED_API_KEY — required for Rate Environment agent)")
+
+        # Check rates cache
+        rc = read_cache("rates")
+        if rc["data"] is None:
+            issues.append("❌ rates: no data in cache — agent has not run yet")
+        elif rc.get("stale"):
+            issues.append(f"⚠️  rates: data is stale ({rc.get('age_minutes',0):.0f}m old)")
+        else:
+            healthy.append(f"✅ rates: fresh ({rc.get('age_minutes',0):.0f}m old)")
+
         write_cache("debugger", {
             "issues":   issues,
             "healthy":  healthy,
@@ -300,11 +335,12 @@ def start_scheduler():
         _scheduler.add_job(run_predictions_agent,  IntervalTrigger(hours=24),       id="predictions", replace_existing=True)
         _scheduler.add_job(run_debugger_agent,     IntervalTrigger(minutes=30),     id="debugger",    replace_existing=True)
         _scheduler.add_job(run_news_agent,         IntervalTrigger(hours=4),        id="news",        replace_existing=True)
+        _scheduler.add_job(run_rate_agent,         IntervalTrigger(hours=1),        id="rates",       replace_existing=True)
 
         _scheduler.start()
 
         # Run all agents immediately on first start (in background threads)
-        for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent, run_news_agent]:
+        for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent, run_news_agent, run_rate_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -317,6 +353,7 @@ def force_run(agent_name: str):
         "predictions": run_predictions_agent,
         "debugger":    run_debugger_agent,
         "news":        run_news_agent,
+        "rates":       run_rate_agent,
     }
     fn = agents.get(agent_name)
     if fn:

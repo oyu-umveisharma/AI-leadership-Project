@@ -2,11 +2,13 @@
 Commercial Real Estate Intelligence Platform
 Purdue MSF | Group AI Project
 
-Four background agents update independently on schedules:
+Six background agents update independently on schedules:
   Agent 1 — Population & Migration    (every 6h)
   Agent 2 — CRE Pricing & Profit      (every 1h)
   Agent 3 — Company Predictions       (every 24h, LLM)
   Agent 4 — Debugger / Monitor        (every 30min)
+  Agent 5 — News & Announcements      (every 4h)
+  Agent 6 — Interest Rate & Debt      (every 1h, requires FRED_API_KEY)
 
 Run: streamlit run app/cre_app.py
 """
@@ -19,7 +21,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ── Start background agents ──────────────────────────────────────────────────
 from src.cre_agents import (
@@ -244,9 +246,10 @@ st.markdown(f"""
 (main_tab,) = st.tabs(["🏢  Real Estate"])
 
 with main_tab:
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab_rates, tab3, tab4, tab5, tab6 = st.tabs([
         "🗺️  Migration Intelligence",
         "💰  Pricing & Profit",
+        "📈  Rate Environment",
         "🔮  Company Predictions",
         "🏗️  Cheapest Buildings",
         "📰  Industry Announcements",
@@ -589,6 +592,415 @@ with main_tab:
             "REIT prices are live from Yahoo Finance. This is research, not financial advice."
         )
 
+        # ── Rate-Adjusted View ─────────────────────────────────────────────────
+        cache_r2 = read_cache("rates")
+        rdata2   = cache_r2.get("data") or {}
+        cap_adj2 = rdata2.get("cap_rate_adjustments", [])
+        cur_10y2 = rdata2.get("current_10y")
+
+        if cap_adj2 and cur_10y2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(f"📈 Rate-Adjusted Cap Rates — 10Y at {cur_10y2:.2f}%")
+            show_adj = st.toggle("Show rate-adjusted profit matrix", value=True, key="rate_adj_toggle")
+            if show_adj:
+                adj_df2 = pd.DataFrame(cap_adj2)
+                baseline2 = rdata2.get("baseline_10y", 4.0)
+                delta2    = cur_10y2 - baseline2
+                direction2 = "above" if delta2 > 0 else "below"
+
+                st.caption(
+                    f"10Y Treasury ({cur_10y2:.2f}%) is {abs(delta2):.2f}% {direction2} the "
+                    f"{baseline2:.1f}% baseline. Cap rates are adjusted using sector-specific betas."
+                )
+
+                colors_adj = [
+                    "#b71c1c" if r > 0 else "#1b5e20"
+                    for r in adj_df2["Rate Adjustment bps"]
+                ]
+                fig_adj = go.Figure()
+                pt_short = adj_df2["Property Type"].str.split("/").str[0].str.strip()
+                fig_adj.add_trace(go.Bar(
+                    name="Static Cap Rate (%)",
+                    x=pt_short,
+                    y=adj_df2["Baseline Cap Rate"],
+                    marker_color="#CFB991",
+                    text=adj_df2["Baseline Cap Rate"].apply(lambda v: f"{v:.2f}%"),
+                    textposition="inside",
+                ))
+                fig_adj.add_trace(go.Bar(
+                    name="Rate-Adjusted Cap Rate (%)",
+                    x=pt_short,
+                    y=adj_df2["Adjusted Cap Rate"],
+                    marker_color=colors_adj,
+                    opacity=0.85,
+                    text=adj_df2["Rate Adjustment bps"].apply(
+                        lambda d: f"{'+' if d > 0 else ''}{d:.0f}bps"
+                    ),
+                    textposition="outside",
+                ))
+                fig_adj.update_layout(
+                    barmode="group",
+                    paper_bgcolor="white", plot_bgcolor="white",
+                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#f0f0f0",
+                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                    xaxis=dict(tickangle=-15, tickfont=dict(color="#1a1a1a", size=10)),
+                    legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a")),
+                    margin=dict(t=40, b=60), height=340,
+                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                )
+                st.plotly_chart(fig_adj, use_container_width=True)
+
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — RATE ENVIRONMENT
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_rates:
+        st.markdown("#### How do current interest rates affect CRE cap rates, valuations, and REIT debt risk?")
+        st.markdown(
+            "Agent 6 pulls **live rate data from FRED**, classifies the rate environment, "
+            "computes dynamic cap rate adjustments by property type, and scores REIT refinancing risk. "
+            "Updates every hour. Requires `FRED_API_KEY` in `.env`."
+        )
+        agent_force_button("rates", "Rate Agent")
+
+        cache_r = read_cache("rates")
+        rdata   = cache_r.get("data") or {}
+
+        if not rdata or rdata.get("error"):
+            err = rdata.get("error") if rdata else None
+            if err:
+                st.warning(f"⚠️ {err}")
+            else:
+                st.info("Rate agent has not completed its first run yet. Click **Force Refresh** above or check that `FRED_API_KEY` is set in `.env`.")
+            st.stop()
+
+        rates       = rdata.get("rates", {})
+        env         = rdata.get("environment", {})
+        cap_adj     = rdata.get("cap_rate_adjustments", [])
+        debt_risk   = rdata.get("reit_debt_risk", [])
+        yc          = rdata.get("yield_curve", {})
+        current_10y = rdata.get("current_10y")
+        baseline    = rdata.get("baseline_10y", 4.0)
+        cached_at   = rdata.get("cached_at", "")
+
+        # ── Signal Banner ───────────────────────────────────────────────────────
+        signal  = env.get("signal", "CAUTIOUS")
+        sig_clr = {"BULLISH": "#1b5e20", "CAUTIOUS": "#e65100", "BEARISH": "#b71c1c"}.get(signal, "#333")
+        bg_clr  = {"BULLISH": "#e8f5e9", "CAUTIOUS": "#fff3e0", "BEARISH": "#ffebee"}.get(signal, "#f5f5f5")
+        st.markdown(f"""
+        <div style="background:{bg_clr};border-left:6px solid {sig_clr};
+                    padding:18px 24px;border-radius:6px;margin-bottom:20px;">
+          <div style="font-size:1.4rem;font-weight:700;color:{sig_clr};">
+            {env.get('icon','⚪')} Rate Environment: {signal}
+          </div>
+          <div style="color:#333;margin-top:6px;font-size:0.95rem;">{env.get('summary','')}</div>
+          <ul style="margin-top:10px;color:#444;font-size:0.88rem;">
+            {"".join(f"<li>{b}</li>" for b in env.get('bullets', []))}
+          </ul>
+          <div style="font-size:0.75rem;color:#888;margin-top:8px;">Last updated: {cached_at[:19].replace('T',' ')}</div>
+        </div>""", unsafe_allow_html=True)
+
+        # ── Key Rate Cards ──────────────────────────────────────────────────────
+        section("📊 Current Rates")
+        display_rates = [
+            "10Y Treasury", "2Y Treasury", "Fed Funds Rate",
+            "SOFR", "30Y Mortgage", "Prime Rate", "IG Corp Spread",
+        ]
+        card_cols = st.columns(len(display_rates))
+        for col, name in zip(card_cols, display_rates):
+            r = rates.get(name)
+            if not r:
+                col.markdown(metric_card(name, "N/A", "No data"), unsafe_allow_html=True)
+                continue
+            curr  = r["current"]
+            d1w   = r.get("delta_1w")
+            unit  = r["unit"]
+            val_s = f"{curr:.2f}{unit}" if unit == "%" else f"{curr:.0f}{unit}"
+            delta_s = ""
+            if d1w is not None:
+                arrow = "▲" if d1w > 0 else ("▼" if d1w < 0 else "→")
+                color = "#b71c1c" if d1w > 0 else ("#1b5e20" if d1w < 0 else "#555")
+                delta_s = f"<span style='color:{color};font-size:0.78rem;'>{arrow} {abs(d1w):.2f}{unit} 1W</span>"
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{name}</div>
+              <div class="value">{val_s}</div>
+              <div class="sub">{delta_s}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Yield Curve + Rate Comparison Table ─────────────────────────────────
+        col_yc, col_tbl = st.columns([3, 2])
+        with col_yc:
+            section("📉 Yield Curve (Current Shape)")
+            if yc:
+                tenor_order = ["3M", "2Y", "5Y", "10Y", "30Y"]
+                tenors  = [t for t in tenor_order if t in yc]
+                values  = [yc[t] for t in tenors]
+                inverted = yc.get("2Y", 0) > yc.get("10Y", 0)
+                line_clr = "#b71c1c" if inverted else "#1b5e20"
+                fig_yc = go.Figure()
+                fig_yc.add_trace(go.Scatter(
+                    x=tenors, y=values,
+                    mode="lines+markers+text",
+                    line=dict(color=line_clr, width=3),
+                    marker=dict(size=10, color=line_clr),
+                    text=[f"{v:.2f}%" for v in values],
+                    textposition="top center",
+                    textfont=dict(size=11, color="#1a1a1a"),
+                    hovertemplate="%{x}: %{y:.3f}%<extra></extra>",
+                ))
+                fig_yc.add_hline(y=values[0] if values else 0, line_dash="dot",
+                                  line_color="#aaa", line_width=1)
+                fig_yc.update_layout(
+                    paper_bgcolor="white", plot_bgcolor="white",
+                    yaxis=dict(title="Yield (%)", ticksuffix="%",
+                               gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
+                               title_font=dict(color="#1a1a1a")),
+                    xaxis=dict(tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                    margin=dict(t=30, b=30, l=60, r=20), height=300,
+                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    annotations=[dict(
+                        text="⚠️ INVERTED" if inverted else "Normal slope",
+                        x=0.5, y=1.08, xref="paper", yref="paper",
+                        showarrow=False, font=dict(size=12,
+                        color="#b71c1c" if inverted else "#1b5e20", family="Source Sans Pro"),
+                    )],
+                )
+                st.plotly_chart(fig_yc, use_container_width=True)
+            else:
+                st.info("Yield curve data unavailable.")
+
+        with col_tbl:
+            section("📋 Rate Change Summary")
+            tbl_rows = []
+            for name in display_rates:
+                r = rates.get(name)
+                if not r:
+                    continue
+                unit = r["unit"]
+                def _fmt(v):
+                    if v is None: return "—"
+                    return f"{v:+.2f}{unit}" if unit == "%" else f"{v:+.0f}{unit}"
+                tbl_rows.append({
+                    "Rate":   name,
+                    "Now":    f"{r['current']:.2f}{unit}" if unit == "%" else f"{r['current']:.0f}{unit}",
+                    "1W Δ":   _fmt(r.get("delta_1w")),
+                    "1M Δ":   _fmt(r.get("delta_1m")),
+                    "1Y Δ":   _fmt(r.get("delta_1y")),
+                })
+            if tbl_rows:
+                tbl_df = pd.DataFrame(tbl_rows)
+                st.dataframe(tbl_df, use_container_width=True, hide_index=True, height=280)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Rate Trends (12 months) ──────────────────────────────────────────────
+        section("📈 Rate Trends — Past 12 Months")
+        trend_series = ["10Y Treasury", "2Y Treasury", "Fed Funds Rate", "SOFR"]
+        trend_colors = ["#1565c0", "#e65100", "#1b5e20", "#6a1b9a"]
+        fig_tr = go.Figure()
+        for sname, clr in zip(trend_series, trend_colors):
+            r = rates.get(sname)
+            if not r or not r.get("series"):
+                continue
+            series = r["series"]
+            # Filter to last 365 calendar days
+            cutoff = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+            pts = [o for o in series if o["date"] >= cutoff]
+            if not pts:
+                continue
+            dates  = [o["date"] for o in pts]
+            values = [o["value"] for o in pts]
+            fig_tr.add_trace(go.Scatter(
+                x=dates, y=values, name=sname,
+                mode="lines", line=dict(color=clr, width=2),
+                hovertemplate=f"{sname}: %{{y:.3f}}%<br>%{{x}}<extra></extra>",
+            ))
+        # Shade inverted periods (2Y > 10Y)
+        t10_s = rates.get("10Y Treasury", {}).get("series", [])
+        t2_s  = rates.get("2Y Treasury",  {}).get("series", [])
+        if t10_s and t2_s:
+            t10_d = {o["date"]: o["value"] for o in t10_s}
+            t2_d  = {o["date"]: o["value"] for o in t2_s}
+            cutoff = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+            inv_dates = sorted(d for d in t10_d if d >= cutoff and d in t2_d and t2_d[d] > t10_d[d])
+            if inv_dates:
+                fig_tr.add_vrect(
+                    x0=inv_dates[0], x1=inv_dates[-1],
+                    fillcolor="rgba(183,28,28,0.07)", line_width=0,
+                    annotation_text="Inverted", annotation_position="top left",
+                    annotation_font=dict(color="#b71c1c", size=10),
+                )
+        fig_tr.update_layout(
+            paper_bgcolor="white", plot_bgcolor="white",
+            yaxis=dict(title="Rate (%)", ticksuffix="%", gridcolor="#f0f0f0",
+                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+            xaxis=dict(tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+            legend=dict(orientation="h", y=1.08, font=dict(color="#1a1a1a", size=11)),
+            margin=dict(t=40, b=40), height=380,
+            font=dict(family="Source Sans Pro", color="#1a1a1a"),
+        )
+        st.plotly_chart(fig_tr, use_container_width=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Cap Rate Adjustment Impact ───────────────────────────────────────────
+        section(f"🏗️ Cap Rate Adjustment — Current 10Y ({current_10y:.2f}%) vs. {baseline:.1f}% Baseline")
+        if cap_adj:
+            adj_df = pd.DataFrame(cap_adj)
+            col_bars, col_impact = st.columns([3, 2])
+            with col_bars:
+                pt_labels = [p.split("/")[0].strip() for p in adj_df["Property Type"]]
+                base_caps = adj_df["Baseline Cap Rate"].tolist()
+                adj_caps  = adj_df["Adjusted Cap Rate"].tolist()
+                adj_bps   = adj_df["Rate Adjustment bps"].tolist()
+                bar_colors = ["#b71c1c" if v > 0 else "#1b5e20" for v in adj_bps]
+
+                fig_cap = go.Figure()
+                fig_cap.add_trace(go.Bar(
+                    name="Baseline Cap Rate",
+                    x=pt_labels, y=base_caps,
+                    marker_color="#CFB991",
+                    text=[f"{v:.2f}%" for v in base_caps],
+                    textposition="inside", textfont=dict(color="#1a1a1a", size=10),
+                ))
+                fig_cap.add_trace(go.Bar(
+                    name="Rate-Adjusted Cap Rate",
+                    x=pt_labels, y=adj_caps,
+                    marker_color=bar_colors,
+                    opacity=0.85,
+                    text=[f"{v:.2f}%\n({'+' if d>0 else ''}{d:.0f}bps)" for v, d in zip(adj_caps, adj_bps)],
+                    textposition="outside", textfont=dict(color="#1a1a1a", size=9),
+                ))
+                fig_cap.update_layout(
+                    barmode="group",
+                    paper_bgcolor="white", plot_bgcolor="white",
+                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#f0f0f0",
+                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                    xaxis=dict(tickangle=-20, tickfont=dict(color="#1a1a1a", size=9)),
+                    legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a")),
+                    margin=dict(t=40, b=60), height=360,
+                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                )
+                st.plotly_chart(fig_cap, use_container_width=True)
+                st.caption(
+                    f"Adjustment = (10Y − {baseline:.1f}% baseline) × property-type beta. "
+                    "Red bars = cap rate expansion (values fall). Green bars = compression (values rise)."
+                )
+
+            with col_impact:
+                st.markdown("**Profit Margin Impact by Property Type**")
+                disp_adj = adj_df[["Property Type", "Baseline Cap Rate", "Adjusted Cap Rate",
+                                    "Rate Adjustment bps", "Static Margin %", "Adj Margin %", "Margin Delta bps"]].copy()
+                disp_adj["Property Type"] = disp_adj["Property Type"].str.split("/").str[0].str.strip()
+
+                def _colour_delta(val):
+                    try:
+                        v = float(val)
+                        if v < 0: return "color: #b71c1c"
+                        if v > 0: return "color: #1b5e20"
+                    except: pass
+                    return ""
+
+                styled = disp_adj.style.applymap(_colour_delta, subset=["Margin Delta bps"])
+                st.dataframe(styled, use_container_width=True, hide_index=True, height=290)
+                delta_10y = (current_10y or 0) - baseline
+                direction = "above" if delta_10y > 0 else "below"
+                st.caption(
+                    f"10Y is {abs(delta_10y):.2f}% {direction} the {baseline:.1f}% baseline. "
+                    "Higher cap rates → lower property multiples → compressed effective margins."
+                )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── REIT Refinancing Risk ────────────────────────────────────────────────
+        section("💳 REIT Near-Term Refinancing Risk")
+        if debt_risk:
+            debt_df = pd.DataFrame(debt_risk)
+            risk_colors = {"High": "#b71c1c", "Medium": "#e65100", "Low": "#1b5e20"}
+
+            col_chart, col_tbl2 = st.columns([2, 3])
+            with col_chart:
+                sorted_df = debt_df.sort_values("Risk %", ascending=True).tail(20)
+                bar_clrs  = [risk_colors.get(r, "#888") for r in sorted_df["Risk Level"]]
+                fig_debt  = go.Figure(go.Bar(
+                    x=sorted_df["Risk %"],
+                    y=sorted_df["Ticker"],
+                    orientation="h",
+                    marker_color=bar_clrs,
+                    text=sorted_df["Risk %"].apply(lambda v: f"{v:.1f}%"),
+                    textposition="outside",
+                    customdata=sorted_df[["Name", "Near-Term Debt $B", "Total Debt $B"]].values,
+                    hovertemplate=(
+                        "<b>%{y} — %{customdata[0]}</b><br>"
+                        "Near-term: $%{customdata[1]:.2f}B<br>"
+                        "Total debt: $%{customdata[2]:.2f}B<br>"
+                        "Risk: %{x:.1f}%<extra></extra>"
+                    ),
+                ))
+                fig_debt.update_layout(
+                    paper_bgcolor="white", plot_bgcolor="white",
+                    xaxis=dict(title="Near-Term Debt / Total Debt (%)", ticksuffix="%",
+                               gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
+                               title_font=dict(color="#1a1a1a")),
+                    yaxis=dict(tickfont=dict(color="#1a1a1a", size=9)),
+                    margin=dict(t=20, b=40, l=60, r=60), height=460,
+                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                )
+                fig_debt.add_vline(x=25, line_dash="dash", line_color="#b71c1c",
+                                    annotation_text="High risk threshold",
+                                    annotation_font=dict(color="#b71c1c", size=9))
+                fig_debt.add_vline(x=10, line_dash="dot", line_color="#e65100",
+                                    annotation_text="Med threshold",
+                                    annotation_font=dict(color="#e65100", size=9))
+                st.plotly_chart(fig_debt, use_container_width=True)
+
+            with col_tbl2:
+                def _risk_style(val):
+                    return {"High": "color:#b71c1c;font-weight:700",
+                            "Medium": "color:#e65100;font-weight:600",
+                            "Low": "color:#1b5e20"}.get(val, "")
+                styled_debt = debt_df.style.applymap(_risk_style, subset=["Risk Level"])
+                st.dataframe(styled_debt, use_container_width=True, hide_index=True, height=460)
+
+            high_risk = debt_df[debt_df["Risk Level"] == "High"]
+            if not high_risk.empty:
+                names = ", ".join(high_risk["Ticker"].tolist())
+                st.warning(
+                    f"⚠️ **High refinancing risk:** {names} — these REITs have ≥25% of debt maturing "
+                    f"within 12 months. Elevated 10Y rates ({current_10y:.2f}%) increase rollover costs."
+                )
+            else:
+                st.success("✅ No REITs with high near-term refinancing risk detected.")
+
+            st.caption(
+                "Near-term debt = current portion of long-term debt from latest quarterly balance sheet (yfinance). "
+                "Risk % = near-term / total debt. High ≥ 25%, Medium 10–25%, Low < 10%."
+            )
+        else:
+            st.info("REIT debt data not yet available. The agent will populate this on its next run.")
+
+        # ── Rate-Adjusted Pricing Note ───────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        if cap_adj and current_10y:
+            delta = current_10y - baseline
+            direction_word = "above" if delta > 0 else "below"
+            impact_word    = "expanding cap rates" if delta > 0 else "compressing cap rates"
+            st.info(
+                f"💡 **Impact on Pricing & Profit tab:** With 10Y at **{current_10y:.2f}%** "
+                f"({abs(delta):.2f}% {direction_word} the {baseline:.1f}% static benchmark), "
+                f"rates are currently **{impact_word}** across all property types. "
+                f"The adjustments above are applied in the rate-adjusted view on the Pricing & Profit tab."
+            )
+
+        st.caption(
+            "Data: Federal Reserve Bank of St. Louis (FRED). "
+            "Cap rate adjustment model: adjusted = benchmark + (10Y − baseline) × sector beta. "
+            "This is research, not financial advice."
+        )
+
 
     # ═══════════════════════════════════════════════════════════════════════════════
     #  TAB 3 — COMPANY PREDICTIONS
@@ -827,9 +1239,10 @@ with main_tab:
             "predictions": ("Agent 3", "Company Predictions",    "Every 24h"),
             "debugger":    ("Agent 4", "Debugger / Monitor",     "Every 30min"),
             "news":        ("Agent 5", "Industry Announcements", "Every 4h"),
+            "rates":       ("Agent 6", "Interest Rate & Debt",   "Every 1h"),
         }
 
-        cols = st.columns(5)
+        cols = st.columns(6)
         for col, (agent_key, (num, name, freq)) in zip(cols, agent_labels.items()):
             s = status.get(agent_key, {})
             st_val = s.get("status", "idle")
@@ -856,8 +1269,9 @@ with main_tab:
             ("predictions", "Every 24h",  25),
             ("debugger",    "Every 30min", 1),
             ("news",        "Every 4h",   5),
+            ("rates",       "Every 1h",   2),
         ]
-        c_cols = st.columns(5)
+        c_cols = st.columns(6)
         for col, (key, freq, max_h) in zip(c_cols, cache_keys):
             c = read_cache(key)
             age_label = cache_age_label(key)
@@ -920,7 +1334,7 @@ with main_tab:
         st.markdown("<br>", unsafe_allow_html=True)
         section("⚡ Manual Agent Triggers")
         st.markdown("Force any agent to run immediately (runs in background — data appears after ~15-30s refresh):")
-        b1, b2, b3, b4, b5 = st.columns(5)
+        b1, b2, b3, b4, b5, b6 = st.columns(6)
         with b1:
             if st.button("🗺️ Run Migration Agent"):
                 force_run("migration")
@@ -941,6 +1355,10 @@ with main_tab:
             if st.button("📰 Run News Agent"):
                 force_run("news")
                 st.toast("News agent triggered (takes ~20s)", icon="📰")
+        with b6:
+            if st.button("📈 Run Rate Agent"):
+                force_run("rates")
+                st.toast("Rate agent triggered (takes ~30s)", icon="📈")
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.caption(
