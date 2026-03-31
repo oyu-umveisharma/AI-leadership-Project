@@ -1,0 +1,65 @@
+{
+  "agent_name": "sustainability_analyst",
+  "timestamp": "2026-03-31T10:37:26.254707",
+  "signals": {
+    "esg_momentum_signal": "STRONG"
+  },
+  "data": {
+    "clean_energy": [
+      {
+        "ticker": "ICLN",
+        "label": "Global Clean Energy (ICLN)",
+        "latest_price": 17.82,
+        "period_return_pct": 15.98,
+        "sma_60": 18.22,
+        "pct_above_sma": -2.22
+      },
+      {
+        "ticker": "TAN",
+        "label": "Solar (TAN)",
+        "latest_price": 53.73,
+        "period_return_pct": 23.15,
+        "sma_60": 55.37,
+        "pct_above_sma": -2.96
+      },
+      {
+        "ticker": "QCLN",
+        "label": "Clean Tech (QCLN)",
+        "latest_price": 45.15,
+        "period_return_pct": 7.71,
+        "sma_60": 48.73,
+        "pct_above_sma": -7.35
+      }
+    ],
+    "green_reits": [
+      {
+        "ticker": "PLD",
+        "label": "Prologis (PLD)",
+        "latest_price": 131.04,
+        "period_return_pct": 16.24,
+        "sma_60": 132.81,
+        "pct_above_sma": -1.33
+      },
+      {
+        "ticker": "EQIX",
+        "label": "Equinix (EQIX)",
+        "latest_price": 972.59,
+        "period_return_pct": 25.61,
+        "sma_60": 888.36,
+        "pct_above_sma": 9.48
+      },
+      {
+        "ticker": "ARE",
+        "label": "Alexandria Real Estate (ARE)",
+        "latest_price": 46.76,
+        "period_return_pct": -43.06,
+        "sma_60": 52.82,
+        "pct_above_sma": -11.46
+      }
+    ],
+    "benchmark_return_pct": -3.2,
+    "esg_momentum_signal": "STRONG",
+    "avg_clean_energy_return_pct": 15.61,
+    "trading_days_analysed": 126
+  }
+}

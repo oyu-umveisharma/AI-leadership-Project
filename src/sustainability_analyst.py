@@ -48,9 +48,16 @@ LOOKBACK = "6mo"
 SMA_WINDOW = 60
 
 
-def _write_cache(data: dict):
-    """Write sustainability data to cache with timestamp envelope."""
-    payload = {"updated_at": datetime.now().isoformat(), "data": data}
+def _write_cache(data: dict, signal: str):
+    """Write sustainability data to cache in Chief-of-Staff-compatible format."""
+    payload = {
+        "agent_name": "sustainability_analyst",
+        "timestamp": datetime.now().isoformat(),
+        "signals": {
+            "esg_momentum_signal": signal,
+        },
+        "data": data,
+    }
     with open(CACHE_DIR / "sustainability_data.json", "w") as f:
         json.dump(payload, f, default=str, indent=2)
 
@@ -165,7 +172,7 @@ def run_sustainability_analyst():
         "trading_days_analysed": max(len(clean_df), len(reit_df)),
     }
 
-    _write_cache(data)
+    _write_cache(data, signal)
     print(f"[Sustainability Analyst] Results saved to cache/sustainability_data.json")
     print("=" * 60)
     return data

@@ -2,13 +2,15 @@
 Commercial Real Estate Intelligence Platform
 Purdue MSF | Group AI Project
 
-Six background agents update independently on schedules:
+Eight background agents update independently on schedules:
   Agent 1 — Population & Migration    (every 6h)
   Agent 2 — CRE Pricing & Profit      (every 1h)
   Agent 3 — Company Predictions       (every 24h, LLM)
   Agent 4 — Debugger / Monitor        (every 30min)
   Agent 5 — News & Announcements      (every 4h)
   Agent 6 — Interest Rate & Debt      (every 1h, requires FRED_API_KEY)
+  Agent 7 — Energy & Construction     (every 6h)
+  Agent 8 — Sustainability & ESG      (every 6h)
 
 Run: streamlit run app/cre_app.py
 """
@@ -22,6 +24,14 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
+
+# ── Page config MUST be first Streamlit command ──────────────────────────────
+st.set_page_config(
+    page_title="CRE Intelligence | Purdue MSF",
+    page_icon="🏢",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 # ── Start background agents ──────────────────────────────────────────────────
 from src.cre_agents import (
@@ -40,13 +50,6 @@ _init_scheduler()
 GOLD      = "#CFB991"
 GOLD_DARK = "#8E6F3E"
 BLACK     = "#000000"
-
-st.set_page_config(
-    page_title="CRE Intelligence | Purdue MSF",
-    page_icon="🏢",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
 
 st.markdown(f"""
 <style>
@@ -246,13 +249,15 @@ st.markdown(f"""
 (main_tab,) = st.tabs(["🏢  Real Estate"])
 
 with main_tab:
-    tab1, tab2, tab_rates, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab_rates, tab3, tab4, tab5, tab_energy, tab_esg, tab6 = st.tabs([
         "🗺️  Migration Intelligence",
         "💰  Pricing & Profit",
         "📈  Rate Environment",
         "🔮  Company Predictions",
         "🏗️  Cheapest Buildings",
         "📰  Industry Announcements",
+        "🛢️  Energy & Construction Costs",
+        "🌱  Sustainability & ESG",
         "🛠️  System Monitor",
     ])
 
@@ -1216,6 +1221,213 @@ with main_tab:
         )
 
 
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — ENERGY & CONSTRUCTION COSTS
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_energy:
+        st.markdown("#### How are energy and material costs affecting CRE construction?")
+        st.markdown(
+            "Agent 6 tracks **oil, natural gas, copper, and steel** prices to derive a "
+            "**Construction Cost Signal** that indicates whether building costs are rising or easing. Updates every 6 hours."
+        )
+        agent_force_button("energy", "Energy Agent")
+
+        cache_e = read_cache("energy_data")
+        if cache_e["data"] is None:
+            st.warning("⏳ Energy agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+            st.stop()
+        age_e = cache_age_label("energy_data")
+        st.caption(f"🔄 Last updated: {age_e} · Auto-refreshes in background")
+
+        edata = cache_e["data"]
+        commodities = edata.get("commodities", [])
+        cost_signal = edata.get("construction_cost_signal", "UNKNOWN")
+        avg_momentum = edata.get("avg_momentum_pct", 0)
+
+        # ── KPI strip ──────────────────────────────────────────────────────────
+        signal_color = {"HIGH": "🔴", "MODERATE": "🟡", "LOW": "🟢"}.get(cost_signal, "⚪")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.markdown(metric_card("Construction Cost Signal", f"{signal_color} {cost_signal}",
+                                 "Based on commodity momentum"), unsafe_allow_html=True)
+        c2.markdown(metric_card("Avg Momentum", f"{avg_momentum:+.1f}%",
+                                 "vs 60-day SMA"), unsafe_allow_html=True)
+        c3.markdown(metric_card("Commodities Tracked", str(len(commodities)),
+                                 "Oil, Gas, Copper, Steel, Energy"), unsafe_allow_html=True)
+        c4.markdown(metric_card("Trading Days", str(edata.get("trading_days_analysed", 0)),
+                                 "6-month lookback"), unsafe_allow_html=True)
+
+        # ── Commodity Price Table ──────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section("📊 Commodity Prices vs 60-Day Moving Average")
+
+        if commodities:
+            comm_df = pd.DataFrame(commodities)
+
+            # Bar chart — % above/below SMA
+            colors_comm = [GOLD if p >= 0 else "#c62828" for p in comm_df["pct_above_sma"]]
+            fig_comm = go.Figure(go.Bar(
+                x=comm_df["label"], y=comm_df["pct_above_sma"],
+                marker_color=colors_comm,
+                text=comm_df["pct_above_sma"].apply(lambda x: f"{x:+.1f}%"),
+                textposition="outside",
+                customdata=comm_df[["latest_price", "sma_60"]].values,
+                hovertemplate=(
+                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
+                    "SMA-60: $%{customdata[1]:.2f}<br>"
+                    "vs SMA: %{y:+.1f}%<extra></extra>"
+                ),
+            ))
+            fig_comm.update_layout(
+                plot_bgcolor="white", paper_bgcolor="white",
+                yaxis_title="% Above/Below SMA-60",
+                yaxis=dict(gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                margin=dict(t=30, b=30), height=320,
+                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            )
+            st.plotly_chart(fig_comm, use_container_width=True)
+
+            # Detail table
+            section("📋 Commodity Detail")
+            disp_comm = comm_df[["label", "latest_price", "sma_60", "pct_above_sma"]].copy()
+            disp_comm.columns = ["Commodity", "Latest Price", "SMA-60", "% vs SMA"]
+            disp_comm["Latest Price"] = disp_comm["Latest Price"].apply(lambda x: f"${x:.2f}")
+            disp_comm["SMA-60"] = disp_comm["SMA-60"].apply(lambda x: f"${x:.2f}")
+            disp_comm["% vs SMA"] = disp_comm["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
+            st.dataframe(disp_comm, use_container_width=True, hide_index=True)
+
+        st.caption(
+            "Data sourced from Yahoo Finance (USO, UNG, XLE, CPER, SLX). "
+            "Construction Cost Signal: HIGH (>+5%), MODERATE (±5%), LOW (<−5%) based on avg momentum vs 60-day SMA."
+        )
+
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — SUSTAINABILITY & ESG
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_esg:
+        st.markdown("#### Is green capital flowing into real estate?")
+        st.markdown(
+            "Agent 7 monitors **clean-energy ETFs** and **green REITs** to gauge ESG momentum "
+            "relative to the broad market (SPY). Updates every 6 hours."
+        )
+        agent_force_button("sustainability", "Sustainability Agent")
+
+        cache_s = read_cache("sustainability_data")
+        if cache_s["data"] is None:
+            st.warning("⏳ Sustainability agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+            st.stop()
+        age_s = cache_age_label("sustainability_data")
+        st.caption(f"🔄 Last updated: {age_s} · Auto-refreshes in background")
+
+        sdata = cache_s["data"]
+        clean_energy = sdata.get("clean_energy", [])
+        green_reits = sdata.get("green_reits", [])
+        esg_signal = sdata.get("esg_momentum_signal", "UNKNOWN")
+        bench_ret = sdata.get("benchmark_return_pct", 0)
+        avg_clean_ret = sdata.get("avg_clean_energy_return_pct", 0)
+
+        # ── KPI strip ──────────────────────────────────────────────────────────
+        esg_icon = {"STRONG": "🟢", "NEUTRAL": "🟡", "WEAK": "🔴"}.get(esg_signal, "⚪")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.markdown(metric_card("ESG Momentum Signal", f"{esg_icon} {esg_signal}",
+                                 "Clean energy vs SPY"), unsafe_allow_html=True)
+        c2.markdown(metric_card("Clean Energy Avg Return", f"{avg_clean_ret:+.1f}%",
+                                 "6-month trailing"), unsafe_allow_html=True)
+        c3.markdown(metric_card("SPY Benchmark Return", f"{bench_ret:+.1f}%",
+                                 "6-month trailing"), unsafe_allow_html=True)
+        spread = (avg_clean_ret or 0) - (bench_ret or 0)
+        c4.markdown(metric_card("Spread vs Market", f"{spread:+.1f} pp",
+                                 "Positive = outperforming"), unsafe_allow_html=True)
+
+        # ── Clean Energy ETFs ──────────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section("⚡ Clean Energy ETF Performance (ICLN, TAN, QCLN)")
+
+        if clean_energy:
+            ce_df = pd.DataFrame(clean_energy)
+            fig_ce = go.Figure()
+            colors_ce = [GOLD if r >= 0 else "#c62828" for r in ce_df["period_return_pct"]]
+            fig_ce.add_trace(go.Bar(
+                x=ce_df["label"], y=ce_df["period_return_pct"],
+                marker_color=colors_ce,
+                text=ce_df["period_return_pct"].apply(lambda x: f"{x:+.1f}%"),
+                textposition="outside",
+                name="6mo Return",
+                customdata=ce_df[["latest_price", "sma_60", "pct_above_sma"]].values,
+                hovertemplate=(
+                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
+                    "6mo Return: %{y:+.1f}%<br>"
+                    "vs SMA-60: %{customdata[2]:+.1f}%<extra></extra>"
+                ),
+            ))
+            # Add SPY benchmark line
+            fig_ce.add_hline(y=bench_ret, line_dash="dash", line_color=BLACK,
+                             annotation_text=f"SPY: {bench_ret:+.1f}%",
+                             annotation_position="top right")
+            fig_ce.update_layout(
+                plot_bgcolor="white", paper_bgcolor="white",
+                yaxis_title="6-Month Return (%)",
+                yaxis=dict(gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                margin=dict(t=30, b=30), height=320,
+                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            )
+            st.plotly_chart(fig_ce, use_container_width=True)
+
+        # ── Green REITs ────────────────────────────────────────────────────────
+        section("🏢 Green REIT Performance (PLD, EQIX, ARE)")
+
+        if green_reits:
+            gr_df = pd.DataFrame(green_reits)
+            colors_gr = [GOLD if r >= 0 else "#c62828" for r in gr_df["period_return_pct"]]
+            fig_gr = go.Figure(go.Bar(
+                x=gr_df["label"], y=gr_df["period_return_pct"],
+                marker_color=colors_gr,
+                text=gr_df["period_return_pct"].apply(lambda x: f"{x:+.1f}%"),
+                textposition="outside",
+                customdata=gr_df[["latest_price", "sma_60", "pct_above_sma"]].values,
+                hovertemplate=(
+                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
+                    "6mo Return: %{y:+.1f}%<br>"
+                    "vs SMA-60: %{customdata[2]:+.1f}%<extra></extra>"
+                ),
+            ))
+            fig_gr.add_hline(y=bench_ret, line_dash="dash", line_color=BLACK,
+                             annotation_text=f"SPY: {bench_ret:+.1f}%",
+                             annotation_position="top right")
+            fig_gr.update_layout(
+                plot_bgcolor="white", paper_bgcolor="white",
+                yaxis_title="6-Month Return (%)",
+                yaxis=dict(gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                margin=dict(t=30, b=30), height=320,
+                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            )
+            st.plotly_chart(fig_gr, use_container_width=True)
+
+        # ── Combined Detail Table ──────────────────────────────────────────────
+        section("📋 Full Detail — Clean Energy & Green REITs")
+        all_esg = clean_energy + green_reits
+        if all_esg:
+            esg_df = pd.DataFrame(all_esg)
+            disp_esg = esg_df[["label", "latest_price", "period_return_pct", "sma_60", "pct_above_sma"]].copy()
+            disp_esg.columns = ["Security", "Price", "6mo Return", "SMA-60", "% vs SMA"]
+            disp_esg["Price"] = disp_esg["Price"].apply(lambda x: f"${x:.2f}")
+            disp_esg["6mo Return"] = disp_esg["6mo Return"].apply(lambda x: f"{x:+.1f}%")
+            disp_esg["SMA-60"] = disp_esg["SMA-60"].apply(lambda x: f"${x:.2f}")
+            disp_esg["% vs SMA"] = disp_esg["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
+            st.dataframe(disp_esg, use_container_width=True, hide_index=True)
+
+        st.caption(
+            "Data sourced from Yahoo Finance. ESG Momentum Signal: STRONG (clean energy outperforms SPY by >2pp), "
+            "NEUTRAL (±2pp), WEAK (underperforms by >2pp). Green REITs: Prologis (LEED), Equinix (renewables), Alexandria (carbon-neutral)."
+        )
+
+
     with tab6:
         st.markdown("#### Background Agent Monitor — Agent 4 runs every 30 minutes")
         st.markdown(
@@ -1234,15 +1446,17 @@ with main_tab:
         status = get_status()
 
         agent_labels = {
-            "migration":   ("Agent 1", "Population & Migration", "Every 6h"),
-            "pricing":     ("Agent 2", "REIT Pricing",           "Every 1h"),
-            "predictions": ("Agent 3", "Company Predictions",    "Every 24h"),
-            "debugger":    ("Agent 4", "Debugger / Monitor",     "Every 30min"),
-            "news":        ("Agent 5", "Industry Announcements", "Every 4h"),
-            "rates":       ("Agent 6", "Interest Rate & Debt",   "Every 1h"),
+            "migration":      ("Agent 1", "Population & Migration", "Every 6h"),
+            "pricing":        ("Agent 2", "REIT Pricing",           "Every 1h"),
+            "predictions":    ("Agent 3", "Company Predictions",    "Every 24h"),
+            "debugger":       ("Agent 4", "Debugger / Monitor",     "Every 30min"),
+            "news":           ("Agent 5", "Industry Announcements", "Every 4h"),
+            "rates":          ("Agent 6", "Interest Rate & Debt",   "Every 1h"),
+            "energy":         ("Agent 7", "Energy & Construction",  "Every 6h"),
+            "sustainability": ("Agent 8", "Sustainability & ESG",   "Every 6h"),
         }
 
-        cols = st.columns(6)
+        cols = st.columns(len(agent_labels))
         for col, (agent_key, (num, name, freq)) in zip(cols, agent_labels.items()):
             s = status.get(agent_key, {})
             st_val = s.get("status", "idle")
@@ -1264,14 +1478,16 @@ with main_tab:
         st.markdown("<br>", unsafe_allow_html=True)
         section("📦 Cache Status")
         cache_keys = [
-            ("migration",   "Every 6h",   7),
-            ("pricing",     "Every 1h",   2),
-            ("predictions", "Every 24h",  25),
-            ("debugger",    "Every 30min", 1),
-            ("news",        "Every 4h",   5),
-            ("rates",       "Every 1h",   2),
+            ("migration",           "Every 6h",    7),
+            ("pricing",             "Every 1h",    2),
+            ("predictions",         "Every 24h",   25),
+            ("debugger",            "Every 30min", 1),
+            ("news",                "Every 4h",    5),
+            ("rates",               "Every 1h",    2),
+            ("energy_data",         "Every 6h",    7),
+            ("sustainability_data", "Every 6h",    7),
         ]
-        c_cols = st.columns(6)
+        c_cols = st.columns(len(cache_keys))
         for col, (key, freq, max_h) in zip(c_cols, cache_keys):
             c = read_cache(key)
             age_label = cache_age_label(key)
@@ -1334,7 +1550,7 @@ with main_tab:
         st.markdown("<br>", unsafe_allow_html=True)
         section("⚡ Manual Agent Triggers")
         st.markdown("Force any agent to run immediately (runs in background — data appears after ~15-30s refresh):")
-        b1, b2, b3, b4, b5, b6 = st.columns(6)
+        b1, b2, b3, b4, b5, b6, b7, b8 = st.columns(8)
         with b1:
             if st.button("🗺️ Run Migration Agent"):
                 force_run("migration")
@@ -1359,6 +1575,14 @@ with main_tab:
             if st.button("📈 Run Rate Agent"):
                 force_run("rates")
                 st.toast("Rate agent triggered (takes ~30s)", icon="📈")
+        with b7:
+            if st.button("🛢️ Run Energy Agent"):
+                force_run("energy")
+                st.toast("Energy agent triggered", icon="🛢️")
+        with b8:
+            if st.button("🌱 Run Sustainability Agent"):
+                force_run("sustainability")
+                st.toast("Sustainability agent triggered", icon="🌱")
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.caption(

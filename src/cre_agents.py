@@ -1,5 +1,5 @@
 """
-Background Agent Runner — six independent agents updating on schedules.
+Background Agent Runner — eight independent agents updating on schedules.
 
 Agent 1 · Migration Tracker    — every 6 hours
 Agent 2 · REIT Pricing          — every 1 hour
@@ -7,6 +7,8 @@ Agent 3 · Company Predictions   — every 24 hours (LLM)
 Agent 4 · Debugger / Monitor    — every 30 minutes
 Agent 5 · News & Announcements  — every 4 hours
 Agent 6 · Interest Rate & Debt  — every 1 hour  (requires FRED_API_KEY)
+Agent 7 · Energy & Construction — every 6 hours
+Agent 8 · Sustainability & ESG  — every 6 hours
 
 Uses APScheduler + file-based JSON cache so results survive Streamlit reruns.
 """
@@ -44,7 +46,12 @@ def read_cache(key: str) -> dict:
     try:
         with open(p) as f:
             payload = json.load(f)
-        updated = datetime.fromisoformat(payload["updated_at"])
+        # Support both old format (updated_at) and Chief-of-Staff format (timestamp)
+        ts = payload.get("updated_at") or payload.get("timestamp")
+        if not ts:
+            return {"updated_at": None, "data": None, "stale": True}
+        updated = datetime.fromisoformat(ts)
+        payload["updated_at"] = ts
         age_hours = (datetime.now() - updated).total_seconds() / 3600
         payload["stale"] = age_hours > 25
         payload["age_minutes"] = round((datetime.now() - updated).total_seconds() / 60, 1)
@@ -68,12 +75,14 @@ def cache_age_label(key: str) -> str:
 
 _status_lock = threading.Lock()
 _agent_status = {
-    "migration":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "pricing":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "predictions":  {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "debugger":     {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "news":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "rates":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "migration":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "pricing":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "predictions":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "debugger":       {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "news":           {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "rates":          {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "energy":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "sustainability": {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
 def get_status() -> dict:
@@ -236,7 +245,7 @@ def run_debugger_agent():
         healthy = []
 
         # Check each cache
-        for key, max_age_h in [("migration", 7), ("pricing", 2), ("predictions", 25)]:
+        for key, max_age_h in [("migration", 7), ("pricing", 2), ("predictions", 25), ("energy_data", 7), ("sustainability_data", 7)]:
             c = read_cache(key)
             if c["data"] is None:
                 issues.append(f"❌ {key}: no data in cache — agent has not run yet")
@@ -316,6 +325,30 @@ def run_news_agent():
         _set_status("news", "error", str(e))
 
 
+# ── Agent 6 · Energy & Construction Costs ────────────────────────────────────
+
+def run_energy_agent():
+    _set_status("energy", "running")
+    try:
+        from src.energy_analyst import run_energy_analyst
+        run_energy_analyst()
+        _set_status("energy", "ok")
+    except Exception as e:
+        _set_status("energy", "error", str(e))
+
+
+# ── Agent 7 · Sustainability & ESG ──────────────────────────────────────────
+
+def run_sustainability_agent():
+    _set_status("sustainability", "running")
+    try:
+        from src.sustainability_analyst import run_sustainability_analyst
+        run_sustainability_analyst()
+        _set_status("sustainability", "ok")
+    except Exception as e:
+        _set_status("sustainability", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -336,11 +369,13 @@ def start_scheduler():
         _scheduler.add_job(run_debugger_agent,     IntervalTrigger(minutes=30),     id="debugger",    replace_existing=True)
         _scheduler.add_job(run_news_agent,         IntervalTrigger(hours=4),        id="news",        replace_existing=True)
         _scheduler.add_job(run_rate_agent,         IntervalTrigger(hours=1),        id="rates",       replace_existing=True)
+        _scheduler.add_job(run_energy_agent,       IntervalTrigger(hours=6),        id="energy",      replace_existing=True)
+        _scheduler.add_job(run_sustainability_agent, IntervalTrigger(hours=6),      id="sustainability", replace_existing=True)
 
         _scheduler.start()
 
         # Run all agents immediately on first start (in background threads)
-        for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent, run_news_agent, run_rate_agent]:
+        for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent, run_news_agent, run_rate_agent, run_energy_agent, run_sustainability_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -348,12 +383,14 @@ def start_scheduler():
 def force_run(agent_name: str):
     """Manually trigger a specific agent immediately."""
     agents = {
-        "migration":   run_migration_agent,
-        "pricing":     run_pricing_agent,
-        "predictions": run_predictions_agent,
-        "debugger":    run_debugger_agent,
-        "news":        run_news_agent,
-        "rates":       run_rate_agent,
+        "migration":      run_migration_agent,
+        "pricing":        run_pricing_agent,
+        "predictions":    run_predictions_agent,
+        "debugger":       run_debugger_agent,
+        "news":           run_news_agent,
+        "rates":          run_rate_agent,
+        "energy":         run_energy_agent,
+        "sustainability": run_sustainability_agent,
     }
     fn = agents.get(agent_name)
     if fn:

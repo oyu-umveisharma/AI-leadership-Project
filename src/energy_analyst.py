@@ -39,9 +39,16 @@ LOOKBACK = "6mo"
 SMA_WINDOW = 60  # trading days for the moving average baseline
 
 
-def _write_cache(data: dict):
-    """Write energy data to cache with timestamp envelope."""
-    payload = {"updated_at": datetime.now().isoformat(), "data": data}
+def _write_cache(data: dict, signal: str):
+    """Write energy data to cache in Chief-of-Staff-compatible format."""
+    payload = {
+        "agent_name": "energy_analyst",
+        "timestamp": datetime.now().isoformat(),
+        "signals": {
+            "construction_cost_signal": signal,
+        },
+        "data": data,
+    }
     with open(CACHE_DIR / "energy_data.json", "w") as f:
         json.dump(payload, f, default=str, indent=2)
 
@@ -131,7 +138,7 @@ def run_energy_analyst():
         "trading_days_analysed": len(df),
     }
 
-    _write_cache(data)
+    _write_cache(data, signal)
     print(f"[Energy Analyst] Results saved to cache/energy_data.json")
     print("=" * 60)
     return data
