@@ -1,32 +1,57 @@
 # CRE Intelligence Platform
 **MGMT 690 AI Leadership Project | Purdue Daniels School of Business**
 
-A professional Streamlit application that provides **real-time Commercial Real Estate intelligence** powered by six independent AI agents running in the background.
+A professional Streamlit application that provides **real-time Commercial Real Estate intelligence** powered by eight independent AI agents running in the background.
 
-## What It Does
+## 🤖 AI Workforce Architecture
 
-Six background agents update automatically on schedules:
+This platform operates under a **Human-in-Command model** with 8 specialized AI agents:
 
-| Agent | Description | Frequency |
-|-------|-------------|-----------|
-| **Agent 1 · Migration** | US state population growth + corporate HQ relocations (Census API) | Every 6h |
-| **Agent 2 · Pricing** | Live REIT prices, cap rates, NOI margins, profit rankings (yfinance) | Every 1h |
-| **Agent 3 · Predictions** | LLM-predicted company relocations + cheapest buildings in top 3 cities | Every 24h |
-| **Agent 4 · Debugger** | Health checks: APIs, cache freshness, connectivity | Every 30min |
-| **Agent 5 · News** | CRE industry news, facility announcements, corporate expansions | Every 4h |
-| **Agent 6 · Rate Environment** | Interest rates, yield curve, cap rate adjustments, REIT debt risk (FRED API) | Every 1h |
+| Agent | Role | Frequency | Output |
+|-------|------|-----------|--------|
+| 🏃 Migration Analyst | Population flows, corporate relocations | Every 6h | `migration.json` |
+| 💰 REIT Analyst | Live pricing, cap rates, NOI margins | Every 1h | `pricing.json` |
+| 🔮 Macro Strategist | LLM-powered company relocation predictions | Every 24h | `predictions.json` |
+| 🛠️ System Monitor | Health checks, API status | Every 30min | `debugger.json` |
+| 📰 Market Intelligence | News & government facility tracking | Every 4h | `news.json` |
+| 📈 Rate Environment | Interest rates, yield curve, cap rate adjustments, REIT debt risk (FRED) | Every 1h | `rates.json` |
+| 🛢️ Energy Analyst | Oil, gas, copper, steel → construction costs | Every 6h | `energy_data.json` |
+| 🌱 Sustainability Analyst | Clean energy ETFs, green REITs → ESG momentum | Every 6h | `sustainability_data.json` |
+
+```
+                    ┌─────────────────────┐
+                    │   HUMAN COMMANDER   │
+                    │  (Review & Approve) │
+                    └────────┬────────────┘
+                             │
+       ┌─────────────┬──────┴──────┬─────────────┐
+       │             │             │             │
+ ┌─────┴─────┐ ┌────┴────┐ ┌─────┴─────┐ ┌─────┴─────┐
+ │ Migration │ │  REIT   │ │  Macro    │ │   Rate    │
+ │  Analyst  │ │ Analyst │ │Strategist │ │Environment│
+ └───────────┘ └─────────┘ └───────────┘ └───────────┘
+       │             │             │             │
+ ┌─────┴─────┐ ┌────┴────┐ ┌─────┴─────┐ ┌─────┴─────┐
+ │  System   │ │ Market  │ │  Energy   │ │Sustainab. │
+ │  Monitor  │ │  Intel  │ │ Analyst   │ │  Analyst  │
+ └───────────┘ └─────────┘ └───────────┘ └───────────┘
+```
+
+**Human-in-Command Protocol:** All agent outputs are reviewed by the human commander. Nothing reaches users without explicit approval.
 
 ## Dashboard Tabs
 
 | Tab | Content |
 |-----|---------|
-| **Migration Intelligence** | Choropleth map, migration scores, metro rankings, bubble chart |
-| **Pricing & Profit** | Live REIT prices, heatmap of margin by market × property type, top 10 opportunities |
-| **Rate Environment** | Fed Funds/Treasury rates, yield curve, cap rate adjustments by property type, REIT refinancing risk |
-| **Company Predictions** | AI-generated corporate relocation forecast (Llama 3.3-70B via Groq) |
-| **Cheapest Buildings** | Lowest-price commercial listings in the top 3 migration destination states |
-| **Industry Announcements** | Latest CRE news and facility announcements |
-| **System Monitor** | Agent status, cache health, force-run controls, API health checks |
+| **🗺️ Migration Intelligence** | Choropleth map, migration scores, metro rankings, bubble chart |
+| **💰 Pricing & Profit** | Live REIT prices, heatmap of margin by market × property type, top 10 opportunities |
+| **📈 Rate Environment** | Fed Funds/Treasury rates, yield curve, cap rate adjustments by property type, REIT refinancing risk |
+| **🔮 Company Predictions** | AI-generated corporate relocation forecast (Llama 3.3-70B via Groq) |
+| **🏗️ Cheapest Buildings** | Lowest-price commercial listings in the top 3 migration destination states |
+| **📰 Industry Announcements** | News & government facility announcements from 10+ sources |
+| **🛢️ Energy & Construction Costs** | Oil, gas, copper, steel prices; Construction Cost Signal (HIGH/MODERATE/LOW) |
+| **🌱 Sustainability & ESG** | Clean energy ETF performance, green REITs, ESG Momentum Signal (STRONG/NEUTRAL/WEAK) |
+| **🛠️ System Monitor** | Agent status, cache health, force-run controls, API health checks |
 
 ## Setup
 
@@ -50,7 +75,7 @@ streamlit run app/cre_app.py
 - **UI**: Streamlit (Purdue gold/black branding)
 - **Background Agents**: APScheduler (BackgroundScheduler)
 - **Cache**: File-based JSON (`/cache/*.json`) — survives Streamlit reruns
-- **Market Data**: yfinance (live REIT prices, dividends, market cap)
+- **Market Data**: yfinance (live REIT prices, dividends, market cap, commodities, ETFs)
 - **Population Data**: US Census Bureau Population Estimates API
 - **Interest Rate Data**: FRED API (10 series: Treasuries, SOFR, Fed Funds, mortgage rates, credit spreads)
 - **AI Predictions**: Groq API (llama-3.3-70b-versatile)
