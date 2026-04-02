@@ -168,9 +168,34 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Header banner ────────────────────────────────────────────────────────────
-import os as _os
+import os as _os, base64 as _b64
 _banner = _os.path.join(_os.path.dirname(__file__), "assets", "header_banner.png")
-st.image(_banner, use_container_width=True)
+with open(_banner, "rb") as _f:
+    _b64str = _b64.b64encode(_f.read()).decode()
+
+# Display original image (preserves building icon + Purdue P speedmark).
+# A solid overlay covers only the broken-text zone (right half, lower rows)
+# and correct text is layered on top using vw-based font sizes so it scales.
+st.markdown(f"""
+<div style="position:relative; width:100%; line-height:0; margin-bottom:6px;">
+  <img src="data:image/png;base64,{_b64str}" style="width:100%; display:block;" />
+
+  <!-- Cover the broken text zone: left=63%, top=43%, width=34%, height=46% -->
+  <div style="position:absolute; left:63%; top:43%; width:34%; height:46%;
+              background:rgb(22,22,25);"></div>
+
+  <!-- Correct text, right-aligned inside the covered zone -->
+  <div style="position:absolute; right:3.5%; top:44%; width:33%;
+              text-align:right; font-family:Arial,sans-serif; line-height:1.25;">
+    <div style="color:#CFB991; font-size:2.5vw; font-weight:700;">
+      Purdue University
+    </div>
+    <div style="color:#e8dfc4; font-size:1.6vw; margin-top:0.3vw;">
+      Daniels School of Business
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def section(title):
