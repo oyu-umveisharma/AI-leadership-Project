@@ -58,60 +58,60 @@ st.markdown(f"""
   html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; }}
 
   /* push content flush to top so banner starts at the very top */
-  .block-container { padding-top: 0 !important; }
-  section[data-testid="stAppViewContainer"] > div:first-child { padding-top: 0 !important; }
+  .block-container {{ padding-top: 0 !important; }}
+  section[data-testid="stAppViewContainer"] > div:first-child {{ padding-top: 0 !important; }}
 
   /* ── Dark intelligence dashboard theme ── */
-  .stApp, [data-testid="stAppViewContainer"], .main, .block-container {
+  .stApp, [data-testid="stAppViewContainer"], .main, .block-container {{
     background-color: #0f0f0c !important;
     color: #e8dfc4 !important;
-  }
-  p, li, span, label, div { color: #e8dfc4; }
-  .stMarkdown p { color: #e8dfc4; }
-  .stCaption, [data-testid="stCaptionContainer"] p { color: #a09880 !important; }
-  [data-testid="stMetricValue"] { color: #CFB991 !important; }
-  [data-testid="stMetricLabel"] { color: #e8dfc4 !important; }
-  [data-testid="stDataFrame"] { background: #16160f; }
-  .stDataFrame th { background: #1e1e16 !important; color: #CFB991 !important; }
-  .stDataFrame td { background: #1a1a14 !important; color: #e8dfc4 !important; }
-  [data-testid="stInfo"] { background: #1a1f14; border-color: #8E6F3E; color: #e8dfc4; }
-  [data-testid="stWarning"] { background: #1f1a0f; border-color: #CFB991; color: #e8dfc4; }
+  }}
+  p, li, span, label, div {{ color: #e8dfc4; }}
+  .stMarkdown p {{ color: #e8dfc4; }}
+  .stCaption, [data-testid="stCaptionContainer"] p {{ color: #a09880 !important; }}
+  [data-testid="stMetricValue"] {{ color: #CFB991 !important; }}
+  [data-testid="stMetricLabel"] {{ color: #e8dfc4 !important; }}
+  [data-testid="stDataFrame"] {{ background: #16160f; }}
+  .stDataFrame th {{ background: #1e1e16 !important; color: #CFB991 !important; }}
+  .stDataFrame td {{ background: #1a1a14 !important; color: #e8dfc4 !important; }}
+  [data-testid="stInfo"] {{ background: #1a1f14; border-color: #8E6F3E; color: #e8dfc4; }}
+  [data-testid="stWarning"] {{ background: #1f1a0f; border-color: #CFB991; color: #e8dfc4; }}
 
-  .agent-card {
+  .agent-card {{
     background: #16160f;
     border-radius: 6px;
     padding: 20px 24px;
     margin: 12px 0;
     border: 1px solid #8E6F3E;
     border-left: 5px solid #CFB991;
-  }
-  .agent-card .agent-label {
+  }}
+  .agent-card .agent-label {{
     color: #CFB991;
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 2px;
     margin-bottom: 8px;
-  }
-  .agent-card .agent-text {
+  }}
+  .agent-card .agent-text {{
     color: #e8dfc4;
     font-size: 0.92rem;
     line-height: 1.7;
     white-space: pre-wrap;
-  }
+  }}
 
-  .metric-card {
+  .metric-card {{
     background: #16160f;
     border: 1px solid #8E6F3E;
     border-top: 3px solid #CFB991;
     border-radius: 6px;
     padding: 16px;
     text-align: center;
-  }
-  .metric-card .label { font-size: 0.75rem; color: #a09880; text-transform: uppercase; letter-spacing: 0.5px; }
-  .metric-card .value { font-size: 1.6rem; font-weight: 700; color: #CFB991; margin: 4px 0; }
-  .metric-card .sub   { font-size: 0.78rem; color: #7a7060; }
+  }}
+  .metric-card .label {{ font-size: 0.75rem; color: #a09880; text-transform: uppercase; letter-spacing: 0.5px; }}
+  .metric-card .value {{ font-size: 1.6rem; font-weight: 700; color: #CFB991; margin: 4px 0; }}
+  .metric-card .sub   {{ font-size: 0.78rem; color: #7a7060; }}
 
-  .section-header {
+  .section-header {{
     background: #16160f;
     color: #CFB991;
     padding: 9px 16px;
@@ -121,20 +121,20 @@ st.markdown(f"""
     margin: 24px 0 14px 0;
     border-left: 5px solid #CFB991;
     border-bottom: 1px solid #8E6F3E;
-  }
+  }}
 
-  .listing-card {
+  .listing-card {{
     background: #16160f;
     border: 1px solid #8E6F3E;
     border-left: 4px solid #CFB991;
     border-radius: 6px;
     padding: 14px 18px;
     margin: 8px 0;
-  }
-  .listing-card .l-price { font-size: 1.4rem; font-weight: 700; color: #CFB991; }
-  .listing-card .l-address { font-size: 0.9rem; color: #e8dfc4; margin: 2px 0; }
-  .listing-card .l-detail { font-size: 0.8rem; color: #a09880; }
-  .listing-card .l-tag {
+  }}
+  .listing-card .l-price {{ font-size: 1.4rem; font-weight: 700; color: #CFB991; }}
+  .listing-card .l-address {{ font-size: 0.9rem; color: #e8dfc4; margin: 2px 0; }}
+  .listing-card .l-detail {{ font-size: 0.8rem; color: #a09880; }}
+  .listing-card .l-tag {{
     display: inline-block;
     background: #CFB991;
     color: #0f0f0c;
@@ -144,26 +144,26 @@ st.markdown(f"""
     font-weight: 700;
     margin-right: 4px;
     margin-top: 4px;
-  }
+  }}
 
-  .status-ok    { color: #4caf6e; font-weight: 700; }
-  .status-error { color: #e05050; font-weight: 700; }
-  .status-run   { color: #CFB991; font-weight: 700; }
-  .status-idle  { color: #666; }
+  .status-ok    {{ color: #4caf6e; font-weight: 700; }}
+  .status-error {{ color: #e05050; font-weight: 700; }}
+  .status-run   {{ color: #CFB991; font-weight: 700; }}
+  .status-idle  {{ color: #666; }}
 
-  div[data-testid="stTabs"] {
+  div[data-testid="stTabs"] {{
     background: #0f0f0c !important;
-  }
-  div[data-testid="stTabs"] button {
+  }}
+  div[data-testid="stTabs"] button {{
     font-weight: 600 !important;
     font-size: 0.92rem !important;
     color: #a09880 !important;
     background: transparent !important;
-  }
-  div[data-testid="stTabs"] button[aria-selected="true"] {
+  }}
+  div[data-testid="stTabs"] button[aria-selected="true"] {{
     color: #CFB991 !important;
     border-bottom: 2px solid #CFB991 !important;
-  }
+  }}
 </style>
 """, unsafe_allow_html=True)
 
