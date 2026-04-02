@@ -263,7 +263,7 @@ def compute_cap_rate_adjustments(current_10y: float) -> list[dict]:
         base_cap    = bench["cap_rate"]
         adj_cap     = base_cap + adjustment
         noi         = bench["noi_margin"]
-        vacancy     = bench["vacancy_rate"]
+        vacancy     = bench["vacancy"]
         rent_growth = bench["rent_growth"]
 
         base_margin = noi * (1 - vacancy) * (1 + rent_growth)

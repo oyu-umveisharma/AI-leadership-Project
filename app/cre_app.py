@@ -1580,8 +1580,8 @@ with main_tab_energy:
         clean_energy = sdata.get("clean_energy", [])
         green_reits = sdata.get("green_reits", [])
         esg_signal = sdata.get("esg_momentum_signal", "UNKNOWN")
-        bench_ret = sdata.get("benchmark_return_pct", 0)
-        avg_clean_ret = sdata.get("avg_clean_energy_return_pct", 0)
+        bench_ret = sdata.get("benchmark_return_pct") or 0
+        avg_clean_ret = sdata.get("avg_clean_energy_return_pct") or 0
 
         # ── KPI strip ──────────────────────────────────────────────────────────
         esg_icon = {"STRONG": "", "NEUTRAL": "", "WEAK": ""}.get(esg_signal, "⚪")
