@@ -685,13 +685,13 @@ with main_tab_re:
 
 
     # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB 3 — COMPANY PREDICTIONS
+    #  TAB 3 — CONFIRMED FACILITY ANNOUNCEMENTS
     # ═══════════════════════════════════════════════════════════════════════════════
     with tab3:
-        st.markdown("#### Which companies are most likely to relocate or expand in the next 12 months?")
+        st.markdown("#### Which companies have announced new plants, factories, and facilities?")
         st.markdown(
-            "Agent 3 uses an LLM (Llama 3.3-70B via Groq) to analyze migration signals, tax policy, "
-            "labor markets, and corporate announcements — then predicts HQ moves. Updates every 24 hours."
+            "Agent 3 scans live news feeds and uses AI to extract **confirmed** corporate facility announcements — "
+            "new manufacturing plants, data centers, warehouses, training centers, and headquarters. Updates every 24 hours."
         )
         agent_last_updated("predictions")
 
@@ -701,20 +701,90 @@ with main_tab_re:
 
         pdata3 = cache3["data"]
 
-        # ── AI Predictions ────────────────────────────────────────────────────
-        section(" AI-Predicted Corporate Relocations & Expansions (Next 12 Months)")
-        pred_text = pdata3.get("predictions_text", "")
-        if pred_text:
-            st.markdown(f"""
-            <div class="agent-card">
-              <div class="agent-label"> Agent 3 · Corporate Relocation Intelligence · {datetime.today().strftime('%b %d, %Y')}</div>
-              <div class="agent-text">{pred_text}</div>
-            </div>""", unsafe_allow_html=True)
-        else:
-            st.info("Predictions are generated every 24 hours. Check that GROQ_API_KEY is set in .env and wait for the next scheduled run.")
+        # ── Confirmed Announcements ────────────────────────────────────────────
+        section("Confirmed Plant & Facility Announcements")
+        confirmed = pdata3.get("confirmed_announcements", [])
 
-        # ── Top 5 States breakdown ─────────────────────────────────────────────
-        section(" Top 5 States Driving Predictions")
+        # Filter out error placeholders
+        confirmed = [a for a in confirmed if a.get("company") and a.get("company") != "Error"]
+
+        if not confirmed:
+            st.info(
+                "No confirmed facility announcements found in the current news cycle. "
+                "Agent 3 refreshes every 24 hours — check back after the next run or ensure GROQ_API_KEY is set in .env."
+            )
+        else:
+            # ── Summary metrics ────────────────────────────────────────────────
+            type_counts = {}
+            for a in confirmed:
+                t = a.get("type", "Other")
+                type_counts[t] = type_counts.get(t, 0) + 1
+
+            m_cols = st.columns(min(4, len(type_counts) + 1))
+            m_cols[0].metric("Total Announcements", len(confirmed))
+            for i, (t, cnt) in enumerate(sorted(type_counts.items(), key=lambda x: -x[1])[:3], 1):
+                m_cols[i].metric(t, cnt)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ── Type badge colors ──────────────────────────────────────────────
+            TYPE_COLORS = {
+                "Manufacturing Plant":    ("#1b5e20", "#e8f5e9"),
+                "Warehouse / Distribution": ("#0d47a1", "#e3f2fd"),
+                "Data Center":            ("#4a148c", "#f3e5f5"),
+                "Semiconductor Fab":      ("#b71c1c", "#ffebee"),
+                "Battery Plant":          ("#e65100", "#fff3e0"),
+                "Headquarters":           ("#263238", "#eceff1"),
+                "Training Center":        ("#004d40", "#e0f2f1"),
+                "Research & Development": ("#880e4f", "#fce4ec"),
+                "Other":                  ("#5d4037", "#efebe9"),
+            }
+
+            # ── Announcement cards ─────────────────────────────────────────────
+            for ann in confirmed:
+                co      = ann.get("company", "Unknown")
+                ticker  = ann.get("ticker", "")
+                atype   = ann.get("type", "Other")
+                loc     = ann.get("location", "")
+                invest  = ann.get("investment", "")
+                jobs    = ann.get("jobs", "")
+                detail  = ann.get("detail", "")
+                impact  = ann.get("cre_impact", "")
+                source  = ann.get("source", "")
+
+                badge_fg, badge_bg = TYPE_COLORS.get(atype, ("#5d4037", "#efebe9"))
+                ticker_str = f" &nbsp;·&nbsp; <span style='color:#888;font-size:0.8rem;'>{ticker}</span>" if ticker else ""
+                invest_str = f"<b>Investment:</b> {invest}" if invest else ""
+                jobs_str   = f"<b>Jobs:</b> {jobs}" if jobs else ""
+                meta_parts = [x for x in [invest_str, jobs_str] if x]
+                meta_line  = "&nbsp;&nbsp;|&nbsp;&nbsp;".join(meta_parts) if meta_parts else ""
+
+                st.markdown(f"""
+                <div style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;
+                            padding:16px 20px;margin-bottom:12px;border-left:4px solid {badge_fg};">
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span style="background:{badge_bg};color:{badge_fg};font-size:0.72rem;
+                                 font-weight:700;padding:2px 8px;border-radius:4px;
+                                 text-transform:uppercase;letter-spacing:0.5px;">{atype}</span>
+                    <span style="font-size:1rem;font-weight:700;color:#1a1a1a;">{co}{ticker_str}</span>
+                    <span style="font-size:0.85rem;color:#555;margin-left:auto;">{loc}</span>
+                  </div>
+                  <div style="font-size:0.9rem;color:#333;margin-bottom:6px;">{detail}</div>
+                  {"<div style='font-size:0.82rem;color:#555;margin-bottom:6px;'>" + meta_line + "</div>" if meta_line else ""}
+                  {"<div style='font-size:0.82rem;color:#1b5e20;'><b>CRE Opportunity:</b> " + impact + "</div>" if impact else ""}
+                  <div style="font-size:0.72rem;color:#aaa;margin-top:6px;">Source: {source}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.caption(
+                "Announcements extracted from live RSS feeds: Reuters, Manufacturing.net, IndustryWeek, "
+                "PR Newswire, Business Wire, Dept. of Energy, Commerce Dept., EDA, and industry publications. "
+                "Only confirmed/announced projects are shown — not speculation."
+            )
+
+        # ── Top 5 States context ───────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section("Top 5 States Attracting Corporate Investment")
         top5 = pdata3.get("top5_states", [])
         if top5:
             top5_df = pd.DataFrame(top5)
@@ -722,7 +792,15 @@ with main_tab_re:
             top5_df = top5_df[cols_show].copy()
             if "pop_growth_pct" in top5_df.columns:
                 top5_df["pop_growth_pct"] = top5_df["pop_growth_pct"].apply(lambda x: f"{x:+.2f}%")
+            rename = {"state_name": "State", "state_abbr": "Abbr", "pop_growth_pct": "Pop Growth",
+                      "biz_score": "Business Score", "key_companies": "Recent Corporate Moves",
+                      "growth_drivers": "Growth Drivers"}
+            top5_df.rename(columns=rename, inplace=True)
             st.dataframe(top5_df, use_container_width=True, hide_index=True)
+            st.caption(
+                "These states rank highest on combined population growth and business migration scores. "
+                "Cross-reference with announcements above to identify where CRE demand is building fastest."
+            )
 
 
     # ═══════════════════════════════════════════════════════════════════════════════

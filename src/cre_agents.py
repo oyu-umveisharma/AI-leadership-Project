@@ -142,17 +142,17 @@ def run_pricing_agent():
 def run_predictions_agent():
     _set_status("predictions", "running")
     try:
-        import os
-        from groq import Groq
         from src.cre_population import fetch_migration_scores
         from src.cre_listings import get_cheapest_buildings
+        from src.cre_news import fetch_facility_announcements
 
         mig_df = fetch_migration_scores()
         top5   = mig_df.head(5)[["state_name","state_abbr","pop_growth_pct","biz_score","key_companies","growth_drivers"]].to_dict(orient="records")
         top3_cities_abbr = mig_df.head(3)["state_abbr"].tolist()
 
-        # Predicted company moves via LLM
-        predictions_text = _generate_predictions(top5)
+        # Confirmed plant/facility announcements from live news feeds
+        articles = fetch_facility_announcements()
+        confirmed = _extract_confirmed_announcements(articles)
 
         # Cheapest buildings in top 3 cities
         listings = {}
@@ -163,61 +163,88 @@ def run_predictions_agent():
                 listings[abbr] = []
 
         write_cache("predictions", {
-            "predictions_text": predictions_text,
-            "top5_states":      top5,
-            "listings":         listings,
-            "top3_abbr":        top3_cities_abbr,
+            "confirmed_announcements": confirmed,
+            "top5_states":             top5,
+            "listings":                listings,
+            "top3_abbr":               top3_cities_abbr,
         })
         _set_status("predictions", "ok")
     except Exception as e:
         _set_status("predictions", "error", str(e))
 
 
-def _generate_predictions(top5_states: list) -> str:
+def _extract_confirmed_announcements(articles: list) -> list:
+    """
+    Uses Groq to parse raw news articles and extract confirmed company
+    plant/facility announcements as a structured list of dicts.
+    Returns a list of announcement dicts.
+    """
     try:
-        import os
-        from groq import Groq
+        import json as _json
         key = os.getenv("GROQ_API_KEY", "")
         if not key:
-            return "_GROQ_API_KEY not set. Add it to .env to enable AI predictions._"
+            return []
+        from groq import Groq
         client = Groq(api_key=key)
-        states_str = "\n".join([
-            f"- {s['state_name']}: pop growth {s['pop_growth_pct']:+.1f}%, biz score {s['biz_score']}, "
-            f"recent moves: {s['key_companies']}, drivers: {s['growth_drivers']}"
-            for s in top5_states
-        ])
+
+        if not articles:
+            return []
+
+        lines = []
+        for i, a in enumerate(articles[:50], 1):
+            lines.append(
+                f"{i}. [{a['source']}] {a['title']}\n"
+                f"   {a.get('description','')[:200]}"
+            )
+        article_block = "\n".join(lines)
+
         prompt = f"""
 Today is {datetime.now().strftime('%B %d, %Y')}.
 
-Top 5 US states by migration attractiveness:
-{states_str}
+Below are news headlines and snippets about companies announcing new facilities in the United States:
 
-Based on current migration trends, tax policy, labor markets, and recent corporate announcements:
+{article_block}
 
-1. Name 8 specific companies (real, public companies) most likely to announce HQ relocation
-   or major expansion in the next 12 months. For each give:
-   - Company name and ticker
-   - Current HQ state
-   - Predicted destination state
-   - Probability (High/Medium/Low)
-   - Primary reason (taxes, talent, supply chain, incentives)
+Extract every CONFIRMED company announcement of a new or expanded facility (plant, factory, warehouse,
+data center, training center, headquarters, distribution center, semiconductor fab, battery plant, etc.).
 
-2. Name 3 industries most likely to cluster in each of the top 3 states.
+Return ONLY a JSON array. Each element must have these exact keys:
+  "company"      — company name (string)
+  "ticker"       — stock ticker if publicly traded, else ""
+  "type"         — facility type: "Manufacturing Plant" | "Warehouse / Distribution" | "Data Center" |
+                   "Training Center" | "Headquarters" | "Semiconductor Fab" | "Battery Plant" |
+                   "Research & Development" | "Other"
+  "location"     — "City, State" or "State" if city unknown
+  "investment"   — dollar amount as string (e.g. "$1.2B") or "" if not disclosed
+  "jobs"         — job count as string (e.g. "2,000+") or "" if not disclosed
+  "detail"       — one sentence describing the announcement
+  "cre_impact"   — one sentence on what CRE demand this creates (industrial/office/multifamily/retail)
+  "source"       — news source name
 
-Format as a clean table then a brief paragraph for each top state.
+Only include announcements that are clearly stated in the provided articles.
+If fewer than 3 announcements are found, return what you have.
+Return raw JSON only — no markdown, no explanation.
 """
         resp = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are a corporate real estate strategist tracking Fortune 500 and S&P 500 company relocations. Base predictions on publicly available signals."},
+                {"role": "system", "content": "You are a data extraction assistant. Return only valid JSON arrays."},
                 {"role": "user",   "content": prompt},
             ],
-            max_tokens=900,
-            temperature=0.3,
+            max_tokens=1800,
+            temperature=0.1,
         )
-        return resp.choices[0].message.content
+        raw = resp.choices[0].message.content.strip()
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        return _json.loads(raw.strip())
     except Exception as e:
-        return f"_Prediction generation failed: {e}_"
+        return [{"company": "Error", "ticker": "", "type": "Other", "location": "",
+                 "investment": "", "jobs": "", "detail": str(e),
+                 "cre_impact": "", "source": ""}]
 
 
 # ── Agent 6 · Interest Rate & Debt Markets ───────────────────────────────────
