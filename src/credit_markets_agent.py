@@ -55,9 +55,10 @@ FRED_SERIES = [
 ]
 
 
-def _fred_fetch(series_id: str, lookback_years: int = 3) -> list[dict]:
+def _fred_fetch(series_id: str, lookback_years: int = 3, retries: int = 3) -> list[dict]:
     if not FRED_API_KEY:
         return []
+    import time
     start = (datetime.now() - timedelta(days=365 * lookback_years)).strftime("%Y-%m-%d")
     params = urllib.parse.urlencode({
         "series_id":         series_id,
@@ -66,14 +67,17 @@ def _fred_fetch(series_id: str, lookback_years: int = 3) -> list[dict]:
         "observation_start": start,
         "sort_order":        "asc",
     })
-    try:
-        with urllib.request.urlopen(f"{FRED_BASE}?{params}", timeout=15) as resp:
-            data = json.loads(resp.read())
-        return [{"date": o["date"], "value": float(o["value"])}
-                for o in data.get("observations", []) if o["value"] not in (".", "")]
-    except Exception as e:
-        print(f"  [CreditAgent] FRED error {series_id}: {e}")
-        return []
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(f"{FRED_BASE}?{params}", timeout=15) as resp:
+                data = json.loads(resp.read())
+            return [{"date": o["date"], "value": float(o["value"])}
+                    for o in data.get("observations", []) if o["value"] not in (".", "")]
+        except Exception as e:
+            print(f"  [CreditAgent] FRED error {series_id} (attempt {attempt+1}): {e}")
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)
+    return []
 
 
 def _summarize(series: list[dict], unit: str, multiply: float = 1.0) -> dict:

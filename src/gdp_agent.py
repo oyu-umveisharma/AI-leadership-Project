@@ -46,15 +46,16 @@ FRED_SERIES = [
     ("INDPRO",           "Industrial Production Index",  "idx", 1.0),
     ("RSAFS",            "Retail Sales",                 "$M",  1.0),
     ("UMCSENT",          "Consumer Sentiment",           "idx", 1.0),
-    ("USSLIND",          "Leading Economic Index",       "idx", 1.0),
+    ("CFNAIMA3",         "Chicago Fed Activity Index",   "idx", 1.0),
     ("PCEC96",           "Real PCE",                     "$B",  1.0),
     ("DGORDER",          "Durable Goods Orders",         "$M",  1.0),
 ]
 
 
-def _fred_fetch(series_id: str, lookback_years: int = 3) -> list[dict]:
+def _fred_fetch(series_id: str, lookback_years: int = 3, retries: int = 3) -> list[dict]:
     if not FRED_API_KEY:
         return []
+    import time
     start = (datetime.now() - timedelta(days=365 * lookback_years)).strftime("%Y-%m-%d")
     params = urllib.parse.urlencode({
         "series_id":         series_id,
@@ -63,14 +64,17 @@ def _fred_fetch(series_id: str, lookback_years: int = 3) -> list[dict]:
         "observation_start": start,
         "sort_order":        "asc",
     })
-    try:
-        with urllib.request.urlopen(f"{FRED_BASE}?{params}", timeout=15) as resp:
-            data = json.loads(resp.read())
-        return [{"date": o["date"], "value": float(o["value"])}
-                for o in data.get("observations", []) if o["value"] not in (".", "")]
-    except Exception as e:
-        print(f"  [GDPAgent] FRED error {series_id}: {e}")
-        return []
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(f"{FRED_BASE}?{params}", timeout=15) as resp:
+                data = json.loads(resp.read())
+            return [{"date": o["date"], "value": float(o["value"])}
+                    for o in data.get("observations", []) if o["value"] not in (".", "")]
+        except Exception as e:
+            print(f"  [GDPAgent] FRED error {series_id} (attempt {attempt+1}): {e}")
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)
+    return []
 
 
 def _summarize(series: list[dict], unit: str) -> dict:
@@ -124,12 +128,14 @@ def _classify_cycle(data: dict) -> dict:
         elif sentiment <= 65:
             score -= 8;  bullets.append(f"Consumer sentiment weak ({sentiment:.0f}) — retail headwinds")
 
-    lei = data.get("Leading Economic Index", {})
-    if lei.get("delta_1q") is not None:
-        if lei["delta_1q"] > 0:
-            score += 5;  bullets.append("Leading index rising — 6-month outlook improving")
+    cfnai = data.get("Chicago Fed Activity Index", {})
+    if cfnai.get("current") is not None:
+        if cfnai["current"] > 0.2:
+            score += 5;  bullets.append(f"Chicago Fed Activity Index at {cfnai['current']:.2f} — above-trend growth")
+        elif cfnai["current"] < -0.7:
+            score -= 10; bullets.append(f"Chicago Fed Activity Index at {cfnai['current']:.2f} — recession signal")
         else:
-            score -= 5;  bullets.append("Leading index falling — forward-looking caution warranted")
+            bullets.append(f"Chicago Fed Activity Index at {cfnai['current']:.2f} — near trend growth")
 
     score = max(0, min(100, score))
     if score >= 65:

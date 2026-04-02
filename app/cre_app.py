@@ -2020,7 +2020,7 @@ with main_tab_macro:
             ("Industrial Production Index", "idx", "Level",               False),
             ("Retail Sales",                "$M",  "Monthly",             False),
             ("Consumer Sentiment",          "idx", "U of Michigan",       False),
-            ("Leading Economic Index",      "idx", "Conference Board",    False),
+            ("Chicago Fed Activity Index",  "idx", "Chicago Fed (CFNAI)", False),
             ("Real PCE",                    "$B",  "Personal consumption", False),
         ]
         kpi_cols = st.columns(len(kpi_defs))
@@ -2157,30 +2157,32 @@ with main_tab_macro:
                 st.info("Consumer sentiment series not yet available.")
 
         with col_lei:
-            section(" Leading Economic Index")
-            lei_s = g_series.get("Leading Economic Index", {}).get("series", [])
+            section(" Chicago Fed National Activity Index (3-Month MA)")
+            lei_s = g_series.get("Chicago Fed Activity Index", {}).get("series", [])
             if lei_s:
                 dates  = [o["date"] for o in lei_s]
                 values = [o["value"] for o in lei_s]
-                colors_lei = [GOLD if i == 0 or values[i] >= values[i-1] else "#c62828"
-                              for i in range(len(values))]
-                fig_lei = go.Figure(go.Scatter(
-                    x=dates, y=values, mode="lines",
-                    line=dict(color="#6a1b9a", width=2.5),
-                    hovertemplate="Date: %{x}<br>LEI: %{y:.2f}<extra></extra>",
+                bar_clrs_cfnai = [GOLD if v >= 0 else "#c62828" for v in values]
+                fig_lei = go.Figure(go.Bar(
+                    x=dates, y=values, marker_color=bar_clrs_cfnai,
+                    hovertemplate="Date: %{x}<br>CFNAI-MA3: %{y:.2f}<extra></extra>",
                 ))
+                fig_lei.add_hline(y=0, line_color="#333", line_width=1.5)
+                fig_lei.add_hline(y=-0.7, line_dash="dash", line_color="#b71c1c",
+                                   annotation_text="Recession signal (<−0.7)",
+                                   annotation_font=dict(color="#b71c1c", size=9))
                 fig_lei.update_layout(
                     paper_bgcolor="white", plot_bgcolor="white",
-                    yaxis=dict(title="Index", gridcolor="#f0f0f0",
+                    yaxis=dict(title="Index (0 = trend growth)", gridcolor="#f0f0f0",
                                tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
                     xaxis=dict(tickfont=dict(color="#1a1a1a")),
                     margin=dict(t=30, b=40), height=300,
                     font=dict(family="Source Sans Pro", color="#1a1a1a"),
                 )
                 st.plotly_chart(fig_lei, use_container_width=True)
-                st.caption("Leading Economic Index — a forward-looking composite. Sustained decline precedes recession by 6–12 months.")
+                st.caption("Chicago Fed National Activity Index (3-month MA). 0 = trend growth. Below −0.7 historically signals recession onset.")
             else:
-                st.info("Leading index series not yet available.")
+                st.info("Chicago Fed Activity Index not yet available.")
 
         # ── CRE Cycle Implications Table ───────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
