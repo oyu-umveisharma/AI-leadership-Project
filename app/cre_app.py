@@ -2607,3 +2607,48 @@ with main_tab_macro:
             "Negative = easing (more credit supply). CRE loan tightening directly restricts acquisition and development financing."
         )
         st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
+
+# ── Meet the Team ─────────────────────────────────────────────────────────────
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown("""
+<div style="background:#16160f; border:1px solid #8E6F3E; border-top:3px solid #CFB991;
+            border-radius:8px; padding:32px 36px; margin-top:24px;">
+  <div style="text-align:center; margin-bottom:24px;">
+    <span style="color:#CFB991; font-size:1.3rem; font-weight:700; letter-spacing:2px;
+                 text-transform:uppercase;">Meet the Team</span>
+    <div style="color:#a09880; font-size:0.85rem; margin-top:4px;">
+      MGMT 690: AI Leadership &nbsp;&middot;&nbsp; Purdue Daniels School of Business
+    </div>
+  </div>
+  <div style="display:flex; justify-content:center; gap:24px; flex-wrap:wrap;">
+    <div style="background:#1a1a14; border:1px solid #8E6F3E; border-radius:8px;
+                padding:20px 28px; text-align:center; min-width:160px;">
+      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
+      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Aayman Afzal</div>
+      <a href="https://www.linkedin.com/in/aayman-afzal" target="_blank"
+         style="color:#CFB991; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
+    </div>
+    <div style="background:#1a1a14; border:1px solid #8E6F3E; border-radius:8px;
+                padding:20px 28px; text-align:center; min-width:160px;">
+      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
+      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Ajinkya Kodnikar</div>
+      <a href="https://www.linkedin.com/in/ajinkya-kodnikar" target="_blank"
+         style="color:#CFB991; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
+    </div>
+    <div style="background:#1a1a14; border:1px solid #8E6F3E; border-radius:8px;
+                padding:20px 28px; text-align:center; min-width:160px;">
+      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
+      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Oyu Amar</div>
+      <a href="https://www.linkedin.com/in/oyuamar" target="_blank"
+         style="color:#CFB991; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
+    </div>
+    <div style="background:#1a1a14; border:1px solid #8E6F3E; border-radius:8px;
+                padding:20px 28px; text-align:center; min-width:160px;">
+      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
+      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Ricardo Ruiz</div>
+      <a href="https://www.linkedin.com/in/ricardoruizjr" target="_blank"
+         style="color:#CFB991; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
