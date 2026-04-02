@@ -57,8 +57,8 @@ st.markdown(f"""
   @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
   html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; }}
 
-  /* push content flush to top so banner starts at the very top */
-  .block-container {{ padding-top: 0 !important; }}
+  /* small top padding so banner is fully visible */
+  .block-container {{ padding-top: 1rem !important; }}
   section[data-testid="stAppViewContainer"] > div:first-child {{ padding-top: 0 !important; }}
 
   /* ── Dark intelligence dashboard theme ── */
