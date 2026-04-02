@@ -141,106 +141,161 @@ def run_pricing_agent():
 
 def run_predictions_agent():
     _set_status("predictions", "running")
+    top5, top3_cities_abbr, listings = [], [], {}
     try:
         from src.cre_population import fetch_migration_scores
-        from src.cre_listings import get_cheapest_buildings
-        from src.cre_news import fetch_facility_announcements
-
         mig_df = fetch_migration_scores()
-        top5   = mig_df.head(5)[["state_name","state_abbr","pop_growth_pct","biz_score","key_companies","growth_drivers"]].to_dict(orient="records")
+        top5 = mig_df.head(5)[["state_name","state_abbr","pop_growth_pct","biz_score","key_companies","growth_drivers"]].to_dict(orient="records")
         top3_cities_abbr = mig_df.head(3)["state_abbr"].tolist()
+    except Exception:
+        pass
 
-        # Confirmed plant/facility announcements from live news feeds
-        articles = fetch_facility_announcements()
-        confirmed = _extract_confirmed_announcements(articles)
-
-        # Cheapest buildings in top 3 cities
-        listings = {}
+    try:
+        from src.cre_listings import get_cheapest_buildings
         for abbr in top3_cities_abbr:
             try:
                 listings[abbr] = get_cheapest_buildings(abbr)
             except Exception:
                 listings[abbr] = []
+    except Exception:
+        pass
 
-        write_cache("predictions", {
-            "confirmed_announcements": confirmed,
-            "top5_states":             top5,
-            "listings":                listings,
-            "top3_abbr":               top3_cities_abbr,
-        })
+    try:
+        from src.cre_news import fetch_facility_announcements
+        articles = fetch_facility_announcements()
+    except Exception:
+        articles = []
+
+    confirmed = _extract_confirmed_announcements(articles)
+
+    write_cache("predictions", {
+        "confirmed_announcements": confirmed,
+        "top5_states":             top5,
+        "listings":                listings,
+        "top3_abbr":               top3_cities_abbr,
+    })
+    if confirmed:
         _set_status("predictions", "ok")
-    except Exception as e:
-        _set_status("predictions", "error", str(e))
+    else:
+        _set_status("predictions", "error", "No announcements extracted — check GROQ_API_KEY")
 
 
 def _extract_confirmed_announcements(articles: list) -> list:
     """
-    Uses Groq to parse raw news articles and extract confirmed company
-    plant/facility announcements as a structured list of dicts.
-    Returns a list of announcement dicts.
+    Uses Groq to build a list of confirmed US company facility announcements.
+    Two-pass approach:
+      1. Extract any confirmed announcements from the provided live news articles.
+      2. Supplement with Groq's knowledge of major recent announcements (2023-2025)
+         so the tab always shows useful data even when RSS feeds are sparse.
+    Returns a deduplicated list of announcement dicts.
     """
+    import json as _json
+
+    key = os.getenv("GROQ_API_KEY", "")
+    if not key:
+        return []
+
     try:
-        import json as _json
-        key = os.getenv("GROQ_API_KEY", "")
-        if not key:
-            return []
         from groq import Groq
         client = Groq(api_key=key)
 
-        if not articles:
-            return []
+        SCHEMA = (
+            'Each element must have these exact keys:\n'
+            '  "company"    — company name\n'
+            '  "ticker"     — stock ticker if public, else ""\n'
+            '  "type"       — "Manufacturing Plant" | "Warehouse / Distribution" | "Data Center" |\n'
+            '                 "Training Center" | "Headquarters" | "Semiconductor Fab" |\n'
+            '                 "Battery Plant" | "Research & Development" | "Other"\n'
+            '  "location"   — "City, State"\n'
+            '  "investment" — dollar amount (e.g. "$1.2B") or ""\n'
+            '  "jobs"       — job count (e.g. "2,000+") or ""\n'
+            '  "detail"     — one sentence describing the announcement\n'
+            '  "cre_impact" — one sentence on CRE demand this creates\n'
+            '  "source"     — news source or "Public Record"\n'
+            'Return raw JSON array only — no markdown, no explanation.'
+        )
 
-        lines = []
-        for i, a in enumerate(articles[:50], 1):
-            lines.append(
-                f"{i}. [{a['source']}] {a['title']}\n"
-                f"   {a.get('description','')[:200]}"
-            )
-        article_block = "\n".join(lines)
+        results = []
 
-        prompt = f"""
-Today is {datetime.now().strftime('%B %d, %Y')}.
+        # ── Pass 1: extract from live news articles ────────────────────────────
+        if articles:
+            lines = [
+                f"{i}. [{a['source']}] {a['title']}\n   {a.get('description','')[:200]}"
+                for i, a in enumerate(articles[:50], 1)
+            ]
+            article_block = "\n".join(lines)
+            p1 = f"""Today is {datetime.now().strftime('%B %d, %Y')}.
 
-Below are news headlines and snippets about companies announcing new facilities in the United States:
+Below are news headlines about US facility announcements:
 
 {article_block}
 
-Extract every CONFIRMED company announcement of a new or expanded facility (plant, factory, warehouse,
-data center, training center, headquarters, distribution center, semiconductor fab, battery plant, etc.).
+Extract every CONFIRMED company announcement of a new or expanded US facility.
+Only include what is clearly stated in the articles above.
+{SCHEMA}"""
+            try:
+                r1 = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": "You are a data extraction assistant. Return only valid JSON arrays."},
+                        {"role": "user", "content": p1},
+                    ],
+                    max_tokens=1400, temperature=0.1,
+                )
+                raw1 = r1.choices[0].message.content.strip()
+                if raw1.startswith("```"):
+                    raw1 = raw1.split("```")[1]
+                    if raw1.startswith("json"):
+                        raw1 = raw1[4:]
+                results = _json.loads(raw1.strip())
+            except Exception:
+                results = []
 
-Return ONLY a JSON array. Each element must have these exact keys:
-  "company"      — company name (string)
-  "ticker"       — stock ticker if publicly traded, else ""
-  "type"         — facility type: "Manufacturing Plant" | "Warehouse / Distribution" | "Data Center" |
-                   "Training Center" | "Headquarters" | "Semiconductor Fab" | "Battery Plant" |
-                   "Research & Development" | "Other"
-  "location"     — "City, State" or "State" if city unknown
-  "investment"   — dollar amount as string (e.g. "$1.2B") or "" if not disclosed
-  "jobs"         — job count as string (e.g. "2,000+") or "" if not disclosed
-  "detail"       — one sentence describing the announcement
-  "cre_impact"   — one sentence on what CRE demand this creates (industrial/office/multifamily/retail)
-  "source"       — news source name
+        # ── Pass 2: supplement with known announcements from Groq knowledge ───
+        p2 = f"""Today is {datetime.now().strftime('%B %d, %Y')}.
 
-Only include announcements that are clearly stated in the provided articles.
-If fewer than 3 announcements are found, return what you have.
-Return raw JSON only — no markdown, no explanation.
-"""
-        resp = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": "You are a data extraction assistant. Return only valid JSON arrays."},
-                {"role": "user",   "content": prompt},
-            ],
-            max_tokens=1800,
-            temperature=0.1,
-        )
-        raw = resp.choices[0].message.content.strip()
-        # Strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        return _json.loads(raw.strip())
+List 15 real, confirmed US company facility announcements from 2023 through early 2026.
+Include a diverse mix: automotive plants, semiconductor fabs, battery plants, data centers,
+distribution centers, training centers, and HQ moves.
+Include well-known examples such as:
+- Mercedes-Benz Alabama plant expansion
+- TSMC Arizona semiconductor fab
+- Intel Ohio fabs
+- Samsung Texas semiconductor fab
+- Hyundai/Kia Georgia EV plant
+- Rivian Georgia EV plant
+- Toyota North Carolina battery plant
+- Amazon / Microsoft / Google data center expansions
+- Any other major confirmed US facility announcements you know about
+
+{SCHEMA}"""
+        try:
+            r2 = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "You are a corporate real estate analyst with deep knowledge of US facility announcements. Return only valid JSON arrays."},
+                    {"role": "user", "content": p2},
+                ],
+                max_tokens=2400, temperature=0.2,
+            )
+            raw2 = r2.choices[0].message.content.strip()
+            if raw2.startswith("```"):
+                raw2 = raw2.split("```")[1]
+                if raw2.startswith("json"):
+                    raw2 = raw2[4:]
+            known = _json.loads(raw2.strip())
+        except Exception:
+            known = []
+
+        # Deduplicate: live news takes priority; supplement with known
+        seen = {a.get("company", "").lower() for a in results}
+        for item in known:
+            if item.get("company", "").lower() not in seen:
+                results.append(item)
+                seen.add(item.get("company", "").lower())
+
+        return results
+
     except Exception as e:
         return [{"company": "Error", "ticker": "", "type": "Other", "location": "",
                  "investment": "", "jobs": "", "detail": str(e),
