@@ -201,58 +201,6 @@ def agent_last_updated(agent_name: str):
     st.caption(f"Last updated: {cache_age_label(agent_name)}")
 
 
-# ── Meet the Team (fixed footer) ──────────────────────────────────────────────
-st.markdown(f"""
-<style>
-  .meet-team-footer {{
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 9999;
-    background: {BLACK};
-    padding: 14px 32px;
-    border-top: 3px solid {GOLD};
-    text-align: center;
-  }}
-  .meet-team-footer .label {{
-    color: {GOLD};
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-bottom: 6px;
-  }}
-  .meet-team-footer .names {{
-    display: flex;
-    justify-content: center;
-    gap: 36px;
-    flex-wrap: wrap;
-  }}
-  .meet-team-footer a {{
-    color: {GOLD} !important;
-    text-decoration: underline !important;
-    font-size: 0.9rem;
-    font-weight: 600;
-  }}
-  .meet-team-footer .course {{
-    color: #888;
-    font-size: 0.7rem;
-    margin-top: 6px;
-  }}
-  /* Push page content up so footer doesn't overlap last element */
-  .main .block-container {{ padding-bottom: 90px; }}
-</style>
-<div class="meet-team-footer">
-  <div class="label">Meet the Team</div>
-  <div class="names">
-    <a href="https://www.linkedin.com/in/aayman-afzal/" target="_blank">Aayman Afzal</a>
-    <a href="https://www.linkedin.com/in/ajinkyakodnikar/" target="_blank">Ajinkya Kodnikar</a>
-    <a href="https://www.linkedin.com/in/oyu-amar/" target="_blank">Oyu Amar</a>
-    <a href="https://www.linkedin.com/in/ricardo-ruiz1/" target="_blank">Ricardo Ruiz</a>
-  </div>
-  <div class="course">MGMT 690 · AI Leadership · Purdue Daniels School of Business</div>
-</div>
-""", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  MAIN TABS
