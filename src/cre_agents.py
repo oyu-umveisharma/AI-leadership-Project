@@ -25,6 +25,12 @@ from typing import Any
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 CACHE_DIR = Path(__file__).parent.parent / "cache"
 CACHE_DIR.mkdir(exist_ok=True)
 
@@ -196,9 +202,25 @@ def _extract_confirmed_announcements(articles: list) -> list:
     """
     import json as _json
 
+    # ── Hardcoded baseline — always shown even without API key ────────────────
+    BASELINE = [
+        {"company":"TSMC","ticker":"TSM","type":"Semiconductor Fab","location":"Phoenix, AZ","investment":"$65B","jobs":"6,000+","detail":"TSMC building three semiconductor fabs in Phoenix; first fab began production in 2024.","cre_impact":"Drives demand for industrial, multifamily, and retail in greater Phoenix metro.","source":"Public Record"},
+        {"company":"Intel","ticker":"INTC","type":"Semiconductor Fab","location":"New Albany, OH","investment":"$20B","jobs":"3,000+","detail":"Intel's Ohio One campus — two fabs under construction as part of CHIPS Act investment.","cre_impact":"Creates significant industrial and multifamily demand in Columbus suburban corridor.","source":"Public Record"},
+        {"company":"Samsung","ticker":"SSNLF","type":"Semiconductor Fab","location":"Taylor, TX","investment":"$17B","jobs":"2,000+","detail":"Samsung's semiconductor fab in Taylor, TX expanding US chip manufacturing footprint.","cre_impact":"Boosts industrial and housing demand in Taylor and greater Austin area.","source":"Public Record"},
+        {"company":"Hyundai / Kia","ticker":"HYMTF","type":"Manufacturing Plant","location":"Savannah, GA","investment":"$7.6B","jobs":"8,500+","detail":"Metaplant America EV assembly plant in Bryan County, GA began production in 2024.","cre_impact":"Strong industrial, logistics, and multifamily demand in Savannah/Brunswick corridor.","source":"Public Record"},
+        {"company":"Rivian","ticker":"RIVN","type":"Manufacturing Plant","location":"Stanton Springs, GA","investment":"$5B","jobs":"7,500+","detail":"Rivian's second manufacturing plant in Morgan County, GA targeting 2026 opening.","cre_impact":"Industrial and workforce housing demand in Atlanta exurban markets.","source":"Public Record"},
+        {"company":"Mercedes-Benz","ticker":"MBG","type":"Manufacturing Plant","location":"Tuscaloosa, AL","investment":"$1B+","jobs":"1,000+","detail":"Mercedes expanding Vance, AL plant to produce all-electric EQ-class SUVs.","cre_impact":"Supports industrial supplier parks and multifamily growth near Tuscaloosa.","source":"Public Record"},
+        {"company":"Toyota","ticker":"TM","type":"Battery Plant","location":"Liberty, NC","investment":"$13.9B","jobs":"5,000+","detail":"Toyota battery manufacturing plant in Randolph County, NC to supply EV production.","cre_impact":"Creates industrial and housing demand in Triad region (Greensboro/High Point).","source":"Public Record"},
+        {"company":"Microsoft","ticker":"MSFT","type":"Data Center","location":"Multiple US Markets","investment":"$80B (2025)","jobs":"","detail":"Microsoft investing $80B in new AI-capable data centers across the US in fiscal 2025.","cre_impact":"Drives demand for large industrial/data center campuses near power infrastructure.","source":"Public Record"},
+        {"company":"Amazon Web Services","ticker":"AMZN","type":"Data Center","location":"Multiple US Markets","investment":"$150B+","jobs":"","detail":"AWS expanding data center footprint in Virginia, Ohio, Oregon, and Texas.","cre_impact":"Significant industrial land demand in suburban markets with reliable power grid.","source":"Public Record"},
+        {"company":"Volkswagen / Scout Motors","ticker":"VWAGY","type":"Manufacturing Plant","location":"Blythewood, SC","investment":"$2B","jobs":"4,000+","detail":"Scout Motors building an EV truck and SUV plant in South Carolina, opening ~2027.","cre_impact":"Industrial supplier and workforce housing demand in Columbia, SC metro.","source":"Public Record"},
+        {"company":"Eli Lilly","ticker":"LLY","type":"Manufacturing Plant","location":"Lebanon, IN","investment":"$9B","jobs":"1,000+","detail":"Eli Lilly building four new manufacturing sites in Indiana for weight-loss and diabetes drugs.","cre_impact":"Industrial and office demand in Indianapolis suburban corridor.","source":"Public Record"},
+        {"company":"Nucor","ticker":"NUE","type":"Manufacturing Plant","location":"West Virginia","investment":"$3B","jobs":"800+","detail":"Nucor steel sheet mill in Mason County, WV serving automotive and construction markets.","cre_impact":"Industrial growth opportunity in Ohio River Valley corridor.","source":"Public Record"},
+    ]
+
     key = os.getenv("GROQ_API_KEY", "")
     if not key:
-        return []
+        return BASELINE
 
     try:
         from groq import Groq
