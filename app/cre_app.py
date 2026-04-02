@@ -329,6 +329,11 @@ with main_tab_re:
                 dragmode=False,
             )
             st.plotly_chart(fig_map, use_container_width=True, config={"scrollZoom": False, "displayModeBar": False})
+            st.caption(
+                "Darker green indicates states with the strongest combined population inflow and business migration. "
+                "These markets historically see the earliest and sharpest increases in CRE demand — "
+                "particularly for multifamily, industrial, and mixed-use properties."
+            )
 
         with legend_col:
             st.markdown("<br><br>", unsafe_allow_html=True)
@@ -375,6 +380,11 @@ with main_tab_re:
             height=320, font=dict(family="Source Sans Pro", color="#1a1a1a"),
         )
         st.plotly_chart(fig_bar, use_container_width=True)
+        st.caption(
+            "Rankings combine population growth rate (60% weight) and business migration index (40% weight). "
+            "States at the top represent the most favorable macro conditions for new CRE investment — "
+            "higher scores correlate with rising rental demand, tighter vacancy, and upward rent pressure."
+        )
 
         # ── Metro Table ────────────────────────────────────────────────────────
         section(" Top Metro Areas — Population, Jobs & CRE Demand")
@@ -422,6 +432,11 @@ with main_tab_re:
             height=380, font=dict(family="Source Sans Pro", color="#1a1a1a"),
         )
         st.plotly_chart(fig_bubble, use_container_width=True)
+        st.caption(
+            "Each bubble is a state. Bubble size reflects the composite migration score. "
+            "The ideal CRE investment target sits in the upper-right — high population growth AND strong business migration. "
+            "States in the lower-left are losing both residents and corporate presence."
+        )
 
 
     # ═══════════════════════════════════════════════════════════════════════════════
@@ -500,6 +515,11 @@ with main_tab_re:
                         fig_p.update_yaxes(gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
                                            title_font=dict(color="#1a1a1a"))
                         st.plotly_chart(fig_p, use_container_width=True)
+                        st.caption(
+                            "Live REIT share prices sourced from Yahoo Finance. "
+                            "Higher dividend yield indicates more income relative to price — "
+                            "useful for comparing income-generating potential across property types."
+                        )
                 with col2:
                     bench = CAP_RATE_BENCHMARKS.get(pt, {})
                     st.markdown("<br>", unsafe_allow_html=True)
@@ -547,11 +567,21 @@ with main_tab_re:
             height=420, font=dict(family="Source Sans Pro", color="#1a1a1a"),
         )
         st.plotly_chart(fig_heat, use_container_width=True)
-        st.caption("Effective Profit Margin = NOI Margin × (1 − Vacancy) × (1 + Rent Growth).")
+        st.caption(
+            "Effective Profit Margin = NOI Margin × (1 − Vacancy) × (1 + Rent Growth). "
+            "Green cells are the most profitable combinations of market and property type. "
+            "Sunbelt markets (Dallas, Austin, Miami, Nashville) consistently outperform gateway cities "
+            "due to lower cap rate compression and stronger rent growth trajectories."
+        )
 
         # ── Top 10 Opportunities ───────────────────────────────────────────────
         section(" Top 10 Highest Profit Margin Opportunities Right Now")
         st.dataframe(top_opps, use_container_width=True, hide_index=True)
+        st.caption(
+            "Ranked by Effective Profit Margin across all tracked markets and property types. "
+            "Industrial and Data Center assets in Sunbelt markets dominate the top rankings due to "
+            "low vacancy, high NOI margins, and strong rent growth — key indicators of durable cash flow."
+        )
 
         # ── Property Type Comparison ───────────────────────────────────────────
         section(" Property Type Performance Comparison")
@@ -583,10 +613,11 @@ with main_tab_re:
         )
         fig_pt.update_xaxes(showgrid=False, tickangle=-15, tickfont=dict(color="#1a1a1a"))
         st.plotly_chart(fig_pt, use_container_width=True)
-
         st.caption(
-            "Cap rates and NOI margins sourced from CBRE, JLL, and Green Street 2024–2025 market reports. "
-            "REIT prices are live from Yahoo Finance. This is research, not financial advice."
+            "Bars show effective profit margin (left axis); the line shows cap rate (right axis). "
+            "Industrial leads on margin due to near-zero vacancy and rapid rent growth driven by e-commerce and reshoring. "
+            "Office carries the highest cap rate but the lowest margin — reflecting elevated vacancy and negative rent growth in most markets. "
+            "Source: CBRE, JLL, and Green Street 2024–2025 reports. Live REIT prices from Yahoo Finance."
         )
 
         # ── Rate-Adjusted View ─────────────────────────────────────────────────
@@ -646,6 +677,11 @@ with main_tab_re:
                     font=dict(family="Source Sans Pro", color="#1a1a1a"),
                 )
                 st.plotly_chart(fig_adj, use_container_width=True)
+                st.caption(
+                    "Shows the static (benchmark) cap rate alongside the rate-adjusted cap rate for each property type. "
+                    "When the 10-year Treasury rises above the baseline, cap rates expand — meaning asset values fall "
+                    "for the same NOI. Office and retail are most sensitive; industrial and multifamily are more resilient."
+                )
 
 
     # ═══════════════════════════════════════════════════════════════════════════════
@@ -1108,6 +1144,11 @@ with main_tab_energy:
                     )],
                 )
                 st.plotly_chart(fig_yc, use_container_width=True)
+                st.caption(
+                    "A normal (upward-sloping) yield curve signals healthy economic expectations. "
+                    "An inverted curve — where short-term rates exceed long-term — historically precedes recessions "
+                    "and tightens CRE lending conditions as banks compress their net interest margins."
+                )
             else:
                 st.info("Yield curve data unavailable.")
 
@@ -1182,6 +1223,11 @@ with main_tab_energy:
             font=dict(family="Source Sans Pro", color="#1a1a1a"),
         )
         st.plotly_chart(fig_tr, use_container_width=True)
+        st.caption(
+            "Tracks the 10-year Treasury, 2-year Treasury, and Fed Funds rate over the past 12 months. "
+            "The spread between the 10Y and 2Y (the yield curve slope) is a key leading indicator — "
+            "a narrowing or inverted spread signals reduced appetite for long-duration CRE debt."
+        )
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1225,8 +1271,9 @@ with main_tab_energy:
                 )
                 st.plotly_chart(fig_cap, use_container_width=True)
                 st.caption(
-                    f"Adjustment = (10Y − {baseline:.1f}% baseline) × property-type beta. "
-                    "Red bars = cap rate expansion (values fall). Green bars = compression (values rise)."
+                    f"Adjustment = (10Y Treasury − {baseline:.1f}% baseline) × property-type interest rate beta. "
+                    "Red bars mean cap rates have expanded from the baseline — asset values have declined for the same NOI. "
+                    "Green bars mean cap rate compression — favorable for existing owners but tougher for new buyers on yield."
                 )
 
             with col_impact:
@@ -1295,6 +1342,11 @@ with main_tab_energy:
                                     annotation_text="Med threshold",
                                     annotation_font=dict(color="#e65100", size=9))
                 st.plotly_chart(fig_debt, use_container_width=True)
+                st.caption(
+                    "Estimates the share of each REIT's debt maturing within 12 months relative to its market cap. "
+                    "REITs above the medium threshold face refinancing pressure — in a high-rate environment, "
+                    "rolling debt at elevated rates compresses FFO and can force asset sales or equity dilution."
+                )
 
             with col_tbl2:
                 def _risk_style(val):
@@ -1407,6 +1459,11 @@ with main_tab_energy:
                 font=dict(family="Source Sans Pro", color="#1a1a1a"),
             )
             st.plotly_chart(fig_comm, use_container_width=True)
+            st.caption(
+                "Each bar shows the commodity's latest price versus its 60-day moving average. "
+                "Bars above the baseline indicate costs are elevated — signaling higher construction costs for developers. "
+                "Copper and steel are the most direct inputs for building; oil and natural gas drive operating expenses and transport."
+            )
 
             # Detail table
             section(" Commodity Detail")
@@ -1496,6 +1553,11 @@ with main_tab_energy:
                 font=dict(family="Source Sans Pro", color="#1a1a1a"),
             )
             st.plotly_chart(fig_ce, use_container_width=True)
+            st.caption(
+                "Tracks ICLN (global clean energy), TAN (solar), and QCLN (clean tech) ETFs. "
+                "Sustained outperformance signals growing institutional capital flows into green energy — "
+                "a leading indicator of demand for solar-ready industrial space, EV charging infrastructure, and LEED-certified buildings."
+            )
 
         # ── Green REITs ────────────────────────────────────────────────────────
         section(" Green REIT Performance (PLD, EQIX, ARE)")
@@ -1528,6 +1590,12 @@ with main_tab_energy:
                 font=dict(family="Source Sans Pro", color="#1a1a1a"),
             )
             st.plotly_chart(fig_gr, use_container_width=True)
+            st.caption(
+                "Prologis (PLD) is the world's largest industrial REIT with a strong LEED portfolio. "
+                "Equinix (EQIX) powers its data centers with 90%+ renewable energy. "
+                "Alexandria (ARE) focuses on carbon-neutral life science campuses. "
+                "Outperformance vs. SPY indicates ESG-focused capital allocators are actively rotating into these names."
+            )
 
         # ── Combined Detail Table ──────────────────────────────────────────────
         section(" Full Detail — Clean Energy & Green REITs")
