@@ -170,7 +170,9 @@ st.markdown(f"""
 # ── Header banner ────────────────────────────────────────────────────────────
 import os as _os
 _banner = _os.path.join(_os.path.dirname(__file__), "assets", "header_banner.png")
-st.image(_banner, use_container_width=True)
+col_l, col_banner, col_r = st.columns([1, 6, 1])
+with col_banner:
+    st.image(_banner, use_container_width=True)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def section(title):
@@ -436,6 +438,7 @@ with main_tab_re:
                     "biz_score": "Business Migration Score",
                     "composite_score": "Composite"},
             hover_data={"state_name": True, "key_companies": True, "growth_drivers": True},
+            size_max=70,
         )
         fig_bubble.update_traces(textposition="middle center", textfont=dict(size=9, color="#e8dfc4"))
         fig_bubble.update_layout(
