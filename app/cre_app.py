@@ -57,17 +57,9 @@ st.markdown(f"""
   @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
   html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; }}
 
-  .cre-header {{
-    background: {BLACK};
-    padding: 18px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0;
-  }}
-  .cre-header h1 {{ color: {GOLD}; font-size: 1.6rem; font-weight: 700; margin: 0; }}
-  .cre-header span {{ color: white; font-size: 0.85rem; opacity: 0.8; }}
-  .gold-bar {{ height: 4px; background: linear-gradient(90deg, {GOLD_DARK}, {GOLD}, {GOLD_DARK}); margin-bottom: 24px; }}
+  /* push content flush to top so banner starts at the very top */
+  .block-container {{ padding-top: 0 !important; }}
+  section[data-testid="stAppViewContainer"] > div:first-child {{ padding-top: 0 !important; }}
 
   .agent-card {{
     background: {BLACK};
@@ -148,14 +140,10 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header ───────────────────────────────────────────────────────────────────
-st.markdown(f"""
-<div class="cre-header">
-  <h1> CRE Intelligence Platform</h1>
-  <span>Purdue University · Daniels School of Business · MSF Program &nbsp;|&nbsp; {datetime.today().strftime('%B %d, %Y')}</span>
-</div>
-<div class="gold-bar"></div>
-""", unsafe_allow_html=True)
+# ── Header banner ────────────────────────────────────────────────────────────
+import os as _os
+_banner = _os.path.join(_os.path.dirname(__file__), "assets", "header_banner.png")
+st.image(_banner, use_container_width=True)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def section(title):
