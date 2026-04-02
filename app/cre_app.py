@@ -35,7 +35,7 @@ st.set_page_config(
 
 # ── Start background agents ──────────────────────────────────────────────────
 from src.cre_agents import (
-    start_scheduler, force_run, read_cache, cache_age_label, get_status,
+    start_scheduler, read_cache, cache_age_label, get_status,
 )
 
 @st.cache_resource
@@ -179,15 +179,8 @@ def stale_banner(cache_key: str):
         st.caption(f" Last updated: {age} · Auto-refreshes in background")
     return True
 
-def agent_force_button(agent_name: str, label: str, key_suffix: str = ""):
-    key = f"force_{agent_name}{key_suffix}"
-    col_btn, col_age = st.columns([2, 3])
-    with col_btn:
-        if st.button(f"⚡ Force Refresh {label}", key=key):
-            force_run(agent_name)
-            st.toast(f"{label} triggered — data will update in ~15s", icon="⚡")
-    with col_age:
-        st.caption(f"Last run: {cache_age_label(agent_name)}")
+def agent_last_updated(agent_name: str):
+    st.caption(f"Last updated: {cache_age_label(agent_name)}")
 
 
 # ── Meet the Team (fixed footer) ──────────────────────────────────────────────
@@ -268,7 +261,7 @@ with main_tab_re:
             "Agent 1 tracks **domestic population migration** and **corporate headquarters relocations** "
             "to surface the highest-demand markets for CRE investment. Updates every 6 hours."
         )
-        agent_force_button("migration", "Migration Agent")
+        agent_last_updated("migration")
 
         cache = read_cache("migration")
         if not stale_banner("migration") or cache["data"] is None:
@@ -327,13 +320,15 @@ with main_tab_re:
             ))
             fig_map.update_layout(
                 geo=dict(scope="usa", showlakes=True, lakecolor="lightblue",
-                         bgcolor="white", showland=True, landcolor="#f5f5f5"),
+                         bgcolor="white", showland=True, landcolor="#f5f5f5",
+                         projection_scale=1, center=dict(lat=38, lon=-96)),
                 paper_bgcolor="white",
                 margin=dict(t=10, b=10, l=0, r=0),
                 height=460,
                 font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                dragmode=False,
             )
-            st.plotly_chart(fig_map, use_container_width=True)
+            st.plotly_chart(fig_map, use_container_width=True, config={"scrollZoom": False, "displayModeBar": False})
 
         with legend_col:
             st.markdown("<br><br>", unsafe_allow_html=True)
@@ -438,7 +433,7 @@ with main_tab_re:
             "Agent 2 pulls **live REIT pricing**, estimates **cap rates** and **NOI margins** by property type, "
             "and ranks market × property type combinations. Updates every hour."
         )
-        agent_force_button("pricing", "Pricing Agent")
+        agent_last_updated("pricing")
 
         from src.cre_pricing import compute_profit_matrix, get_top_opportunities, get_property_type_summary, CAP_RATE_BENCHMARKS
 
@@ -662,7 +657,7 @@ with main_tab_re:
             "Agent 3 uses an LLM (Llama 3.3-70B via Groq) to analyze migration signals, tax policy, "
             "labor markets, and corporate announcements — then predicts HQ moves. Updates every 24 hours."
         )
-        agent_force_button("predictions", "Predictions Agent")
+        agent_last_updated("predictions")
 
         cache3 = read_cache("predictions")
         if not stale_banner("predictions") or cache3["data"] is None:
@@ -680,7 +675,7 @@ with main_tab_re:
               <div class="agent-text">{pred_text}</div>
             </div>""", unsafe_allow_html=True)
         else:
-            st.info("Predictions not yet available. Click Force Refresh or check that GROQ_API_KEY is set in .env")
+            st.info("Predictions are generated every 24 hours. Check that GROQ_API_KEY is set in .env and wait for the next scheduled run.")
 
         # ── Top 5 States breakdown ─────────────────────────────────────────────
         section(" Top 5 States Driving Predictions")
@@ -704,7 +699,7 @@ with main_tab_re:
             "migration and business growth scores — identifying acquisition opportunities before demand peaks. "
             "Updates every 24 hours alongside company predictions."
         )
-        agent_force_button("predictions", "Listings Agent", key_suffix="_listings")
+        agent_last_updated("predictions")
 
         cache4 = read_cache("predictions")
         if not stale_banner("predictions") or cache4["data"] is None:
@@ -715,7 +710,7 @@ with main_tab_re:
         top3_abbr = pdata4.get("top3_abbr", [])
 
         if not listings:
-            st.info("No listings available yet. Click Force Refresh above or wait for the agent to complete its first run.")
+            st.info("Listings will appear after the first scheduled agent run (every 24 hours).")
         else:
             from src.cre_listings import format_listing_card
 
@@ -792,7 +787,7 @@ with main_tab_re:
             "training centers, data centers, warehouses, and other large facilities. "
             "Sources include Reuters, IndustryWeek, PR Newswire, DOE, Commerce Dept, and EDA."
         )
-        agent_force_button("news", "News Agent", key_suffix="_news")
+        agent_last_updated("news")
 
         cache_news = read_cache("news")
         if not stale_banner("news") or cache_news["data"] is None:
@@ -818,7 +813,7 @@ with main_tab_re:
               <div class="agent-text">{summary}</div>
             </div>""", unsafe_allow_html=True)
         else:
-            st.info("Summary not yet available. Click Force Refresh or ensure GROQ_API_KEY is set in .env")
+            st.info("News summary is generated every 4 hours. Ensure GROQ_API_KEY is set in .env.")
 
         # ── Raw Article Feed ─────────────────────────────────────────────────
         raw = ndata.get("raw_articles", [])
@@ -873,12 +868,6 @@ with main_tab_re:
             "Agent 4 continuously verifies that all data sources are live, caches are fresh, "
             "and APIs are reachable. This tab shows the live health dashboard."
         )
-
-        col_refresh, _ = st.columns([2, 5])
-        with col_refresh:
-            if st.button("⚡ Force Debugger Run"):
-                force_run("debugger")
-                st.toast("Debugger triggered — refreshing in ~10s", icon="")
 
         # ── Agent Status ────────────────────────────────────────────────────────
         section(" Agent Status")
@@ -985,45 +974,6 @@ with main_tab_re:
         else:
             st.info("Debugger agent has not completed its first run yet. Refresh in 30 seconds.")
 
-        # ── Manual force run buttons ────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section("⚡ Manual Agent Triggers")
-        st.markdown("Force any agent to run immediately (runs in background — data appears after ~15-30s refresh):")
-        b1, b2, b3, b4, b5, b6, b7, b8 = st.columns(8)
-        with b1:
-            if st.button(" Run Migration Agent"):
-                force_run("migration")
-                st.toast("Migration agent triggered", icon="")
-        with b2:
-            if st.button(" Run Pricing Agent"):
-                force_run("pricing")
-                st.toast("Pricing agent triggered", icon="")
-        with b3:
-            if st.button(" Run Predictions Agent"):
-                force_run("predictions")
-                st.toast("Predictions agent triggered (takes ~30s)", icon="")
-        with b4:
-            if st.button(" Run Debugger Agent"):
-                force_run("debugger")
-                st.toast("Debugger agent triggered", icon="")
-        with b5:
-            if st.button(" Run News Agent"):
-                force_run("news")
-                st.toast("News agent triggered (takes ~20s)", icon="")
-        with b6:
-            if st.button(" Run Rate Agent"):
-                force_run("rates")
-                st.toast("Rate agent triggered (takes ~30s)", icon="")
-        with b7:
-            if st.button(" Run Energy Agent"):
-                force_run("energy")
-                st.toast("Energy agent triggered", icon="")
-        with b8:
-            if st.button(" Run Sustainability Agent"):
-                force_run("sustainability")
-                st.toast("Sustainability agent triggered", icon="")
-
-        st.markdown("<br>", unsafe_allow_html=True)
         st.caption(
             "All agents run independently in background threads managed by APScheduler. "
             "Data is stored in JSON cache files and survives Streamlit reruns. "
@@ -1050,7 +1000,7 @@ with main_tab_energy:
             "computes dynamic cap rate adjustments by property type, and scores REIT refinancing risk. "
             "Updates every hour. Requires `FRED_API_KEY` in `.env`."
         )
-        agent_force_button("rates", "Rate Agent")
+        agent_last_updated("rates")
 
         cache_r = read_cache("rates")
         rdata   = cache_r.get("data") or {}
@@ -1060,7 +1010,7 @@ with main_tab_energy:
             if err:
                 st.warning(f"⚠ {err}")
             else:
-                st.info("Rate agent has not completed its first run yet. Click **Force Refresh** above or check that `FRED_API_KEY` is set in `.env`.")
+                st.info("Rate data is fetched every hour. Check that `FRED_API_KEY` is set in `.env`.")
             st.stop()
 
         rates       = rdata.get("rates", {})
@@ -1400,7 +1350,7 @@ with main_tab_energy:
             "Agent 6 tracks **oil, natural gas, copper, and steel** prices to derive a "
             "**Construction Cost Signal** that indicates whether building costs are rising or easing. Updates every 6 hours."
         )
-        agent_force_button("energy", "Energy Agent")
+        agent_last_updated("energy")
 
         cache_e = read_cache("energy_data")
         if cache_e["data"] is None:
@@ -1482,7 +1432,7 @@ with main_tab_energy:
             "Agent 7 monitors **clean-energy ETFs** and **green REITs** to gauge ESG momentum "
             "relative to the broad market (SPY). Updates every 6 hours."
         )
-        agent_force_button("sustainability", "Sustainability Agent")
+        agent_last_updated("sustainability")
 
         cache_s = read_cache("sustainability_data")
         if cache_s["data"] is None:
