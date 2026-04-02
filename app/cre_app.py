@@ -2,7 +2,7 @@
 Commercial Real Estate Intelligence Platform
 Purdue MSF | Group AI Project
 
-Eight background agents update independently on schedules:
+Nine background agents update independently on schedules:
   Agent 1 — Population & Migration    (every 6h)
   Agent 2 — CRE Pricing & Profit      (every 1h)
   Agent 3 — Company Predictions       (every 24h, LLM)
@@ -11,6 +11,7 @@ Eight background agents update independently on schedules:
   Agent 6 — Interest Rate & Debt      (every 1h, requires FRED_API_KEY)
   Agent 7 — Energy & Construction     (every 6h)
   Agent 8 — Sustainability & ESG      (every 6h)
+  Agent 9 — Labor Market & Tenant Demand (every 6h)
 
 Run: streamlit run app/cre_app.py
 """
@@ -364,77 +365,87 @@ st.markdown(f"""
   @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
   html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; }}
 
-  .cre-header {{
-    background: {BLACK};
-    padding: 18px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0;
+  /* small top padding so banner is fully visible */
+  .block-container {{ padding-top: 1rem !important; }}
+  section[data-testid="stAppViewContainer"] > div:first-child {{ padding-top: 0 !important; }}
+
+  /* ── Dark intelligence dashboard theme ── */
+  .stApp, [data-testid="stAppViewContainer"], .main, .block-container {{
+    background-color: #0f0f0c !important;
+    color: #e8dfc4 !important;
   }}
-  .cre-header h1 {{ color: {GOLD}; font-size: 1.6rem; font-weight: 700; margin: 0; }}
-  .cre-header span {{ color: white; font-size: 0.85rem; opacity: 0.8; }}
-  .gold-bar {{ height: 4px; background: linear-gradient(90deg, {GOLD_DARK}, {GOLD}, {GOLD_DARK}); margin-bottom: 24px; }}
+  p, li, span, label, div {{ color: #e8dfc4; }}
+  .stMarkdown p {{ color: #e8dfc4; }}
+  .stCaption, [data-testid="stCaptionContainer"] p {{ color: #a09880 !important; }}
+  [data-testid="stMetricValue"] {{ color: #CFB991 !important; }}
+  [data-testid="stMetricLabel"] {{ color: #e8dfc4 !important; }}
+  [data-testid="stDataFrame"] {{ background: #16160f; }}
+  .stDataFrame th {{ background: #1e1e16 !important; color: #CFB991 !important; }}
+  .stDataFrame td {{ background: #1a1a14 !important; color: #e8dfc4 !important; }}
+  [data-testid="stInfo"] {{ background: #1a1f14; border-color: #8E6F3E; color: #e8dfc4; }}
+  [data-testid="stWarning"] {{ background: #1f1a0f; border-color: #CFB991; color: #e8dfc4; }}
 
   .agent-card {{
-    background: {BLACK};
-    border-radius: 8px;
+    background: #16160f;
+    border-radius: 6px;
     padding: 20px 24px;
     margin: 12px 0;
-    border-left: 5px solid {GOLD};
+    border: 1px solid #8E6F3E;
+    border-left: 5px solid #CFB991;
   }}
   .agent-card .agent-label {{
-    color: {GOLD};
+    color: #CFB991;
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 2px;
     margin-bottom: 8px;
   }}
   .agent-card .agent-text {{
-    color: #eee;
+    color: #e8dfc4;
     font-size: 0.92rem;
     line-height: 1.7;
     white-space: pre-wrap;
   }}
 
   .metric-card {{
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-top: 4px solid {GOLD};
+    background: #16160f;
+    border: 1px solid #8E6F3E;
+    border-top: 3px solid #CFB991;
     border-radius: 6px;
     padding: 16px;
     text-align: center;
   }}
-  .metric-card .label {{ font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }}
-  .metric-card .value {{ font-size: 1.6rem; font-weight: 700; color: {BLACK}; margin: 4px 0; }}
-  .metric-card .sub   {{ font-size: 0.78rem; color: #888; }}
+  .metric-card .label {{ font-size: 0.75rem; color: #a09880; text-transform: uppercase; letter-spacing: 0.5px; }}
+  .metric-card .value {{ font-size: 1.6rem; font-weight: 700; color: #CFB991; margin: 4px 0; }}
+  .metric-card .sub   {{ font-size: 0.78rem; color: #7a7060; }}
 
   .section-header {{
-    background: {BLACK};
-    color: {GOLD};
+    background: #16160f;
+    color: #CFB991;
     padding: 9px 16px;
     border-radius: 4px;
     font-size: 1rem;
     font-weight: 700;
     margin: 24px 0 14px 0;
-    border-left: 5px solid {GOLD};
+    border-left: 5px solid #CFB991;
+    border-bottom: 1px solid #8E6F3E;
   }}
 
   .listing-card {{
-    background: #f9f9f9;
-    border: 1px solid #e0e0e0;
-    border-left: 4px solid {GOLD};
+    background: #16160f;
+    border: 1px solid #8E6F3E;
+    border-left: 4px solid #CFB991;
     border-radius: 6px;
     padding: 14px 18px;
     margin: 8px 0;
   }}
-  .listing-card .l-price {{ font-size: 1.4rem; font-weight: 700; color: {BLACK}; }}
-  .listing-card .l-address {{ font-size: 0.9rem; color: #333; margin: 2px 0; }}
-  .listing-card .l-detail {{ font-size: 0.8rem; color: #666; }}
+  .listing-card .l-price {{ font-size: 1.4rem; font-weight: 700; color: #CFB991; }}
+  .listing-card .l-address {{ font-size: 0.9rem; color: #e8dfc4; margin: 2px 0; }}
+  .listing-card .l-detail {{ font-size: 0.8rem; color: #a09880; }}
   .listing-card .l-tag {{
     display: inline-block;
-    background: {GOLD};
-    color: {BLACK};
+    background: #CFB991;
+    color: #0f0f0c;
     border-radius: 12px;
     padding: 2px 10px;
     font-size: 0.72rem;
@@ -443,25 +454,81 @@ st.markdown(f"""
     margin-top: 4px;
   }}
 
-  .status-ok    {{ color: #2e7d32; font-weight: 700; }}
-  .status-error {{ color: #b71c1c; font-weight: 700; }}
-  .status-run   {{ color: #e65100; font-weight: 700; }}
-  .status-idle  {{ color: #757575; }}
+  .status-ok    {{ color: #4caf6e; font-weight: 700; }}
+  .status-error {{ color: #e05050; font-weight: 700; }}
+  .status-run   {{ color: #CFB991; font-weight: 700; }}
+  .status-idle  {{ color: #666; }}
 
+  div[data-testid="stTabs"] {{
+    background: #0f0f0c !important;
+  }}
   div[data-testid="stTabs"] button {{
     font-weight: 600 !important;
     font-size: 0.92rem !important;
+    color: #a09880 !important;
+    background: transparent !important;
+  }}
+  div[data-testid="stTabs"] button[aria-selected="true"] {{
+    color: #CFB991 !important;
+    border-bottom: 2px solid #CFB991 !important;
   }}
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header ───────────────────────────────────────────────────────────────────
+# ── Header banner ────────────────────────────────────────────────────────────
+# Pure HTML/CSS banner — matches app dark-gold theme exactly, no image patching
+_ICON_B64 = "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"
 st.markdown(f"""
-<div class="cre-header">
-  <h1> CRE Intelligence Platform</h1>
-  <span>Purdue University · Daniels School of Business · MSF Program &nbsp;|&nbsp; {datetime.today().strftime('%B %d, %Y')}</span>
+<div style="
+  background: linear-gradient(135deg, #0f0f0c 0%, #141410 40%, #0f0f0c 100%);
+  border: 1px solid #8E6F3E;
+  border-bottom: 4px solid #CFB991;
+  border-radius: 8px;
+  padding: 18px 36px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 110px;
+">
+  <!-- Left: building icon + title -->
+  <div style="display:flex; align-items:center; gap:20px;">
+    <img src="data:image/png;base64,{_ICON_B64}"
+         style="height:90px; width:90px; object-fit:contain;" />
+    <div>
+      <div style="color:#CFB991; font-size:2.1rem; font-weight:700;
+                  font-family:'Source Sans Pro',Arial,sans-serif;
+                  letter-spacing:0.5px; line-height:1.1;">
+        CRE Intelligence Platform
+      </div>
+      <div style="color:#8E6F3E; font-size:0.85rem;
+                  font-family:'Source Sans Pro',Arial,sans-serif;
+                  letter-spacing:2px; text-transform:uppercase; margin-top:4px;">
+        AI-Powered Commercial Real Estate Intelligence
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="width:2px; height:80px; background:#8E6F3E; margin:0 30px; flex-shrink:0;"></div>
+
+  <!-- Right: Purdue branding -->
+  <div style="text-align:right;">
+    <div style="color:#CFB991; font-size:1.55rem; font-weight:700;
+                font-family:'Source Sans Pro',Arial,sans-serif; line-height:1.1;">
+      Purdue University
+    </div>
+    <div style="color:#e8dfc4; font-size:1.05rem;
+                font-family:'Source Sans Pro',Arial,sans-serif; margin-top:4px;">
+      Daniels School of Business
+    </div>
+    <div style="color:#8E6F3E; font-size:0.75rem; letter-spacing:2px;
+                text-transform:uppercase; font-family:'Source Sans Pro',Arial,sans-serif;
+                margin-top:4px;">
+      MSF Program
+    </div>
+  </div>
 </div>
-<div class="gold-bar"></div>
 """, unsafe_allow_html=True)
 
 # ── Persistent Chat Bar ─────────────────────────────────────────────────────
@@ -656,63 +723,11 @@ def agent_last_updated(agent_name: str):
     st.caption(f"Last updated: {cache_age_label(agent_name)}")
 
 
-# ── Meet the Team (fixed footer) ──────────────────────────────────────────────
-st.markdown(f"""
-<style>
-  .meet-team-footer {{
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 9999;
-    background: {BLACK};
-    padding: 14px 32px;
-    border-top: 3px solid {GOLD};
-    text-align: center;
-  }}
-  .meet-team-footer .label {{
-    color: {GOLD};
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-bottom: 6px;
-  }}
-  .meet-team-footer .names {{
-    display: flex;
-    justify-content: center;
-    gap: 36px;
-    flex-wrap: wrap;
-  }}
-  .meet-team-footer a {{
-    color: {GOLD} !important;
-    text-decoration: underline !important;
-    font-size: 0.9rem;
-    font-weight: 600;
-  }}
-  .meet-team-footer .course {{
-    color: #888;
-    font-size: 0.7rem;
-    margin-top: 6px;
-  }}
-  /* Push page content up so footer doesn't overlap last element */
-  .main .block-container {{ padding-bottom: 90px; }}
-</style>
-<div class="meet-team-footer">
-  <div class="label">Meet the Team</div>
-  <div class="names">
-    <a href="https://www.linkedin.com/in/aayman-afzal/" target="_blank">Aayman Afzal</a>
-    <a href="https://www.linkedin.com/in/ajinkyakodnikar/" target="_blank">Ajinkya Kodnikar</a>
-    <a href="https://www.linkedin.com/in/oyu-amar/" target="_blank">Oyu Amar</a>
-    <a href="https://www.linkedin.com/in/ricardo-ruiz1/" target="_blank">Ricardo Ruiz</a>
-  </div>
-  <div class="course">MGMT 690 · AI Leadership · Purdue Daniels School of Business</div>
-</div>
-""", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  MAIN TABS
 # ═══════════════════════════════════════════════════════════════════════════════
-main_tab_re, main_tab_energy = st.tabs(["Real Estate", "Energy"])
+main_tab_re, main_tab_energy, main_tab_macro = st.tabs(["Real Estate", "Energy", "Macro Environment"])
 
 with main_tab_re:
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -945,10 +960,10 @@ with main_tab_re:
                 )
 
             fig_map.update_layout(
-                paper_bgcolor="white",
+                paper_bgcolor="#16160f",
                 margin=dict(t=10, b=10, l=0, r=0),
                 height=460,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 dragmode=False,
             )
             st.plotly_chart(fig_map, use_container_width=True, config={"scrollZoom": False, "displayModeBar": False})
@@ -986,7 +1001,7 @@ with main_tab_re:
                         colorscale=[[0, GOLD_DARK], [1, GOLD]], showscale=False),
             text=top10["composite_score"].apply(lambda x: f"{x:.0f}"),
             textposition="outside",
-            textfont=dict(color="#1a1a1a", size=12),
+            textfont=dict(color="#e8dfc4", size=12),
             customdata=top10[["state_name", "pop_growth_pct", "key_companies"]].values,
             hovertemplate=(
                 "<b>%{customdata[0]}</b><br>"
@@ -995,12 +1010,12 @@ with main_tab_re:
             ),
         ))
         fig_bar.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white",
-            xaxis=dict(showgrid=True, gridcolor="#f0f0f0", range=[0, 110],
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            yaxis=dict(autorange="reversed", tickfont=dict(color="#1a1a1a", size=12)),
+            plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+            xaxis=dict(showgrid=True, gridcolor="#2d2d22", range=[0, 110],
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            yaxis=dict(autorange="reversed", tickfont=dict(color="#e8dfc4", size=12)),
             margin=dict(t=20, b=20, l=60, r=60),
-            height=320, font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            height=320, font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
         st.plotly_chart(fig_bar, use_container_width=True)
         st.caption(
@@ -1068,16 +1083,17 @@ with main_tab_re:
                     "biz_score": "Business Migration Score",
                     "composite_score": "Composite"},
             hover_data={"state_name": True, "key_companies": True, "growth_drivers": True},
+            size_max=70,
         )
-        fig_bubble.update_traces(textposition="middle center", textfont=dict(size=9, color="#1a1a1a"))
+        fig_bubble.update_traces(textposition="middle center", textfont=dict(size=9, color="#e8dfc4"))
         fig_bubble.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white",
-            xaxis=dict(showgrid=True, gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            yaxis=dict(showgrid=True, gridcolor="#f0f0f0",
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+            plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+            xaxis=dict(showgrid=True, gridcolor="#2d2d22", zeroline=True, zerolinecolor="#ccc",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            yaxis=dict(showgrid=True, gridcolor="#2d2d22",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
             coloraxis_showscale=False, margin=dict(t=20, b=40),
-            height=380, font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            height=380, font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
         st.plotly_chart(fig_bubble, use_container_width=True)
         st.caption(
@@ -1155,13 +1171,13 @@ with main_tab_re:
                             ),
                         ))
                         fig_p.update_layout(
-                            plot_bgcolor="white", paper_bgcolor="white",
+                            plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
                             yaxis_title="Price ($)", margin=dict(t=30, b=30),
-                            height=260, font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                            height=260, font=dict(family="Source Sans Pro", color="#e8dfc4"),
                         )
-                        fig_p.update_xaxes(showgrid=False, tickfont=dict(color="#1a1a1a"))
-                        fig_p.update_yaxes(gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
-                                           title_font=dict(color="#1a1a1a"))
+                        fig_p.update_xaxes(showgrid=False, tickfont=dict(color="#e8dfc4"))
+                        fig_p.update_yaxes(gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                                           title_font=dict(color="#e8dfc4"))
                         st.plotly_chart(fig_p, use_container_width=True)
                         st.caption(
                             "Live REIT share prices sourced from Yahoo Finance. "
@@ -1202,17 +1218,17 @@ with main_tab_re:
             z=pivot.values * 100, x=list(pivot.columns), y=list(pivot.index),
             colorscale=[[0.0, "#b71c1c"], [0.3, "#ef9a9a"], [0.5, "#fff9c4"], [0.7, "#a5d6a7"], [1.0, "#1b5e20"]],
             text=[[f"{v:.1f}%" for v in row] for row in pivot.values * 100],
-            texttemplate="%{text}", textfont=dict(size=9, color="#1a1a1a"),
+            texttemplate="%{text}", textfont=dict(size=9, color="#e8dfc4"),
             hovertemplate="<b>%{y}</b><br>%{x}<br>Margin: %{z:.1f}%<extra></extra>",
             colorbar=dict(title="Eff Margin %", thickness=14, len=0.8,
-                          tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                          tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
         ))
         fig_heat.update_layout(
-            paper_bgcolor="white",
-            xaxis=dict(tickangle=-35, tickfont=dict(size=9, color="#1a1a1a")),
-            yaxis=dict(tickfont=dict(size=9, color="#1a1a1a")),
+            paper_bgcolor="#16160f",
+            xaxis=dict(tickangle=-35, tickfont=dict(size=9, color="#e8dfc4")),
+            yaxis=dict(tickfont=dict(size=9, color="#e8dfc4")),
             margin=dict(t=20, b=100, l=180, r=20),
-            height=420, font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            height=420, font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
         st.plotly_chart(fig_heat, use_container_width=True)
         st.caption(
@@ -1260,16 +1276,16 @@ with main_tab_re:
             marker=dict(size=7), yaxis="y2",
         ))
         fig_pt.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white",
-            yaxis=dict(title="Effective Profit Margin (%)", gridcolor="#f0f0f0",
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+            plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+            yaxis=dict(title="Effective Profit Margin (%)", gridcolor="#2d2d22",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
             yaxis2=dict(title="Cap Rate (%)", overlaying="y", side="right", showgrid=False,
-                        tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a")),
+                        tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4")),
             margin=dict(t=40, b=60),
-            height=360, font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            height=360, font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
-        fig_pt.update_xaxes(showgrid=False, tickangle=-15, tickfont=dict(color="#1a1a1a"))
+        fig_pt.update_xaxes(showgrid=False, tickangle=-15, tickfont=dict(color="#e8dfc4"))
         st.plotly_chart(fig_pt, use_container_width=True)
         st.caption(
             "Bars show effective profit margin (left axis); the line shows cap rate (right axis). "
@@ -1326,13 +1342,13 @@ with main_tab_re:
                 ))
                 fig_adj.update_layout(
                     barmode="group",
-                    paper_bgcolor="white", plot_bgcolor="white",
-                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#f0f0f0",
-                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickangle=-15, tickfont=dict(color="#1a1a1a", size=10)),
-                    legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a")),
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickangle=-15, tickfont=dict(color="#e8dfc4", size=10)),
+                    legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4")),
                     margin=dict(t=40, b=60), height=340,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 st.plotly_chart(fig_adj, use_container_width=True)
                 st.caption(
@@ -1439,19 +1455,19 @@ with main_tab_re:
                 meta_line  = "&nbsp;&nbsp;|&nbsp;&nbsp;".join(meta_parts) if meta_parts else ""
 
                 st.markdown(f"""
-                <div style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;
+                <div style="background:#16160f;border:1px solid #8E6F3E;border-radius:8px;
                             padding:16px 20px;margin-bottom:12px;border-left:4px solid {badge_fg};">
                   <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
                     <span style="background:{badge_bg};color:{badge_fg};font-size:0.72rem;
                                  font-weight:700;padding:2px 8px;border-radius:4px;
                                  text-transform:uppercase;letter-spacing:0.5px;">{atype}</span>
-                    <span style="font-size:1rem;font-weight:700;color:#1a1a1a;">{co}{ticker_str}</span>
-                    <span style="font-size:0.85rem;color:#555;margin-left:auto;">{loc}</span>
+                    <span style="font-size:1rem;font-weight:700;color:#e8dfc4;">{co}{ticker_str}</span>
+                    <span style="font-size:0.85rem;color:#a09880;margin-left:auto;">{loc}</span>
                   </div>
-                  <div style="font-size:0.9rem;color:#333;margin-bottom:6px;">{detail}</div>
+                  <div style="font-size:0.9rem;color:#e8dfc4;margin-bottom:6px;">{detail}</div>
                   {"<div style='font-size:0.82rem;color:#555;margin-bottom:6px;'>" + meta_line + "</div>" if meta_line else ""}
                   {"<div style='font-size:0.82rem;color:#1b5e20;'><b>CRE Opportunity:</b> " + impact + "</div>" if impact else ""}
-                  <div style="font-size:0.72rem;color:#aaa;margin-top:6px;">Source: {source}</div>
+                  <div style="font-size:0.72rem;color:#6a6050;margin-top:6px;">Source: {source}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1864,16 +1880,250 @@ with main_tab_re:
 
 
 with main_tab_energy:
-    tab_rates, tab_energy, tab_esg = st.tabs([
-        "Rate Environment",
+    tab_energy, tab_esg = st.tabs([
         "Energy & Construction Costs",
         "Sustainability",
     ])
 
 
     # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB — RATE ENVIRONMENT
+    #  TAB — ENERGY & CONSTRUCTION COSTS
     # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_energy:
+        st.markdown("#### How are energy and material costs affecting CRE construction?")
+        st.markdown(
+            "Agent 6 tracks **oil, natural gas, copper, and steel** prices to derive a "
+            "**Construction Cost Signal** that indicates whether building costs are rising or easing. Updates every 6 hours."
+        )
+        agent_last_updated("energy")
+
+        cache_e = read_cache("energy_data")
+        if cache_e["data"] is None:
+            st.warning("⏳ Energy agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+            st.stop()
+        age_e = cache_age_label("energy_data")
+        st.caption(f" Last updated: {age_e} · Auto-refreshes in background")
+
+        edata = cache_e["data"]
+        commodities = edata.get("commodities", [])
+        cost_signal = edata.get("construction_cost_signal", "UNKNOWN")
+        avg_momentum = edata.get("avg_momentum_pct", 0)
+
+        # ── KPI strip ──────────────────────────────────────────────────────────
+        signal_color = {"HIGH": "", "MODERATE": "", "LOW": ""}.get(cost_signal, "⚪")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.markdown(metric_card("Construction Cost Signal", f"{signal_color} {cost_signal}",
+                                 "Based on commodity momentum"), unsafe_allow_html=True)
+        c2.markdown(metric_card("Avg Momentum", f"{avg_momentum:+.1f}%",
+                                 "vs 60-day SMA"), unsafe_allow_html=True)
+        c3.markdown(metric_card("Commodities Tracked", str(len(commodities)),
+                                 "Oil, Gas, Copper, Steel, Energy"), unsafe_allow_html=True)
+        c4.markdown(metric_card("Trading Days", str(edata.get("trading_days_analysed", 0)),
+                                 "6-month lookback"), unsafe_allow_html=True)
+
+        # ── Commodity Price Table ──────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Commodity Prices vs 60-Day Moving Average")
+
+        if commodities:
+            comm_df = pd.DataFrame(commodities)
+
+            # Bar chart — % above/below SMA
+            colors_comm = [GOLD if p >= 0 else "#c62828" for p in comm_df["pct_above_sma"]]
+            fig_comm = go.Figure(go.Bar(
+                x=comm_df["label"], y=comm_df["pct_above_sma"],
+                marker_color=colors_comm,
+                text=comm_df["pct_above_sma"].apply(lambda x: f"{x:+.1f}%"),
+                textposition="outside",
+                customdata=comm_df[["latest_price", "sma_60"]].values,
+                hovertemplate=(
+                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
+                    "SMA-60: $%{customdata[1]:.2f}<br>"
+                    "vs SMA: %{y:+.1f}%<extra></extra>"
+                ),
+            ))
+            fig_comm.update_layout(
+                plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+                yaxis_title="% Above/Below SMA-60",
+                yaxis=dict(gridcolor="#2d2d22", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                margin=dict(t=30, b=30), height=320,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_comm, use_container_width=True)
+            st.caption(
+                "Each bar shows the commodity's latest price versus its 60-day moving average. "
+                "Bars above the baseline indicate costs are elevated — signaling higher construction costs for developers. "
+                "Copper and steel are the most direct inputs for building; oil and natural gas drive operating expenses and transport."
+            )
+
+            # Detail table
+            section(" Commodity Detail")
+            disp_comm = comm_df[["label", "latest_price", "sma_60", "pct_above_sma"]].copy()
+            disp_comm.columns = ["Commodity", "Latest Price", "SMA-60", "% vs SMA"]
+            disp_comm["Latest Price"] = disp_comm["Latest Price"].apply(lambda x: f"${x:.2f}")
+            disp_comm["SMA-60"] = disp_comm["SMA-60"].apply(lambda x: f"${x:.2f}")
+            disp_comm["% vs SMA"] = disp_comm["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
+            st.dataframe(disp_comm, use_container_width=True, hide_index=True)
+
+        st.caption(
+            "Data sourced from Yahoo Finance (USO, UNG, XLE, CPER, SLX). "
+            "Construction Cost Signal: HIGH (>+5%), MODERATE (±5%), LOW (<−5%) based on avg momentum vs 60-day SMA."
+        )
+
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — SUSTAINABILITY & ESG
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_esg:
+        st.markdown("#### Is green capital flowing into real estate?")
+        st.markdown(
+            "Agent 7 monitors **clean-energy ETFs** and **green REITs** to gauge ESG momentum "
+            "relative to the broad market (SPY). Updates every 6 hours."
+        )
+        agent_last_updated("sustainability")
+
+        cache_s = read_cache("sustainability_data")
+        if cache_s["data"] is None:
+            st.warning("⏳ Sustainability agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+            st.stop()
+        age_s = cache_age_label("sustainability_data")
+        st.caption(f" Last updated: {age_s} · Auto-refreshes in background")
+
+        sdata = cache_s["data"]
+        clean_energy = sdata.get("clean_energy", [])
+        green_reits = sdata.get("green_reits", [])
+        esg_signal = sdata.get("esg_momentum_signal", "UNKNOWN")
+        bench_ret = sdata.get("benchmark_return_pct") or 0
+        avg_clean_ret = sdata.get("avg_clean_energy_return_pct") or 0
+
+        # ── KPI strip ──────────────────────────────────────────────────────────
+        esg_icon = {"STRONG": "", "NEUTRAL": "", "WEAK": ""}.get(esg_signal, "⚪")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.markdown(metric_card("ESG Momentum Signal", f"{esg_icon} {esg_signal}",
+                                 "Clean energy vs SPY"), unsafe_allow_html=True)
+        c2.markdown(metric_card("Clean Energy Avg Return", f"{avg_clean_ret:+.1f}%",
+                                 "6-month trailing"), unsafe_allow_html=True)
+        c3.markdown(metric_card("SPY Benchmark Return", f"{bench_ret:+.1f}%",
+                                 "6-month trailing"), unsafe_allow_html=True)
+        spread = (avg_clean_ret or 0) - (bench_ret or 0)
+        c4.markdown(metric_card("Spread vs Market", f"{spread:+.1f} pp",
+                                 "Positive = outperforming"), unsafe_allow_html=True)
+
+        # ── Clean Energy ETFs ──────────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section("⚡ Clean Energy ETF Performance (ICLN, TAN, QCLN)")
+
+        if clean_energy:
+            ce_df = pd.DataFrame(clean_energy)
+            fig_ce = go.Figure()
+            colors_ce = [GOLD if r >= 0 else "#c62828" for r in ce_df["period_return_pct"]]
+            fig_ce.add_trace(go.Bar(
+                x=ce_df["label"], y=ce_df["period_return_pct"],
+                marker_color=colors_ce,
+                text=ce_df["period_return_pct"].apply(lambda x: f"{x:+.1f}%"),
+                textposition="outside",
+                name="6mo Return",
+                customdata=ce_df[["latest_price", "sma_60", "pct_above_sma"]].values,
+                hovertemplate=(
+                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
+                    "6mo Return: %{y:+.1f}%<br>"
+                    "vs SMA-60: %{customdata[2]:+.1f}%<extra></extra>"
+                ),
+            ))
+            # Add SPY benchmark line
+            fig_ce.add_hline(y=bench_ret, line_dash="dash", line_color=BLACK,
+                             annotation_text=f"SPY: {bench_ret:+.1f}%",
+                             annotation_position="top right")
+            fig_ce.update_layout(
+                plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+                yaxis_title="6-Month Return (%)",
+                yaxis=dict(gridcolor="#2d2d22", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                margin=dict(t=30, b=30), height=320,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_ce, use_container_width=True)
+            st.caption(
+                "Tracks ICLN (global clean energy), TAN (solar), and QCLN (clean tech) ETFs. "
+                "Sustained outperformance signals growing institutional capital flows into green energy — "
+                "a leading indicator of demand for solar-ready industrial space, EV charging infrastructure, and LEED-certified buildings."
+            )
+
+        # ── Green REITs ────────────────────────────────────────────────────────
+        section(" Green REIT Performance (PLD, EQIX, ARE)")
+
+        if green_reits:
+            gr_df = pd.DataFrame(green_reits)
+            colors_gr = [GOLD if r >= 0 else "#c62828" for r in gr_df["period_return_pct"]]
+            fig_gr = go.Figure(go.Bar(
+                x=gr_df["label"], y=gr_df["period_return_pct"],
+                marker_color=colors_gr,
+                text=gr_df["period_return_pct"].apply(lambda x: f"{x:+.1f}%"),
+                textposition="outside",
+                customdata=gr_df[["latest_price", "sma_60", "pct_above_sma"]].values,
+                hovertemplate=(
+                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
+                    "6mo Return: %{y:+.1f}%<br>"
+                    "vs SMA-60: %{customdata[2]:+.1f}%<extra></extra>"
+                ),
+            ))
+            fig_gr.add_hline(y=bench_ret, line_dash="dash", line_color=BLACK,
+                             annotation_text=f"SPY: {bench_ret:+.1f}%",
+                             annotation_position="top right")
+            fig_gr.update_layout(
+                plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+                yaxis_title="6-Month Return (%)",
+                yaxis=dict(gridcolor="#2d2d22", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                margin=dict(t=30, b=30), height=320,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_gr, use_container_width=True)
+            st.caption(
+                "Prologis (PLD) is the world's largest industrial REIT with a strong LEED portfolio. "
+                "Equinix (EQIX) powers its data centers with 90%+ renewable energy. "
+                "Alexandria (ARE) focuses on carbon-neutral life science campuses. "
+                "Outperformance vs. SPY indicates ESG-focused capital allocators are actively rotating into these names."
+            )
+
+        # ── Combined Detail Table ──────────────────────────────────────────────
+        section(" Full Detail — Clean Energy & Green REITs")
+        all_esg = clean_energy + green_reits
+        if all_esg:
+            esg_df = pd.DataFrame(all_esg)
+            disp_esg = esg_df[["label", "latest_price", "period_return_pct", "sma_60", "pct_above_sma"]].copy()
+            disp_esg.columns = ["Security", "Price", "6mo Return", "SMA-60", "% vs SMA"]
+            disp_esg["Price"] = disp_esg["Price"].apply(lambda x: f"${x:.2f}")
+            disp_esg["6mo Return"] = disp_esg["6mo Return"].apply(lambda x: f"{x:+.1f}%")
+            disp_esg["SMA-60"] = disp_esg["SMA-60"].apply(lambda x: f"${x:.2f}")
+            disp_esg["% vs SMA"] = disp_esg["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
+            st.dataframe(disp_esg, use_container_width=True, hide_index=True)
+
+        st.caption(
+            "Data sourced from Yahoo Finance. ESG Momentum Signal: STRONG (clean energy outperforms SPY by >2pp), "
+            "NEUTRAL (±2pp), WEAK (underperforms by >2pp). Green REITs: Prologis (LEED), Equinix (renewables), Alexandria (carbon-neutral)."
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MAIN TAB — MACRO ENVIRONMENT
+# ═══════════════════════════════════════════════════════════════════════════════
+with main_tab_macro:
+    tab_rates, tab_labor, tab_gdp, tab_inflation, tab_credit = st.tabs([
+        "Rate Environment",
+        "Labor Market & Tenant Demand",
+        "GDP & Economic Growth",
+        "Inflation",
+        "Credit & Capital Markets",
+    ])
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — RATE ENVIRONMENT
+    # ═══════════════════════════════════════════════════════════════════════════
     with tab_rates:
         _show_tab_header(
             "rates",
@@ -1968,19 +2218,19 @@ with main_tab_energy:
                     marker=dict(size=10, color=line_clr),
                     text=[f"{v:.2f}%" for v in values],
                     textposition="top center",
-                    textfont=dict(size=11, color="#1a1a1a"),
+                    textfont=dict(size=11, color="#e8dfc4"),
                     hovertemplate="%{x}: %{y:.3f}%<extra></extra>",
                 ))
                 fig_yc.add_hline(y=values[0] if values else 0, line_dash="dot",
                                   line_color="#aaa", line_width=1)
                 fig_yc.update_layout(
-                    paper_bgcolor="white", plot_bgcolor="white",
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
                     yaxis=dict(title="Yield (%)", ticksuffix="%",
-                               gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
-                               title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                               gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                               title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
                     margin=dict(t=30, b=30, l=60, r=20), height=300,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                     annotations=[dict(
                         text="⚠ INVERTED" if inverted else "Normal slope",
                         x=0.5, y=1.08, xref="paper", yref="paper",
@@ -2005,15 +2255,15 @@ with main_tab_energy:
                 if not r:
                     continue
                 unit = r["unit"]
-                def _fmt(v):
+                def _fmt_rate(v):
                     if v is None: return "—"
                     return f"{v:+.2f}{unit}" if unit == "%" else f"{v:+.0f}{unit}"
                 tbl_rows.append({
                     "Rate":   name,
                     "Now":    f"{r['current']:.2f}{unit}" if unit == "%" else f"{r['current']:.0f}{unit}",
-                    "1W Δ":   _fmt(r.get("delta_1w")),
-                    "1M Δ":   _fmt(r.get("delta_1m")),
-                    "1Y Δ":   _fmt(r.get("delta_1y")),
+                    "1W Δ":   _fmt_rate(r.get("delta_1w")),
+                    "1M Δ":   _fmt_rate(r.get("delta_1m")),
+                    "1Y Δ":   _fmt_rate(r.get("delta_1y")),
                 })
             if tbl_rows:
                 tbl_df = pd.DataFrame(tbl_rows)
@@ -2030,10 +2280,9 @@ with main_tab_energy:
             r = rates.get(sname)
             if not r or not r.get("series"):
                 continue
-            series = r["series"]
-            # Filter to last 365 calendar days
+            series_pts = r["series"]
             cutoff = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
-            pts = [o for o in series if o["date"] >= cutoff]
+            pts = [o for o in series_pts if o["date"] >= cutoff]
             if not pts:
                 continue
             dates  = [o["date"] for o in pts]
@@ -2043,7 +2292,6 @@ with main_tab_energy:
                 mode="lines", line=dict(color=clr, width=2),
                 hovertemplate=f"{sname}: %{{y:.3f}}%<br>%{{x}}<extra></extra>",
             ))
-        # Shade inverted periods (2Y > 10Y)
         t10_s = rates.get("10Y Treasury", {}).get("series", [])
         t2_s  = rates.get("2Y Treasury",  {}).get("series", [])
         if t10_s and t2_s:
@@ -2059,13 +2307,13 @@ with main_tab_energy:
                     annotation_font=dict(color="#b71c1c", size=10),
                 )
         fig_tr.update_layout(
-            paper_bgcolor="white", plot_bgcolor="white",
-            yaxis=dict(title="Rate (%)", ticksuffix="%", gridcolor="#f0f0f0",
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            xaxis=dict(tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            legend=dict(orientation="h", y=1.08, font=dict(color="#1a1a1a", size=11)),
+            paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+            yaxis=dict(title="Rate (%)", ticksuffix="%", gridcolor="#2d2d22",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            xaxis=dict(tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            legend=dict(orientation="h", y=1.08, font=dict(color="#e8dfc4", size=11)),
             margin=dict(t=40, b=40), height=380,
-            font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
         st.plotly_chart(fig_tr, use_container_width=True)
         st.caption(
@@ -2094,7 +2342,7 @@ with main_tab_energy:
                     x=pt_labels, y=base_caps,
                     marker_color="#CFB991",
                     text=[f"{v:.2f}%" for v in base_caps],
-                    textposition="inside", textfont=dict(color="#1a1a1a", size=10),
+                    textposition="inside", textfont=dict(color="#e8dfc4", size=10),
                 ))
                 fig_cap.add_trace(go.Bar(
                     name="Rate-Adjusted Cap Rate",
@@ -2102,17 +2350,17 @@ with main_tab_energy:
                     marker_color=bar_colors,
                     opacity=0.85,
                     text=[f"{v:.2f}%\n({'+' if d>0 else ''}{d:.0f}bps)" for v, d in zip(adj_caps, adj_bps)],
-                    textposition="outside", textfont=dict(color="#1a1a1a", size=9),
+                    textposition="outside", textfont=dict(color="#e8dfc4", size=9),
                 ))
                 fig_cap.update_layout(
                     barmode="group",
-                    paper_bgcolor="white", plot_bgcolor="white",
-                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#f0f0f0",
-                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickangle=-20, tickfont=dict(color="#1a1a1a", size=9)),
-                    legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a")),
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickangle=-20, tickfont=dict(color="#e8dfc4", size=9)),
+                    legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4")),
                     margin=dict(t=40, b=60), height=360,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 st.plotly_chart(fig_cap, use_container_width=True)
                 st.caption(
@@ -2179,13 +2427,13 @@ with main_tab_energy:
                     ),
                 ))
                 fig_debt.update_layout(
-                    paper_bgcolor="white", plot_bgcolor="white",
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
                     xaxis=dict(title="Near-Term Debt / Total Debt (%)", ticksuffix="%",
-                               gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
-                               title_font=dict(color="#1a1a1a")),
-                    yaxis=dict(tickfont=dict(color="#1a1a1a", size=9)),
+                               gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                               title_font=dict(color="#e8dfc4")),
+                    yaxis=dict(tickfont=dict(color="#e8dfc4", size=9)),
                     margin=dict(t=20, b=40, l=60, r=60), height=460,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 fig_debt.add_vline(x=25, line_dash="dash", line_color="#b71c1c",
                                     annotation_text="High risk threshold",
@@ -2225,7 +2473,6 @@ with main_tab_energy:
         else:
             st.info("REIT debt data not yet available. The agent will populate this on its next run.")
 
-        # ── Rate-Adjusted Pricing Note ───────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
         if cap_adj and current_10y:
             delta = current_10y - baseline
@@ -2245,237 +2492,934 @@ with main_tab_energy:
         )
 
 
-    # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB — ENERGY & CONSTRUCTION COSTS
-    # ═══════════════════════════════════════════════════════════════════════════════
-    with tab_energy:
-        _show_tab_header(
-            "energy",
-            "Agent 7 tracks **oil, natural gas, copper, and steel** prices to derive a "
-            "**Construction Cost Signal** that indicates whether building costs are rising or easing. Updates every 6 hours.",
-            "energy",
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — LABOR MARKET & TENANT DEMAND
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_labor:
+        st.markdown("#### Where is job growth strongest — and which property types benefit?")
+        st.markdown(
+            "Agent 9 pulls **BLS payroll data**, **FRED labor series** (unemployment, job openings, quits), "
+            "and **sector ETF momentum** to map employment trends to CRE tenant demand by property type. "
+            "Updates every 6 hours."
         )
+        agent_last_updated("labor_market")
 
-        cache_e = read_cache("energy_data")
-        if cache_e["data"] is None:
-            st.warning("⏳ Energy agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+        cache_lm = read_cache("labor_market")
+        ldata    = cache_lm.get("data") or {}
+
+        if not ldata:
+            st.info("⏳ Labor market agent is fetching data for the first time — please wait ~30 seconds and refresh.")
             st.stop()
-        age_e = cache_age_label("energy_data")
-        st.caption(f" Last updated: {age_e} · Auto-refreshes in background")
 
-        edata = cache_e["data"]
-        commodities = edata.get("commodities", [])
-        cost_signal = edata.get("construction_cost_signal", "UNKNOWN")
-        avg_momentum = edata.get("avg_momentum_pct", 0)
+        fred_labor   = ldata.get("fred_labor", {})
+        bls_sectors  = ldata.get("bls_sectors", [])
+        sector_etfs  = ldata.get("sector_etfs", [])
+        metro_unemp  = ldata.get("metro_unemployment", [])
+        demand_sig   = ldata.get("demand_signal", {})
 
-        # ── KPI strip ──────────────────────────────────────────────────────────
-        signal_color = {"HIGH": "", "MODERATE": "", "LOW": ""}.get(cost_signal, "⚪")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.markdown(metric_card("Construction Cost Signal", f"{signal_color} {cost_signal}",
-                                 "Based on commodity momentum"), unsafe_allow_html=True)
-        c2.markdown(metric_card("Avg Momentum", f"{avg_momentum:+.1f}%",
-                                 "vs 60-day SMA"), unsafe_allow_html=True)
-        c3.markdown(metric_card("Commodities Tracked", str(len(commodities)),
-                                 "Oil, Gas, Copper, Steel, Energy"), unsafe_allow_html=True)
-        c4.markdown(metric_card("Trading Days", str(edata.get("trading_days_analysed", 0)),
-                                 "6-month lookback"), unsafe_allow_html=True)
+        # ── Demand Signal Banner ────────────────────────────────────────────────
+        sig_label = demand_sig.get("label", "UNKNOWN")
+        sig_score = demand_sig.get("score", 50)
+        sig_clr_lm = {"STRONG": "#1b5e20", "MODERATE": "#e65100", "SOFT": "#b71c1c"}.get(sig_label, "#555")
+        bg_clr_lm  = {"STRONG": "#e8f5e9", "MODERATE": "#fff3e0", "SOFT": "#ffebee"}.get(sig_label, "#f5f5f5")
+        st.markdown(f"""
+        <div style="background:{bg_clr_lm};border-left:6px solid {sig_clr_lm};
+                    padding:18px 24px;border-radius:6px;margin-bottom:20px;">
+          <div style="font-size:1.4rem;font-weight:700;color:{sig_clr_lm};">
+            Tenant Demand Signal: {sig_label}  &nbsp;·&nbsp; Score {sig_score}/100
+          </div>
+          <div style="color:#555;margin-top:6px;font-size:0.9rem;">
+            Synthesized from nonfarm payrolls, job openings, unemployment trend, and sector ETF momentum.
+            STRONG ≥ 65 · MODERATE 41–64 · SOFT ≤ 40
+          </div>
+        </div>""", unsafe_allow_html=True)
 
-        # ── Commodity Price Table ──────────────────────────────────────────────
+        # ── KPI Strip — National Labor ──────────────────────────────────────────
+        section(" National Labor Market Snapshot")
+        kpi_keys = [
+            ("Unemployment Rate",         "%",  "Civilian U-3"),
+            ("Nonfarm Payrolls",           "K",  "Total employed"),
+            ("Job Openings (JOLTS)",       "K",  "Open positions"),
+            ("Quits Rate",                 "%",  "Voluntary separations"),
+            ("Labor Force Participation",  "%",  "Ages 16+"),
+            ("Avg Hourly Earnings",        "$",  "Private sector"),
+        ]
+        kpi_cols = st.columns(len(kpi_keys))
+        for col, (key, unit, sub) in zip(kpi_cols, kpi_keys):
+            r = fred_labor.get(key, {})
+            cur = r.get("current")
+            d1m = r.get("delta_1m")
+            if cur is None:
+                col.markdown(metric_card(key, "N/A", sub), unsafe_allow_html=True)
+                continue
+            if unit == "K":
+                val_s = f"{cur/1000:.1f}M" if cur >= 1000 else f"{cur:.0f}K"
+            elif unit == "$":
+                val_s = f"${cur:.2f}"
+            else:
+                val_s = f"{cur:.1f}%"
+            delta_html = ""
+            if d1m is not None:
+                arrow = "▲" if d1m > 0 else ("▼" if d1m < 0 else "→")
+                # For unemployment, down is good; for everything else, up is good
+                good_up = key != "Unemployment Rate"
+                good    = (d1m > 0) == good_up
+                clr     = "#1b5e20" if good else "#b71c1c"
+                if unit == "K":
+                    d_s = f"{d1m/1000:+.1f}M" if abs(d1m) >= 1000 else f"{d1m:+.0f}K"
+                elif unit == "$":
+                    d_s = f"{d1m:+.2f}"
+                else:
+                    d_s = f"{d1m:+.2f}%"
+                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {d_s} 1M</span>"
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{key}</div>
+              <div class="value">{val_s}</div>
+              <div class="sub">{delta_html or sub}</div>
+            </div>""", unsafe_allow_html=True)
+
         st.markdown("<br>", unsafe_allow_html=True)
-        section(" Commodity Prices vs 60-Day Moving Average")
 
-        if commodities:
-            comm_df = pd.DataFrame(commodities)
+        # ── BLS Sector Payrolls ─────────────────────────────────────────────────
+        section(" Employment by Sector — CRE Demand Drivers")
+        if bls_sectors:
+            sec_df = pd.DataFrame(bls_sectors)
+            # Filter out "Total Private" for the chart (keep it in table)
+            chart_df = sec_df[sec_df["label"] != "Total Private"].copy()
+            bar_clrs = [GOLD if v > 0 else "#c62828" for v in chart_df["mom_pct"]]
 
-            # Bar chart — % above/below SMA
-            colors_comm = [GOLD if p >= 0 else "#c62828" for p in comm_df["pct_above_sma"]]
-            fig_comm = go.Figure(go.Bar(
-                x=comm_df["label"], y=comm_df["pct_above_sma"],
-                marker_color=colors_comm,
-                text=comm_df["pct_above_sma"].apply(lambda x: f"{x:+.1f}%"),
+            fig_sec = go.Figure(go.Bar(
+                x=chart_df["mom_pct"],
+                y=chart_df["label"],
+                orientation="h",
+                marker_color=bar_clrs,
+                text=chart_df["mom_pct"].apply(lambda v: f"{v:+.2f}%"),
                 textposition="outside",
-                customdata=comm_df[["latest_price", "sma_60"]].values,
+                customdata=chart_df[["employment_k", "property_type", "period"]].values,
                 hovertemplate=(
-                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
-                    "SMA-60: $%{customdata[1]:.2f}<br>"
-                    "vs SMA: %{y:+.1f}%<extra></extra>"
+                    "<b>%{y}</b><br>"
+                    "Employment: %{customdata[0]:,.0f}K<br>"
+                    "MoM Change: %{x:+.2f}%<br>"
+                    "CRE Type: %{customdata[1]}<br>"
+                    "Period: %{customdata[2]}<extra></extra>"
                 ),
             ))
-            fig_comm.update_layout(
-                plot_bgcolor="white", paper_bgcolor="white",
-                yaxis_title="% Above/Below SMA-60",
-                yaxis=dict(gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                xaxis=dict(tickfont=dict(color="#1a1a1a")),
-                margin=dict(t=30, b=30), height=320,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            fig_sec.add_vline(x=0, line_color="#333", line_width=1)
+            fig_sec.update_layout(
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                xaxis=dict(title="Month-over-Month Change (%)", ticksuffix="%",
+                           gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                           title_font=dict(color="#e8dfc4")),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=10)),
+                margin=dict(t=20, b=40, l=220, r=80), height=400,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
-            st.plotly_chart(fig_comm, use_container_width=True)
-            st.caption(
-                "Each bar shows the commodity's latest price versus its 60-day moving average. "
-                "Bars above the baseline indicate costs are elevated — signaling higher construction costs for developers. "
-                "Copper and steel are the most direct inputs for building; oil and natural gas drive operating expenses and transport."
-            )
+            st.plotly_chart(fig_sec, use_container_width=True)
 
             # Detail table
-            section(" Commodity Detail")
-            disp_comm = comm_df[["label", "latest_price", "sma_60", "pct_above_sma"]].copy()
-            disp_comm.columns = ["Commodity", "Latest Price", "SMA-60", "% vs SMA"]
-            disp_comm["Latest Price"] = disp_comm["Latest Price"].apply(lambda x: f"${x:.2f}")
-            disp_comm["SMA-60"] = disp_comm["SMA-60"].apply(lambda x: f"${x:.2f}")
-            disp_comm["% vs SMA"] = disp_comm["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
-            st.dataframe(disp_comm, use_container_width=True, hide_index=True)
+            disp_sec = sec_df[["label", "employment_k", "mom_pct", "property_type", "period"]].copy()
+            disp_sec.columns = ["Sector", "Employment (K)", "MoM %", "CRE Demand Driver", "Period"]
+            disp_sec["Employment (K)"] = disp_sec["Employment (K)"].apply(lambda x: f"{x:,.0f}K")
+            disp_sec["MoM %"] = disp_sec["MoM %"].apply(lambda x: f"{x:+.2f}%")
+            st.dataframe(disp_sec, use_container_width=True, hide_index=True)
+            st.caption(
+                "BLS Supersector payrolls (monthly). Positive MoM = expanding employment = rising tenant demand. "
+                "Professional & Business Services and Financial Activities drive Office demand; "
+                "Manufacturing and Trade/Transport drive Industrial demand."
+            )
+        else:
+            st.info("BLS sector data not yet available.")
 
-        st.caption(
-            "Data sourced from Yahoo Finance (USO, UNG, XLE, CPER, SLX). "
-            "Construction Cost Signal: HIGH (>+5%), MODERATE (±5%), LOW (<−5%) based on avg momentum vs 60-day SMA."
-        )
-
-
-    # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB — SUSTAINABILITY & ESG
-    # ═══════════════════════════════════════════════════════════════════════════════
-    with tab_esg:
-        _show_tab_header(
-            "sustainability",
-            "Agent 8 monitors **clean-energy ETFs** and **green REITs** to gauge ESG momentum "
-            "relative to the broad market (SPY). Updates every 6 hours.",
-            "sustainability",
-        )
-        # Map property types to relevant green REIT
-        _ESG_REIT_MAP = {
-            "industrial": "Prologis (PLD) — world's largest industrial REIT with LEED-certified logistics portfolio",
-            "data center": "Equinix (EQIX) — powers data centers with 90%+ renewable energy",
-            "office": "Alexandria (ARE) — carbon-neutral life science campuses",
-            "healthcare": "Alexandria (ARE) — carbon-neutral life science campuses",
-        }
-        _esg_pt = st.session_state.user_intent.get("property_type")
-        _esg_match = _ESG_REIT_MAP.get((_esg_pt or "").lower())
-        if _esg_match:
-            st.info(f"For **{_esg_pt}** investors, the most relevant green REIT is **{_esg_match}**.")
-
-        cache_s = read_cache("sustainability_data")
-        if cache_s["data"] is None:
-            st.warning("⏳ Sustainability agent is fetching data for the first time — please wait ~30 seconds and refresh.")
-            st.stop()
-        age_s = cache_age_label("sustainability_data")
-        st.caption(f" Last updated: {age_s} · Auto-refreshes in background")
-
-        sdata = cache_s["data"]
-        clean_energy = sdata.get("clean_energy", [])
-        green_reits = sdata.get("green_reits", [])
-        esg_signal = sdata.get("esg_momentum_signal", "UNKNOWN")
-        bench_ret = sdata.get("benchmark_return_pct", 0)
-        avg_clean_ret = sdata.get("avg_clean_energy_return_pct", 0)
-
-        # ── KPI strip ──────────────────────────────────────────────────────────
-        esg_icon = {"STRONG": "", "NEUTRAL": "", "WEAK": ""}.get(esg_signal, "⚪")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.markdown(metric_card("ESG Momentum Signal", f"{esg_icon} {esg_signal}",
-                                 "Clean energy vs SPY"), unsafe_allow_html=True)
-        c2.markdown(metric_card("Clean Energy Avg Return", f"{avg_clean_ret:+.1f}%",
-                                 "6-month trailing"), unsafe_allow_html=True)
-        c3.markdown(metric_card("SPY Benchmark Return", f"{bench_ret:+.1f}%",
-                                 "6-month trailing"), unsafe_allow_html=True)
-        spread = (avg_clean_ret or 0) - (bench_ret or 0)
-        c4.markdown(metric_card("Spread vs Market", f"{spread:+.1f} pp",
-                                 "Positive = outperforming"), unsafe_allow_html=True)
-
-        # ── Clean Energy ETFs ──────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        section("⚡ Clean Energy ETF Performance (ICLN, TAN, QCLN)")
 
-        if clean_energy:
-            ce_df = pd.DataFrame(clean_energy)
-            fig_ce = go.Figure()
-            colors_ce = [GOLD if r >= 0 else "#c62828" for r in ce_df["period_return_pct"]]
-            fig_ce.add_trace(go.Bar(
-                x=ce_df["label"], y=ce_df["period_return_pct"],
-                marker_color=colors_ce,
-                text=ce_df["period_return_pct"].apply(lambda x: f"{x:+.1f}%"),
+        # ── Sector ETF Tenant Demand Signals ────────────────────────────────────
+        section(" Sector ETF Momentum → Tenant Demand by Property Type")
+        if sector_etfs:
+            etf_df = pd.DataFrame(sector_etfs)
+            sig_colors = {"EXPANDING": "#1b5e20", "FLAT": "#e65100", "CONTRACTING": "#b71c1c"}
+            bar_clrs_etf = [sig_colors.get(s, "#888") for s in etf_df["signal"]]
+
+            fig_etf = go.Figure(go.Bar(
+                x=etf_df["label"],
+                y=etf_df["return_6mo"],
+                marker_color=bar_clrs_etf,
+                text=etf_df["return_6mo"].apply(lambda v: f"{v:+.1f}%"),
                 textposition="outside",
-                name="6mo Return",
-                customdata=ce_df[["latest_price", "sma_60", "pct_above_sma"]].values,
+                customdata=etf_df[["property_type", "latest_price", "pct_vs_sma", "signal"]].values,
                 hovertemplate=(
-                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
+                    "<b>%{x}</b><br>"
                     "6mo Return: %{y:+.1f}%<br>"
-                    "vs SMA-60: %{customdata[2]:+.1f}%<extra></extra>"
+                    "Price: $%{customdata[1]:.2f}<br>"
+                    "vs SMA-60: %{customdata[2]:+.1f}%<br>"
+                    "Signal: %{customdata[3]}<br>"
+                    "CRE Type: %{customdata[0]}<extra></extra>"
                 ),
             ))
-            # Add SPY benchmark line
-            fig_ce.add_hline(y=bench_ret, line_dash="dash", line_color=BLACK,
-                             annotation_text=f"SPY: {bench_ret:+.1f}%",
-                             annotation_position="top right")
-            fig_ce.update_layout(
-                plot_bgcolor="white", paper_bgcolor="white",
-                yaxis_title="6-Month Return (%)",
-                yaxis=dict(gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                xaxis=dict(tickfont=dict(color="#1a1a1a")),
-                margin=dict(t=30, b=30), height=320,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            fig_etf.add_hline(y=0, line_color="#333", line_width=1)
+            fig_etf.update_layout(
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                yaxis=dict(title="6-Month Return (%)", ticksuffix="%",
+                           gridcolor="#2d2d22", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickangle=-20, tickfont=dict(color="#e8dfc4", size=9)),
+                margin=dict(t=30, b=80), height=360,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
-            st.plotly_chart(fig_ce, use_container_width=True)
+            st.plotly_chart(fig_etf, use_container_width=True)
+
+            # Property type signal summary
+            pt_summary = {}
+            for row in sector_etfs:
+                pt = row["property_type"]
+                if pt not in pt_summary:
+                    pt_summary[pt] = []
+                pt_summary[pt].append(row["return_6mo"])
+            pt_rows = [{"CRE Property Type": pt,
+                        "Avg Sector Return": f"{sum(v)/len(v):+.1f}%",
+                        "Demand Signal": "EXPANDING" if sum(v)/len(v) > 2 else ("CONTRACTING" if sum(v)/len(v) < -2 else "FLAT")}
+                       for pt, v in sorted(pt_summary.items(), key=lambda x: sum(x[1])/len(x[1]), reverse=True)]
+            st.dataframe(pd.DataFrame(pt_rows), use_container_width=True, hide_index=True)
             st.caption(
-                "Tracks ICLN (global clean energy), TAN (solar), and QCLN (clean tech) ETFs. "
-                "Sustained outperformance signals growing institutional capital flows into green energy — "
-                "a leading indicator of demand for solar-ready industrial space, EV charging infrastructure, and LEED-certified buildings."
+                "Rising sector ETFs signal expanding corporate employment → more office/industrial/retail leasing. "
+                "EXPANDING > +2% return, CONTRACTING < -2%, FLAT in between. "
+                "Data: Yahoo Finance (6-month trailing). Rate-limited — refreshes on scheduled runs."
             )
+        else:
+            st.info("Sector ETF data temporarily unavailable (Yahoo Finance rate limit). Will populate on next scheduled run.")
 
-        # ── Green REITs ────────────────────────────────────────────────────────
-        section(" Green REIT Performance (PLD, EQIX, ARE)")
+        st.markdown("<br>", unsafe_allow_html=True)
 
-        if green_reits:
-            gr_df = pd.DataFrame(green_reits)
-            colors_gr = [GOLD if r >= 0 else "#c62828" for r in gr_df["period_return_pct"]]
-            fig_gr = go.Figure(go.Bar(
-                x=gr_df["label"], y=gr_df["period_return_pct"],
-                marker_color=colors_gr,
-                text=gr_df["period_return_pct"].apply(lambda x: f"{x:+.1f}%"),
+        # ── Metro Market Unemployment ────────────────────────────────────────────
+        section(" State Unemployment — Top CRE Destination Markets")
+        if metro_unemp:
+            mu_df = pd.DataFrame(metro_unemp)
+            tight_clr  = "#1b5e20"
+            bal_clr    = GOLD
+            loose_clr  = "#b71c1c"
+            bar_clrs_mu = [
+                tight_clr if r == "TIGHT" else (loose_clr if r == "LOOSE" else bal_clr)
+                for r in mu_df["signal"]
+            ]
+
+            fig_mu = go.Figure(go.Bar(
+                x=mu_df["unemp_rate"],
+                y=mu_df["market"],
+                orientation="h",
+                marker_color=bar_clrs_mu,
+                text=mu_df["unemp_rate"].apply(lambda v: f"{v:.1f}%"),
                 textposition="outside",
-                customdata=gr_df[["latest_price", "sma_60", "pct_above_sma"]].values,
+                customdata=mu_df[["delta_1m", "signal", "period"]].values,
                 hovertemplate=(
-                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
-                    "6mo Return: %{y:+.1f}%<br>"
-                    "vs SMA-60: %{customdata[2]:+.1f}%<extra></extra>"
+                    "<b>%{y}</b><br>"
+                    "Unemployment: %{x:.1f}%<br>"
+                    "MoM Δ: %{customdata[0]:+.1f}pp<br>"
+                    "Labor Market: %{customdata[1]}<br>"
+                    "Period: %{customdata[2]}<extra></extra>"
                 ),
             ))
-            fig_gr.add_hline(y=bench_ret, line_dash="dash", line_color=BLACK,
-                             annotation_text=f"SPY: {bench_ret:+.1f}%",
-                             annotation_position="top right")
-            fig_gr.update_layout(
-                plot_bgcolor="white", paper_bgcolor="white",
-                yaxis_title="6-Month Return (%)",
-                yaxis=dict(gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                xaxis=dict(tickfont=dict(color="#1a1a1a")),
-                margin=dict(t=30, b=30), height=320,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            fig_mu.add_vline(x=4.0, line_dash="dash", line_color=tight_clr,
+                              annotation_text="Tight (<4%)",
+                              annotation_font=dict(color=tight_clr, size=9))
+            fig_mu.add_vline(x=6.0, line_dash="dash", line_color=loose_clr,
+                              annotation_text="Loose (>6%)",
+                              annotation_font=dict(color=loose_clr, size=9))
+            fig_mu.update_layout(
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                xaxis=dict(title="Unemployment Rate (%)", ticksuffix="%",
+                           gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                           title_font=dict(color="#e8dfc4")),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=9)),
+                margin=dict(t=20, b=40, l=260, r=80), height=360,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
-            st.plotly_chart(fig_gr, use_container_width=True)
-            st.caption(
-                "Prologis (PLD) is the world's largest industrial REIT with a strong LEED portfolio. "
-                "Equinix (EQIX) powers its data centers with 90%+ renewable energy. "
-                "Alexandria (ARE) focuses on carbon-neutral life science campuses. "
-                "Outperformance vs. SPY indicates ESG-focused capital allocators are actively rotating into these names."
-            )
+            st.plotly_chart(fig_mu, use_container_width=True)
 
-        # ── Combined Detail Table ──────────────────────────────────────────────
-        section(" Full Detail — Clean Energy & Green REITs")
-        all_esg = clean_energy + green_reits
-        if all_esg:
-            esg_df = pd.DataFrame(all_esg)
-            disp_esg = esg_df[["label", "latest_price", "period_return_pct", "sma_60", "pct_above_sma"]].copy()
-            disp_esg.columns = ["Security", "Price", "6mo Return", "SMA-60", "% vs SMA"]
-            disp_esg["Price"] = disp_esg["Price"].apply(lambda x: f"${x:.2f}")
-            disp_esg["6mo Return"] = disp_esg["6mo Return"].apply(lambda x: f"{x:+.1f}%")
-            disp_esg["SMA-60"] = disp_esg["SMA-60"].apply(lambda x: f"${x:.2f}")
-            disp_esg["% vs SMA"] = disp_esg["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
-            st.dataframe(disp_esg, use_container_width=True, hide_index=True)
+            # Table
+            mu_disp = mu_df[["market", "unemp_rate", "delta_1m", "signal", "period"]].copy()
+            mu_disp.columns = ["State / Key Metros", "Unemployment %", "MoM Δ (pp)", "Labor Market", "Period"]
+            mu_disp["Unemployment %"] = mu_disp["Unemployment %"].apply(lambda x: f"{x:.1f}%")
+            mu_disp["MoM Δ (pp)"] = mu_disp["MoM Δ (pp)"].apply(lambda x: f"{x:+.1f}")
+
+            def _tight_style(val):
+                return {"TIGHT": "color:#1b5e20;font-weight:700",
+                        "BALANCED": "color:#e65100",
+                        "LOOSE": "color:#b71c1c;font-weight:700"}.get(val, "")
+            styled_mu = mu_disp.style.applymap(_tight_style, subset=["Labor Market"])
+            st.dataframe(styled_mu, use_container_width=True, hide_index=True)
+            st.caption(
+                "TIGHT labor markets (<4% unemployment) indicate strong local economies — higher occupier demand "
+                "and rent growth potential. LOOSE (>6%) may signal weaker absorption. "
+                "Data: FRED state unemployment rates (BLS LAUS). Updated monthly."
+            )
+        else:
+            st.info("Metro unemployment data not yet available.")
 
         st.caption(
-            "Data sourced from Yahoo Finance. ESG Momentum Signal: STRONG (clean energy outperforms SPY by >2pp), "
-            "NEUTRAL (±2pp), WEAK (underperforms by >2pp). Green REITs: Prologis (LEED), Equinix (renewables), Alexandria (carbon-neutral)."
+            "Data: Bureau of Labor Statistics (BLS), Federal Reserve (FRED), Yahoo Finance. "
+            "Tenant Demand Signal score: 0–100 based on payroll growth, job openings, unemployment trend, and sector momentum. "
+            "This is research, not investment advice."
         )
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — GDP & ECONOMIC GROWTH
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_gdp:
+        st.markdown("#### What economic cycle phase are we in — and what does it mean for CRE?")
+        st.markdown(
+            "Agent 10 tracks **real GDP growth, industrial production, retail sales, consumer sentiment, "
+            "and the leading economic index** to classify the economic cycle and map it to CRE property type outlook. "
+            "Updates every 6 hours."
+        )
+        agent_last_updated("gdp_data")
 
+        cache_gdp = read_cache("gdp_data")
+        gdata = cache_gdp.get("data") or {}
+        if not gdata:
+            st.info("⏳ GDP agent is fetching data — please refresh in ~30 seconds.")
+            st.stop()
+
+        g_series = gdata.get("series", {})
+        g_cycle  = gdata.get("cycle", {})
+
+        # ── Cycle Signal Banner ─────────────────────────────────────────────────
+        cycle_label = g_cycle.get("label", "UNKNOWN")
+        cycle_score = g_cycle.get("score", 50)
+        cycle_clr = {"EXPANSION": "#1b5e20", "SLOWDOWN": "#e65100", "CONTRACTION": "#b71c1c"}.get(cycle_label, "#555")
+        cycle_bg  = {"EXPANSION": "#e8f5e9", "SLOWDOWN": "#fff3e0", "CONTRACTION": "#ffebee"}.get(cycle_label, "#f5f5f5")
+        cycle_icon = {"EXPANSION": "", "SLOWDOWN": "", "CONTRACTION": ""}.get(cycle_label, "⚪")
+        st.markdown(f"""
+        <div style="background:{cycle_bg};border-left:6px solid {cycle_clr};
+                    padding:18px 24px;border-radius:6px;margin-bottom:20px;">
+          <div style="font-size:1.4rem;font-weight:700;color:{cycle_clr};">
+            {cycle_icon} Economic Cycle: {cycle_label} &nbsp;·&nbsp; Score {cycle_score}/100
+          </div>
+          <div style="color:#555;margin-top:8px;font-size:0.92rem;font-style:italic;">
+            {g_cycle.get("cre_implication", "")}
+          </div>
+          <ul style="margin-top:10px;color:#444;font-size:0.88rem;">
+            {"".join(f"<li>{b}</li>" for b in g_cycle.get("bullets", []))}
+          </ul>
+        </div>""", unsafe_allow_html=True)
+
+        # ── KPI Strip ──────────────────────────────────────────────────────────
+        section(" Key Economic Indicators")
+        kpi_defs = [
+            ("Real GDP Growth Rate",        "%",   "Annualized",          False),
+            ("Industrial Production Index", "idx", "Level",               False),
+            ("Retail Sales",                "$M",  "Monthly",             False),
+            ("Consumer Sentiment",          "idx", "U of Michigan",       False),
+            ("Chicago Fed Activity Index",  "idx", "Chicago Fed (CFNAI)", False),
+            ("Real PCE",                    "$B",  "Personal consumption", False),
+        ]
+        kpi_cols = st.columns(len(kpi_defs))
+        for col, (key, unit, sub, _) in zip(kpi_cols, kpi_defs):
+            r = g_series.get(key, {})
+            cur = r.get("current")
+            d1y = r.get("delta_1y")
+            if cur is None:
+                col.markdown(metric_card(key.split(" (")[0], "N/A", sub), unsafe_allow_html=True)
+                continue
+            if unit == "$M":
+                val_s = f"${cur/1000:.1f}B"
+            elif unit == "$B":
+                val_s = f"${cur:,.0f}B"
+            elif unit == "%":
+                val_s = f"{cur:.1f}%"
+            else:
+                val_s = f"{cur:.1f}"
+            delta_html = ""
+            if d1y is not None:
+                arrow = "▲" if d1y > 0 else "▼"
+                good  = d1y > 0
+                clr   = "#1b5e20" if good else "#b71c1c"
+                if unit == "$M":
+                    d_s = f"{d1y/1000:+.1f}B"
+                elif unit == "$B":
+                    d_s = f"{d1y:+,.0f}B"
+                elif unit == "%":
+                    d_s = f"{d1y:+.1f}pp"
+                else:
+                    d_s = f"{d1y:+.1f}"
+                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {d_s} 1Y</span>"
+            short_key = key.split(" (")[0].replace(" Index", "").replace(" Rate", "")
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{short_key}</div>
+              <div class="value">{val_s}</div>
+              <div class="sub">{delta_html or sub}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── GDP Growth + IPI Trend ──────────────────────────────────────────────
+        col_gdp, col_ipi = st.columns(2)
+
+        with col_gdp:
+            section(" Real GDP Growth Rate (Quarterly)")
+            gdp_s = g_series.get("Real GDP Growth Rate", {}).get("series", [])
+            if gdp_s:
+                dates  = [o["date"] for o in gdp_s]
+                values = [o["value"] for o in gdp_s]
+                bar_clrs = [GOLD if v >= 0 else "#c62828" for v in values]
+                fig_gdp = go.Figure(go.Bar(
+                    x=dates, y=values, marker_color=bar_clrs,
+                    text=[f"{v:+.1f}%" for v in values], textposition="outside",
+                    hovertemplate="Q: %{x}<br>Growth: %{y:+.2f}%<extra></extra>",
+                ))
+                fig_gdp.add_hline(y=0, line_color="#333", line_width=1)
+                fig_gdp.add_hline(y=2, line_dash="dot", line_color="#1b5e20",
+                                   annotation_text="2% trend", annotation_position="top right",
+                                   annotation_font=dict(color="#1b5e20", size=9))
+                fig_gdp.update_layout(
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Annualized %", ticksuffix="%", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                    margin=dict(t=30, b=40), height=320,
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                )
+                st.plotly_chart(fig_gdp, use_container_width=True)
+                st.caption("Quarterly real GDP growth (annualized). Consecutive negative quarters = recession definition.")
+            else:
+                st.info("GDP growth series not yet available.")
+
+        with col_ipi:
+            section(" Industrial Production Index")
+            ipi_s = g_series.get("Industrial Production Index", {}).get("series", [])
+            if ipi_s:
+                dates  = [o["date"] for o in ipi_s]
+                values = [o["value"] for o in ipi_s]
+                fig_ipi = go.Figure(go.Scatter(
+                    x=dates, y=values, mode="lines",
+                    line=dict(color=GOLD, width=2.5),
+                    fill="tozeroy", fillcolor="rgba(207,185,145,0.15)",
+                    hovertemplate="Date: %{x}<br>IPI: %{y:.1f}<extra></extra>",
+                ))
+                fig_ipi.update_layout(
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Index (2017=100)", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                    margin=dict(t=30, b=40), height=320,
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                )
+                st.plotly_chart(fig_ipi, use_container_width=True)
+                st.caption("Industrial Production Index (2017=100). Drives demand for industrial/logistics CRE.")
+            else:
+                st.info("Industrial production series not yet available.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Consumer Sentiment + Leading Index ─────────────────────────────────
+        col_cs, col_lei = st.columns(2)
+
+        with col_cs:
+            section(" Consumer Sentiment")
+            cs_s = g_series.get("Consumer Sentiment", {}).get("series", [])
+            if cs_s:
+                dates  = [o["date"] for o in cs_s]
+                values = [o["value"] for o in cs_s]
+                fig_cs = go.Figure(go.Scatter(
+                    x=dates, y=values, mode="lines+markers",
+                    line=dict(color="#1565c0", width=2),
+                    marker=dict(size=4, color="#1565c0"),
+                    hovertemplate="Date: %{x}<br>Sentiment: %{y:.1f}<extra></extra>",
+                ))
+                fig_cs.add_hrect(y0=80, y1=max(values) + 5, fillcolor="rgba(27,94,32,0.05)",
+                                  line_width=0, annotation_text="Strong",
+                                  annotation_font=dict(color="#1b5e20", size=9))
+                fig_cs.add_hrect(y0=0, y1=65, fillcolor="rgba(183,28,28,0.05)",
+                                  line_width=0, annotation_text="Weak",
+                                  annotation_font=dict(color="#b71c1c", size=9))
+                fig_cs.update_layout(
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Index", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                    margin=dict(t=30, b=40), height=300,
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                )
+                st.plotly_chart(fig_cs, use_container_width=True)
+                st.caption("U of Michigan Consumer Sentiment. High sentiment → retail & hospitality CRE demand.")
+            else:
+                st.info("Consumer sentiment series not yet available.")
+
+        with col_lei:
+            section(" Chicago Fed National Activity Index (3-Month MA)")
+            lei_s = g_series.get("Chicago Fed Activity Index", {}).get("series", [])
+            if lei_s:
+                dates  = [o["date"] for o in lei_s]
+                values = [o["value"] for o in lei_s]
+                bar_clrs_cfnai = [GOLD if v >= 0 else "#c62828" for v in values]
+                fig_lei = go.Figure(go.Bar(
+                    x=dates, y=values, marker_color=bar_clrs_cfnai,
+                    hovertemplate="Date: %{x}<br>CFNAI-MA3: %{y:.2f}<extra></extra>",
+                ))
+                fig_lei.add_hline(y=0, line_color="#333", line_width=1.5)
+                fig_lei.add_hline(y=-0.7, line_dash="dash", line_color="#b71c1c",
+                                   annotation_text="Recession signal (<−0.7)",
+                                   annotation_font=dict(color="#b71c1c", size=9))
+                fig_lei.update_layout(
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Index (0 = trend growth)", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                    margin=dict(t=30, b=40), height=300,
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                )
+                st.plotly_chart(fig_lei, use_container_width=True)
+                st.caption("Chicago Fed National Activity Index (3-month MA). 0 = trend growth. Below −0.7 historically signals recession onset.")
+            else:
+                st.info("Chicago Fed Activity Index not yet available.")
+
+        # ── CRE Cycle Implications Table ───────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" CRE Property Type Outlook by Cycle Phase")
+        outlook_data = {
+            "Property Type":     ["Office", "Industrial / Logistics", "Multifamily", "Retail", "Healthcare / Life Sci", "Data Centers"],
+            "Expansion":         ["", "", "", "", "", ""],
+            "Slowdown":          ["", "", "", "", "", ""],
+            "Contraction":       ["", "", "", "", "", ""],
+            "Current Outlook":   [
+                "" if cycle_label == "EXPANSION" else ("" if cycle_label == "SLOWDOWN" else ""),
+                "" if cycle_label in ("EXPANSION", "SLOWDOWN") else "",
+                "",
+                "" if cycle_label == "EXPANSION" else ("" if cycle_label == "SLOWDOWN" else ""),
+                "",
+                "" if cycle_label in ("EXPANSION", "SLOWDOWN") else "",
+            ],
+        }
+        outlook_df = pd.DataFrame(outlook_data)
+        st.dataframe(outlook_df, use_container_width=True, hide_index=True)
+        st.caption(
+            " Favorable · Neutral · Cautious. Based on current economic cycle classification. "
+            "Industrial and Healthcare tend to be more defensive; Office and Retail more cyclical."
+        )
+        st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
+
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — INFLATION
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_inflation:
+        st.markdown("#### How is inflation affecting CRE valuations, rents, and construction costs?")
+        st.markdown(
+            "Agent 11 tracks **CPI, core inflation, shelter & rent inflation, PPI, and market-implied "
+            "breakeven inflation** to assess real return erosion, rent growth, and replacement cost trends. "
+            "Updates every 6 hours."
+        )
+        agent_last_updated("inflation_data")
+
+        cache_inf = read_cache("inflation_data")
+        idata = cache_inf.get("data") or {}
+        if not idata:
+            st.info("⏳ Inflation agent is fetching data — please refresh in ~30 seconds.")
+            st.stop()
+
+        inf_series = idata.get("series", {})
+        inf_signal = idata.get("signal", {})
+
+        # ── Signal Banner ───────────────────────────────────────────────────────
+        inf_label = inf_signal.get("label", "UNKNOWN")
+        inf_score = inf_signal.get("score", 50)
+        inf_clr = {"HOT": "#b71c1c", "MODERATE": "#e65100", "COOLING": "#1b5e20"}.get(inf_label, "#555")
+        inf_bg  = {"HOT": "#ffebee", "MODERATE": "#fff3e0", "COOLING": "#e8f5e9"}.get(inf_label, "#f5f5f5")
+        inf_icon = {"HOT": "", "MODERATE": "", "COOLING": ""}.get(inf_label, "⚪")
+        st.markdown(f"""
+        <div style="background:{inf_bg};border-left:6px solid {inf_clr};
+                    padding:18px 24px;border-radius:6px;margin-bottom:20px;">
+          <div style="font-size:1.4rem;font-weight:700;color:{inf_clr};">
+            {inf_icon} Inflation Regime: {inf_label} &nbsp;·&nbsp; Score {inf_score}/100
+          </div>
+          <div style="color:#555;margin-top:6px;font-size:0.92rem;">{inf_signal.get("summary", "")}</div>
+          <ul style="margin-top:10px;color:#444;font-size:0.88rem;">
+            {"".join(f"<li>{b}</li>" for b in inf_signal.get("bullets", []))}
+          </ul>
+        </div>""", unsafe_allow_html=True)
+
+        # ── KPI Strip ──────────────────────────────────────────────────────────
+        section(" Inflation Dashboard")
+        inf_kpis = [
+            ("CPI All Items",           "YoY %", "Headline"),
+            ("Core CPI",                "YoY %", "Ex food & energy"),
+            ("CPI Shelter",             "YoY %", "Housing costs"),
+            ("CPI Rent",                "YoY %", "Primary residence"),
+            ("5Y Breakeven Inflation",  "%",      "Market expectation"),
+            ("1Y Inflation Expectations","%",     "U of Michigan"),
+        ]
+        inf_cols = st.columns(len(inf_kpis))
+        for col, (key, unit_label, sub) in zip(inf_cols, inf_kpis):
+            r = inf_series.get(key, {})
+            # Use YoY for CPI/PPI index series, current for breakeven/expectations
+            val = r.get("yoy_pct") if r.get("yoy_pct") is not None else r.get("current")
+            d1m = r.get("delta_1m")
+            if val is None:
+                col.markdown(metric_card(key.replace(" All Items", "").replace(" Inflation", ""), "N/A", sub), unsafe_allow_html=True)
+                continue
+            val_s = f"{val:.1f}%"
+            delta_html = ""
+            if d1m is not None:
+                arrow = "▲" if d1m > 0 else "▼"
+                # For inflation, up = bad (hot), down = good (cooling)
+                clr = "#b71c1c" if d1m > 0 else "#1b5e20"
+                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {abs(d1m):.3f} 1M</span>"
+            short = key.replace(" All Items", "").replace(" Inflation", "").replace(" Expectations", " Exp.")
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{short}</div>
+              <div class="value">{val_s}</div>
+              <div class="sub">{delta_html or sub}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── CPI Components Chart ────────────────────────────────────────────────
+        col_cpi, col_ppi = st.columns(2)
+
+        with col_cpi:
+            section(" CPI Trends — Headline vs Core vs Shelter")
+            cpi_keys   = ["CPI All Items", "Core CPI", "CPI Shelter", "CPI Rent"]
+            cpi_colors = ["#1565c0", "#e65100", GOLD, "#6a1b9a"]
+            fig_cpi = go.Figure()
+            for ckey, clr in zip(cpi_keys, cpi_colors):
+                s = inf_series.get(ckey, {}).get("series", [])
+                if not s:
+                    continue
+                # Compute rolling YoY from index series
+                if len(s) >= 13:
+                    yoy_pts = [{"date": s[i]["date"],
+                                "value": round((s[i]["value"] - s[i-12]["value"]) / s[i-12]["value"] * 100, 2)}
+                               for i in range(12, len(s))]
+                else:
+                    yoy_pts = s
+                dates  = [o["date"] for o in yoy_pts]
+                values = [o["value"] for o in yoy_pts]
+                fig_cpi.add_trace(go.Scatter(
+                    x=dates, y=values, name=ckey,
+                    mode="lines", line=dict(color=clr, width=2),
+                    hovertemplate=f"{ckey}: %{{y:.2f}}% YoY<br>%{{x}}<extra></extra>",
+                ))
+            fig_cpi.add_hline(y=2, line_dash="dot", line_color="#1b5e20",
+                               annotation_text="Fed 2% target",
+                               annotation_font=dict(color="#1b5e20", size=9))
+            fig_cpi.update_layout(
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                yaxis=dict(title="YoY %", ticksuffix="%", gridcolor="#2d2d22",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4", size=10)),
+                margin=dict(t=40, b=40), height=340,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_cpi, use_container_width=True)
+            st.caption(
+                "CPI Shelter and CPI Rent measure housing cost inflation — directly relevant to multifamily NOI growth. "
+                "Core CPI (ex food & energy) is the Fed's primary policy target."
+            )
+
+        with col_ppi:
+            section(" PPI — Producer & Construction Input Costs")
+            ppi_keys   = ["PPI All Commodities", "PPI Manufacturing"]
+            ppi_colors = ["#c62828", "#e65100"]
+            fig_ppi = go.Figure()
+            for pkey, clr in zip(ppi_keys, ppi_colors):
+                s = inf_series.get(pkey, {}).get("series", [])
+                if not s or len(s) < 13:
+                    continue
+                yoy_pts = [{"date": s[i]["date"],
+                            "value": round((s[i]["value"] - s[i-12]["value"]) / s[i-12]["value"] * 100, 2)}
+                           for i in range(12, len(s))]
+                dates  = [o["date"] for o in yoy_pts]
+                values = [o["value"] for o in yoy_pts]
+                fig_ppi.add_trace(go.Scatter(
+                    x=dates, y=values, name=pkey,
+                    mode="lines", line=dict(color=clr, width=2),
+                    hovertemplate=f"{pkey}: %{{y:.2f}}% YoY<br>%{{x}}<extra></extra>",
+                ))
+            fig_ppi.add_hline(y=0, line_color="#333", line_width=1)
+            fig_ppi.update_layout(
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                yaxis=dict(title="YoY %", ticksuffix="%", gridcolor="#2d2d22",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4", size=10)),
+                margin=dict(t=40, b=40), height=340,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_ppi, use_container_width=True)
+            st.caption(
+                "Rising PPI increases replacement cost of new CRE — supporting values of existing assets. "
+                "Elevated construction input costs also deter new supply, tightening vacancy."
+            )
+
+        # ── Breakeven Inflation Chart ───────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Market-Implied Inflation Expectations (Breakeven Rates)")
+        be_keys   = ["5Y Breakeven Inflation", "10Y Breakeven Inflation"]
+        be_colors = ["#1565c0", "#6a1b9a"]
+        fig_be = go.Figure()
+        for bkey, clr in zip(be_keys, be_colors):
+            s = inf_series.get(bkey, {}).get("series", [])
+            if not s:
+                continue
+            dates  = [o["date"] for o in s]
+            values = [o["value"] for o in s]
+            fig_be.add_trace(go.Scatter(
+                x=dates, y=values, name=bkey,
+                mode="lines", line=dict(color=clr, width=2),
+                hovertemplate=f"{bkey}: %{{y:.2f}}%<br>%{{x}}<extra></extra>",
+            ))
+        fig_be.add_hline(y=2.0, line_dash="dot", line_color="#1b5e20",
+                          annotation_text="Fed 2% target",
+                          annotation_font=dict(color="#1b5e20", size=9))
+        fig_be.add_hline(y=2.5, line_dash="dash", line_color="#b71c1c",
+                          annotation_text="Concern threshold",
+                          annotation_font=dict(color="#b71c1c", size=9))
+        fig_be.update_layout(
+            paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+            yaxis=dict(title="Implied Inflation (%)", ticksuffix="%", gridcolor="#2d2d22",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            xaxis=dict(tickfont=dict(color="#e8dfc4")),
+            legend=dict(orientation="h", y=1.08, font=dict(color="#e8dfc4", size=11)),
+            margin=dict(t=40, b=40), height=320,
+            font=dict(family="Source Sans Pro", color="#e8dfc4"),
+        )
+        st.plotly_chart(fig_be, use_container_width=True)
+        st.caption(
+            "Breakeven inflation = nominal Treasury yield minus TIPS yield — the market's consensus inflation forecast. "
+            "Elevated breakevens signal that the Fed is unlikely to cut rates soon, keeping cap rates elevated "
+            "and compressing CRE asset values."
+        )
+        st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
+
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — CREDIT & CAPITAL MARKETS
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_credit:
+        st.markdown("#### Is capital available for CRE — and at what cost?")
+        st.markdown(
+            "Agent 12 monitors **corporate credit spreads, bank lending standards, VIX volatility, "
+            "and the BAA–AAA spread** to gauge whether debt capital is flowing into or out of CRE. "
+            "Updates every 6 hours."
+        )
+        agent_last_updated("credit_data")
+
+        cache_cr = read_cache("credit_data")
+        crdata = cache_cr.get("data") or {}
+        if not crdata:
+            st.info("⏳ Credit agent is fetching data — please refresh in ~30 seconds.")
+            st.stop()
+
+        cr_series = crdata.get("series", {})
+        cr_signal = crdata.get("signal", {})
+
+        # ── Signal Banner ───────────────────────────────────────────────────────
+        cr_label = cr_signal.get("label", "UNKNOWN")
+        cr_score = cr_signal.get("score", 50)
+        cr_clr = {"LOOSE": "#1b5e20", "NEUTRAL": "#e65100", "TIGHT": "#b71c1c"}.get(cr_label, "#555")
+        cr_bg  = {"LOOSE": "#e8f5e9", "NEUTRAL": "#fff3e0", "TIGHT": "#ffebee"}.get(cr_label, "#f5f5f5")
+        cr_icon = {"LOOSE": "", "NEUTRAL": "", "TIGHT": ""}.get(cr_label, "⚪")
+        st.markdown(f"""
+        <div style="background:{cr_bg};border-left:6px solid {cr_clr};
+                    padding:18px 24px;border-radius:6px;margin-bottom:20px;">
+          <div style="font-size:1.4rem;font-weight:700;color:{cr_clr};">
+            {cr_icon} Credit Conditions: {cr_label} &nbsp;·&nbsp; Score {cr_score}/100
+          </div>
+          <div style="color:#555;margin-top:6px;font-size:0.92rem;">{cr_signal.get("summary", "")}</div>
+          <ul style="margin-top:10px;color:#444;font-size:0.88rem;">
+            {"".join(f"<li>{b}</li>" for b in cr_signal.get("bullets", []))}
+          </ul>
+        </div>""", unsafe_allow_html=True)
+
+        # ── KPI Strip ──────────────────────────────────────────────────────────
+        section(" Credit Market Snapshot")
+        cr_kpis = [
+            ("IG Corporate Spread",  "bps", "Investment grade"),
+            ("HY Corporate Spread",  "bps", "High yield"),
+            ("BBB Corporate Spread", "bps", "BBB-rated (CRE proxy)"),
+            ("BAA-AAA Spread",       "%",   "Credit quality gap"),
+            ("VIX",                  "pts", "Market fear gauge"),
+            ("CRE Loan Tightening",  "%",   "Net % banks tightening"),
+        ]
+        cr_cols = st.columns(len(cr_kpis))
+        for col, (key, unit, sub) in zip(cr_cols, cr_kpis):
+            r = cr_series.get(key, {})
+            cur = r.get("current")
+            d1m = r.get("delta_1m")
+            if cur is None:
+                col.markdown(metric_card(key, "N/A", sub), unsafe_allow_html=True)
+                continue
+            val_s = f"{cur:.0f}{unit}" if unit == "bps" else (f"{cur:.1f}" if unit == "pts" else f"{cur:.2f}%")
+            delta_html = ""
+            if d1m is not None:
+                arrow = "▲" if d1m > 0 else "▼"
+                # Wide spreads / high VIX = bad; tightening lending = bad
+                clr = "#b71c1c" if d1m > 0 else "#1b5e20"
+                d_s = f"{d1m:+.0f}{unit}" if unit == "bps" else f"{d1m:+.2f}"
+                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {d_s} 1M</span>"
+            short = key.replace(" Corporate", "").replace(" Spread", " Sprd")
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{short}</div>
+              <div class="value">{val_s}</div>
+              <div class="sub">{delta_html or sub}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Spread History Charts ───────────────────────────────────────────────
+        col_spreads, col_vix = st.columns([3, 2])
+
+        with col_spreads:
+            section(" Credit Spread History — IG, HY & BBB")
+            fig_sp = go.Figure()
+            spread_keys   = ["IG Corporate Spread", "HY Corporate Spread", "BBB Corporate Spread"]
+            spread_colors = ["#1565c0", "#c62828", GOLD]
+            spread_axis   = [1, 2, 1]  # HY on secondary axis
+            for skey, clr, ax in zip(spread_keys, spread_colors, spread_axis):
+                s = cr_series.get(skey, {}).get("series", [])
+                if not s:
+                    continue
+                dates  = [o["date"] for o in s]
+                values = [o["value"] for o in s]
+                fig_sp.add_trace(go.Scatter(
+                    x=dates, y=values, name=skey,
+                    mode="lines", line=dict(color=clr, width=2),
+                    yaxis=f"y{ax}" if ax == 2 else "y",
+                    hovertemplate=f"{skey}: %{{y:.0f}}bps<br>%{{x}}<extra></extra>",
+                ))
+            fig_sp.update_layout(
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                yaxis=dict(title="IG / BBB Spread (bps)", gridcolor="#2d2d22",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                yaxis2=dict(title="HY Spread (bps)", overlaying="y", side="right",
+                            tickfont=dict(color="#c62828"), title_font=dict(color="#c62828")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4", size=10)),
+                margin=dict(t=40, b=40), height=360,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_sp, use_container_width=True)
+            st.caption(
+                "IG (Investment Grade) and BBB spreads track the cost of the debt that finances most CRE. "
+                "HY spreads (right axis) are a leading risk-sentiment indicator — sharp spikes precede transaction freezes."
+            )
+
+        with col_vix:
+            section(" VIX — Market Volatility")
+            vix_s = cr_series.get("VIX", {}).get("series", [])
+            if vix_s:
+                dates  = [o["date"] for o in vix_s]
+                values = [o["value"] for o in vix_s]
+                bar_clrs_vix = ["#b71c1c" if v > 30 else (GOLD if v > 20 else "#1b5e20") for v in values]
+                fig_vix = go.Figure(go.Bar(
+                    x=dates, y=values, marker_color=bar_clrs_vix,
+                    hovertemplate="Date: %{x}<br>VIX: %{y:.1f}<extra></extra>",
+                ))
+                fig_vix.add_hline(y=20, line_dash="dot", line_color=GOLD,
+                                   annotation_text="Elevated (>20)",
+                                   annotation_font=dict(color=GOLD_DARK, size=9))
+                fig_vix.add_hline(y=30, line_dash="dash", line_color="#b71c1c",
+                                   annotation_text="Stress (>30)",
+                                   annotation_font=dict(color="#b71c1c", size=9))
+                fig_vix.update_layout(
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="VIX Level", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                    margin=dict(t=30, b=40), height=360,
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                )
+                st.plotly_chart(fig_vix, use_container_width=True)
+                st.caption("VIX > 20 = elevated uncertainty. VIX > 30 = stress — CRE deal pipelines freeze as buyers demand higher risk premiums.")
+            else:
+                st.info("VIX series not yet available.")
+
+        # ── Lending Standards Chart ─────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Bank Lending Standards — C&I and CRE Loans (Net % Tightening)")
+        fig_ls = go.Figure()
+        ls_keys   = ["C&I Loan Tightening", "CRE Loan Tightening"]
+        ls_colors = ["#1565c0", GOLD]
+        for lkey, clr in zip(ls_keys, ls_colors):
+            s = cr_series.get(lkey, {}).get("series", [])
+            if not s:
+                continue
+            dates  = [o["date"] for o in s]
+            values = [o["value"] for o in s]
+            fig_ls.add_trace(go.Scatter(
+                x=dates, y=values, name=lkey,
+                mode="lines+markers", line=dict(color=clr, width=2),
+                marker=dict(size=5),
+                hovertemplate=f"{lkey}: %{{y:.1f}}%<br>%{{x}}<extra></extra>",
+            ))
+        fig_ls.add_hline(y=0, line_color="#333", line_width=1.5)
+        fig_ls.add_hrect(y0=20, y1=100, fillcolor="rgba(183,28,28,0.05)",
+                          line_width=0, annotation_text="Tightening territory",
+                          annotation_font=dict(color="#b71c1c", size=9))
+        fig_ls.add_hrect(y0=-100, y1=-10, fillcolor="rgba(27,94,32,0.05)",
+                          line_width=0, annotation_text="Easing territory",
+                          annotation_font=dict(color="#1b5e20", size=9))
+        fig_ls.update_layout(
+            paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+            yaxis=dict(title="Net % Tightening", ticksuffix="%", gridcolor="#2d2d22",
+                       zeroline=True, zerolinecolor="#ccc",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            xaxis=dict(tickfont=dict(color="#e8dfc4")),
+            legend=dict(orientation="h", y=1.08, font=dict(color="#e8dfc4", size=11)),
+            margin=dict(t=40, b=40), height=340,
+            font=dict(family="Source Sans Pro", color="#e8dfc4"),
+        )
+        st.plotly_chart(fig_ls, use_container_width=True)
+        st.caption(
+            "Fed Senior Loan Officer Survey (quarterly). Positive = banks tightening loan standards (less credit supply). "
+            "Negative = easing (more credit supply). CRE loan tightening directly restricts acquisition and development financing."
+        )
+        st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
+
+# ── Meet the Team ─────────────────────────────────────────────────────────────
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown("""
+<div style="background:#16160f; border:1px solid #8E6F3E; border-top:3px solid #CFB991;
+            border-radius:8px; padding:32px 36px; margin-top:24px;">
+  <div style="text-align:center; margin-bottom:24px;">
+    <span style="color:#CFB991; font-size:1.3rem; font-weight:700; letter-spacing:2px;
+                 text-transform:uppercase;">Meet the Team</span>
+    <div style="color:#a09880; font-size:0.85rem; margin-top:4px;">
+      MGMT 690: AI Leadership &nbsp;&middot;&nbsp; Purdue Daniels School of Business
+    </div>
+  </div>
+  <div style="display:flex; justify-content:center; gap:24px; flex-wrap:wrap;">
+    <div style="background:#1a1a14; border:1px solid #8E6F3E; border-radius:8px;
+                padding:20px 28px; text-align:center; min-width:160px;">
+      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
+      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Aayman Afzal</div>
+      <a href="https://www.linkedin.com/in/aayman-afzal" target="_blank"
+         style="color:#CFB991; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
+    </div>
+    <div style="background:#1a1a14; border:1px solid #8E6F3E; border-radius:8px;
+                padding:20px 28px; text-align:center; min-width:160px;">
+      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
+      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Ajinkya Kodnikar</div>
+      <a href="https://www.linkedin.com/in/ajinkya-kodnikar" target="_blank"
+         style="color:#CFB991; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
+    </div>
+    <div style="background:#1a1a14; border:1px solid #8E6F3E; border-radius:8px;
+                padding:20px 28px; text-align:center; min-width:160px;">
+      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
+      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Oyu Amar</div>
+      <a href="https://www.linkedin.com/in/oyuamar" target="_blank"
+         style="color:#CFB991; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
+    </div>
+    <div style="background:#1a1a14; border:1px solid #8E6F3E; border-radius:8px;
+                padding:20px 28px; text-align:center; min-width:160px;">
+      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
+      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Ricardo Ruiz</div>
+      <a href="https://www.linkedin.com/in/ricardoruizjr" target="_blank"
+         style="color:#CFB991; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)

@@ -1,160 +1,173 @@
 # CRE Intelligence Platform
-**MGMT 690 AI Leadership Project | Purdue Daniels School of Business**
 
-A professional Streamlit application that provides **real-time Commercial Real Estate intelligence** powered by eight independent AI agents running in the background.
+> Real-time commercial real estate intelligence powered by eight autonomous AI agents — tracking migration flows, REIT pricing, interest rates, facility announcements, energy costs, and ESG momentum across US markets.
 
-## 🤖 AI Workforce Architecture
-
-This platform operates under a **Human-in-Command model** with 8 specialized AI agents:
-
-| Agent | Role | Frequency | Output |
-|-------|------|-----------|--------|
-| 🏃 Migration Analyst | Population flows, corporate relocations | Every 6h | `migration.json` |
-| 💰 REIT Analyst | Live pricing, cap rates, NOI margins | Every 1h | `pricing.json` |
-| 🔮 Macro Strategist | LLM-powered company relocation predictions | Every 24h | `predictions.json` |
-| 🛠️ System Monitor | Health checks, API status | Every 30min | `debugger.json` |
-| 📰 Market Intelligence | News & government facility tracking | Every 4h | `news.json` |
-| 📈 Rate Environment | Interest rates, yield curve, cap rate adjustments, REIT debt risk (FRED) | Every 1h | `rates.json` |
-| 🛢️ Energy Analyst | Oil, gas, copper, steel → construction costs | Every 6h | `energy_data.json` |
-| 🌱 Sustainability Analyst | Clean energy ETFs, green REITs → ESG momentum | Every 6h | `sustainability_data.json` |
-
-```
-                    ┌─────────────────────┐
-                    │   HUMAN COMMANDER   │
-                    │  (Review & Approve) │
-                    └────────┬────────────┘
-                             │
-       ┌─────────────┬──────┴──────┬─────────────┐
-       │             │             │             │
- ┌─────┴─────┐ ┌────┴────┐ ┌─────┴─────┐ ┌─────┴─────┐
- │ Migration │ │  REIT   │ │  Macro    │ │   Rate    │
- │  Analyst  │ │ Analyst │ │Strategist │ │Environment│
- └───────────┘ └─────────┘ └───────────┘ └───────────┘
-       │             │             │             │
- ┌─────┴─────┐ ┌────┴────┐ ┌─────┴─────┐ ┌─────┴─────┐
- │  System   │ │ Market  │ │  Energy   │ │Sustainab. │
- │  Monitor  │ │  Intel  │ │ Analyst   │ │  Analyst  │
- └───────────┘ └─────────┘ └───────────┘ └───────────┘
-```
-
-**Human-in-Command Protocol:** All agent outputs are reviewed by the human commander. Nothing reaches users without explicit approval.
-
-## Dashboard Tabs
-
-| Tab | Content |
-|-----|---------|
-| **🗺️ Migration Intelligence** | Choropleth map, migration scores, metro rankings, bubble chart |
-| **💰 Pricing & Profit** | Live REIT prices, heatmap of margin by market × property type, top 10 opportunities |
-| **📈 Rate Environment** | Fed Funds/Treasury rates, yield curve, cap rate adjustments by property type, REIT refinancing risk |
-| **🔮 Company Predictions** | AI-generated corporate relocation forecast (Llama 3.3-70B via Groq) |
-| **🏗️ Cheapest Buildings** | Lowest-price commercial listings in the top 3 migration destination states |
-| **📰 Industry Announcements** | News & government facility announcements from 10+ sources |
-| **🛢️ Energy & Construction Costs** | Oil, gas, copper, steel prices; Construction Cost Signal (HIGH/MODERATE/LOW) |
-| **🌱 Sustainability & ESG** | Clean energy ETF performance, green REITs, ESG Momentum Signal (STRONG/NEUTRAL/WEAK) |
-| **🛠️ System Monitor** | Agent status, cache health, force-run controls, API health checks |
-
-## Setup
-
-```bash
-pip install -r requirements.txt
-
-# Create .env with API keys
-cp .env.example .env   # or create manually
-
-# Required for Rate Environment agent
-FRED_API_KEY=your_fred_key_here   # free at https://fred.stlouisfed.org/docs/api/api_key.html
-
-# Optional for AI predictions
-GROQ_API_KEY=your_groq_key_here
-
-streamlit run app/cre_app.py
-```
-
-## Tech Stack
-
-- **UI**: Streamlit (Purdue gold/black branding)
-- **Background Agents**: APScheduler (BackgroundScheduler)
-- **Cache**: File-based JSON (`/cache/*.json`) — survives Streamlit reruns
-- **Market Data**: yfinance (live REIT prices, dividends, market cap, commodities, ETFs)
-- **Population Data**: US Census Bureau Population Estimates API
-- **Interest Rate Data**: FRED API (10 series: Treasuries, SOFR, Fed Funds, mortgage rates, credit spreads)
-- **AI Predictions**: Groq API (llama-3.3-70b-versatile)
-- **Charts**: Plotly (choropleth maps, heatmaps, scatter, bar)
-
-## Rate Environment Agent
-
-Agent 6 pulls live data from the Federal Reserve (FRED) to provide macro context for CRE investment decisions:
-
-- **Rate Signals**: 10Y/2Y/3M Treasuries, Fed Funds Rate, SOFR, 30Y mortgage, IG credit spreads
-- **Yield Curve**: Shape classification (normal / flat / inverted) with historical trend
-- **Environment Signal**: Composite BULLISH / CAUTIOUS / BEARISH rating based on rate levels, curve shape, and credit conditions
-- **Cap Rate Adjustments**: Sector-specific cap rate estimates for 7 property types, adjusted dynamically to the current 10Y Treasury using sector betas
-- **REIT Debt Risk**: Near-term refinancing exposure scored across major REITs using yfinance balance sheet data
-
-Requires `FRED_API_KEY` in `.env`.
+**Purdue Daniels School of Business · MGMT 690: AI Leadership**
 
 ---
 
-## Chief of Staff — AI Executive Assistant
+## What It Does
 
-A CLI tool for managing and coordinating work across the codebase. Tracks tasks, decisions, follow-ups, and generates briefings — with optional Groq LLM enhancement.
+Most CRE research tools require manual data pulls, static spreadsheets, and hours of synthesis. This platform replaces that workflow with a live dashboard backed by eight background agents that update continuously — surfacing which markets to watch, which property types are most profitable, and which companies are building new facilities.
 
-### Setup
+The agents run on a scheduler. Open the dashboard and the data is already there.
+
+---
+
+## Agent Architecture
+
+Eight specialized agents operate independently on fixed schedules, writing to a shared JSON cache that survives Streamlit reruns.
+
+| Agent | Responsibility | Schedule |
+|-------|---------------|----------|
+| Migration Analyst | Population flows, state migration scores, metro rankings | Every 6 hours |
+| REIT Analyst | Live REIT prices, cap rates, NOI margins, profit matrix | Every 1 hour |
+| Facility Intelligence | Confirmed plant & facility announcements extracted from live news | Every 24 hours |
+| System Monitor | API health, cache freshness, agent status | Every 30 minutes |
+| Market Intelligence | RSS news feeds — manufacturing, government, industry press | Every 4 hours |
+| Rate Environment | Fed Funds, Treasuries, yield curve, cap rate adjustments, REIT debt risk | Every 1 hour |
+| Energy Analyst | Oil, gas, copper, steel prices vs. 60-day moving average | Every 6 hours |
+| Sustainability Analyst | Clean energy ETFs, green REIT performance vs. S&P 500 | Every 6 hours |
+
+All agents start automatically when the app launches. No manual triggers needed.
+
+---
+
+## Dashboard
+
+Two top-level tabs — **Real Estate** and **Energy** — each with focused sub-tabs.
+
+### Real Estate
+
+| Tab | What You See |
+|-----|-------------|
+| Migration Intelligence | US choropleth map, top 10 states by migration score, business vs. population bubble chart, metro table |
+| Pricing & Profit | Live REIT prices, profit margin heatmap by market × property type, top 10 opportunities, property type comparison |
+| Company Predictions | Confirmed corporate facility announcements (plants, fabs, warehouses, data centers, HQ moves) with investment, jobs, and CRE impact |
+| Cheapest Buildings | Lowest-price commercial listings in the top 3 migration destination states |
+| Industry Announcements | AI-structured brief from 10+ news and government RSS sources |
+| System Monitor | Agent status, cache health, API connectivity |
+
+### Energy
+
+| Tab | What You See |
+|-----|-------------|
+| Rate Environment | Current rates table, yield curve shape, 12-month trend, cap rate adjustments by property type, REIT refinancing risk scores |
+| Energy & Construction Costs | Commodity prices vs. 60-day SMA, construction cost signal (HIGH / MODERATE / LOW) |
+| Sustainability | Clean energy ETF performance (ICLN, TAN, QCLN), green REIT performance (PLD, EQIX, ARE) vs. SPY |
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clone
+git clone https://github.com/oyu-umveisharma/AI-leadership-Project.git
+cd AI-leadership-Project
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Set API keys (see API Keys section below)
+export GROQ_API_KEY=your_key_here
+export FRED_API_KEY=your_key_here
+
+# 4. Run
+streamlit run app/cre_app.py
+```
+
+The app opens at `http://localhost:8501`. All eight agents start in the background immediately. Data populates within 30–60 seconds.
+
+---
+
+## API Keys
+
+| Key | Required | Purpose | Get It |
+|-----|----------|---------|--------|
+| `GROQ_API_KEY` | Recommended | Company facility announcements (Llama 3.3-70B) and news summaries | [console.groq.com](https://console.groq.com) — free tier available |
+| `FRED_API_KEY` | Recommended | Interest rates, yield curve, mortgage rates from the Federal Reserve | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) — free |
+
+The app runs without both keys — migration, REIT pricing, energy, and sustainability tabs work on public data alone. AI-powered features degrade gracefully with a status message.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Dashboard | Streamlit |
+| Agent Scheduling | APScheduler — BackgroundScheduler with IntervalTrigger |
+| Data Cache | File-based JSON (`/cache/`) — persists across Streamlit reruns |
+| Market Data | yfinance — REIT prices, dividends, commodities, ETFs |
+| Population Data | US Census Bureau Population Estimates API (2023) |
+| Interest Rate Data | FRED API — 10 series including Treasuries, SOFR, Fed Funds, mortgage rates |
+| AI / LLM | Groq API — llama-3.3-70b-versatile |
+| News Sources | Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, Dept. of Energy, Dept. of Commerce, EDA, Expansion Solutions, Site Selection Magazine |
+| Charts | Plotly — choropleth maps, heatmaps, bar, scatter, line |
+| Language | Python 3.10+ |
+
+---
+
+## Project Structure
+
+```
+AI-leadership-Project/
+├── app/
+│   └── cre_app.py              # Streamlit dashboard — all tabs and visualization
+├── src/
+│   ├── cre_agents.py           # Agent runner, scheduler, cache helpers
+│   ├── cre_population.py       # Census API — migration scores, metro data
+│   ├── cre_pricing.py          # REIT universe, cap rates, profit matrix
+│   ├── cre_news.py             # RSS feed scraper, facility keyword filter
+│   ├── cre_listings.py         # Commercial property listings by state
+│   ├── rate_agent.py           # FRED API — interest rates, yield curve
+│   ├── energy_analyst.py       # Commodity prices, construction cost signal
+│   └── sustainability_analyst.py # Clean energy ETFs, green REIT tracking
+├── chief-of-staff/             # CLI tool for project coordination
+├── .pipeline/                  # Auto-sync agent for team machines
+├── cache/                      # Runtime JSON cache (gitignored)
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## Supporting Tools
+
+### Chief of Staff (CLI)
+
+A command-line tool for managing project coordination — task triage, decision logging, meeting prep, and weekly digests. Works offline; enhanced with Groq when `GROQ_API_KEY` is set.
 
 ```bash
 chmod +x chief-of-staff/cos
 
-# Run directly
-./chief-of-staff/cos briefing
-
-# Or add to PATH for global access
-export PATH="$PATH:$(pwd)/chief-of-staff"
-cos briefing
+./chief-of-staff/cos briefing     # Daily status: commits, open PRs, cache health
+./chief-of-staff/cos triage       # Score-ranked task prioritization
+./chief-of-staff/cos weekly       # Weekly digest: shipped, in-progress, next week
 ```
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `cos briefing` | Daily status: recent commits, open PRs, TODOs, cache health |
-| `cos triage` | Score-ranked task prioritization from `tasks.md` |
-| `cos prep "<topic>"` | Meeting prep doc with codebase context and talking points |
-| `cos decide "<title>"` | Log an architectural/product decision |
-| `cos decisions` | List recent decision log entries |
-| `cos follow-up add "<item>" --owner --due` | Add a tracked action item |
-| `cos follow-up list [--filter open\|overdue\|done\|all]` | List follow-ups |
-| `cos follow-up done <id>` | Mark a follow-up complete |
-| `cos weekly` | Weekly digest: shipped, in-progress, blocked, next week |
-
-### State Files
-
-All state is plain markdown in `chief-of-staff/state/`:
-
-- `tasks.md` — edit manually to manage your task list
-- `decisions.md` — auto-maintained decision log
-- `follow-ups.md` — auto-maintained action item tracker
-
-### AI Mode
-
-Works fully offline without an API key. With `GROQ_API_KEY` set in `.env`, commands are enhanced with LLM summaries, strategic recommendations, and talking points.
 
 See [`chief-of-staff/README.md`](chief-of-staff/README.md) for full documentation.
 
----
+### Auto-Sync Agent
 
-## Autonomous Sync Agent
-
-Monitors the GitHub repo for new commits and automatically pulls updates on each team member's machine.
+Monitors the GitHub repo and automatically pulls updates on each team member's machine every 5 minutes via macOS launchd.
 
 ```bash
-# One-time setup per machine
-bash .pipeline/setup.sh
-
-# Check sync status
-python3 .pipeline/status.py
+bash .pipeline/setup.sh      # One-time setup per machine
+python3 .pipeline/status.py  # Check sync status
 ```
 
-The agent runs every 5 minutes via macOS launchd and re-installs dependencies on each pull.
+---
+
+## Team
+
+| Name | LinkedIn |
+|------|----------|
+| Aayman Afzal | [linkedin.com/in/aayman-afzal](https://www.linkedin.com/in/aayman-afzal) |
+| Ajinkya Kodnikar | [linkedin.com/in/ajinkya-kodnikar](https://www.linkedin.com/in/ajinkya-kodnikar) |
+| Oyu Amar | [linkedin.com/in/oyuamar](https://www.linkedin.com/in/oyuamar) |
+| Ricardo Ruiz | [linkedin.com/in/ricardoruizjr](https://www.linkedin.com/in/ricardoruizjr) |
 
 ---
-*MGMT 690: AI Leadership | Purdue Daniels School of Business*
+
+*MGMT 690: AI Leadership · Purdue Daniels School of Business*
