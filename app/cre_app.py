@@ -3407,9 +3407,9 @@ with main_tab_macro:
         )
         st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
 
-# ── Meet the Team ─────────────────────────────────────────────────────────────
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.markdown("""
+    # ── Meet the Team ─────────────────────────────────────────────────────────
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("""
 <div style="background:#16160f; border:1px solid #8E6F3E; border-top:3px solid #CFB991;
             border-radius:8px; padding:32px 36px; margin-top:24px;">
   <div style="text-align:center; margin-bottom:24px;">
