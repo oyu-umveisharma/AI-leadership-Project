@@ -900,32 +900,43 @@ with main_tab_re:
                     _marker_line_widths.append(0.5)
                     _marker_line_colors.append("#999")
 
+            def _classify(score):
+                if score >= 70:   return "High Growth"
+                elif score >= 55: return "Growing"
+                elif score >= 45: return "Stable"
+                elif score >= 25: return "Declining"
+                else:             return "High Outflow"
+
             fig_map = go.Figure(go.Choropleth(
                 locations=mig_df["state_abbr"],
                 z=mig_df["composite_score"],
                 locationmode="USA-states",
                 colorscale=[
-                    [0.0,  "#b71c1c"],
-                    [0.25, "#ef5350"],
-                    [0.45, "#ffcdd2"],
-                    [0.55, "#fff9c4"],
-                    [0.70, "#a5d6a7"],
-                    [0.85, "#388e3c"],
+                    [0.0,  "#7f0000"],
+                    [0.25, "#c62828"],
+                    [0.45, "#e57373"],
+                    [0.55, "#d4c5a9"],
+                    [0.70, "#81c784"],
+                    [0.85, "#2e7d32"],
                     [1.0,  "#1b5e20"],
                 ],
                 zmin=0, zmax=100,
                 marker=dict(line=dict(width=_marker_line_widths, color=_marker_line_colors)),
                 colorbar=dict(
-                    title=dict(text="Migration<br>Score", font=dict(size=11)),
-                    tickfont=dict(size=10), thickness=14, len=0.7,
+                    title=dict(text="Migration<br>Score", font=dict(size=11, color="#e8dfc4")),
+                    tickfont=dict(size=10, color="#e8dfc4"),
+                    thickness=14, len=0.65,
+                    bgcolor="#16160f",
+                    bordercolor="#3a3a2a",
+                    borderwidth=1,
                 ),
                 text=mig_df.apply(
-                    lambda r: f"<b>{r['state_name']}</b><br>"
-                              f"Pop Growth: {r['pop_growth_pct']:+.2f}%<br>"
-                              f"Business Score: {r['biz_score']}<br>"
-                              f"Composite: {r['composite_score']}<br>"
-                              f"Key Companies: {r['key_companies']}<br>"
-                              f"<i>{r['growth_drivers']}</i>",
+                    lambda r: (
+                        f"<b>{r['state_name']}</b><br>"
+                        f"Migration Score: {r['composite_score']:.0f}<br>"
+                        f"Classification: {_classify(r['composite_score'])}<br>"
+                        f"Key Drivers: {r['growth_drivers']}"
+                    ),
                     axis=1
                 ),
                 hovertemplate="%{text}<extra></extra>",
@@ -945,17 +956,21 @@ with main_tab_re:
                 ))
 
             # Set map center and zoom
+            _geo_base = dict(
+                scope="usa", showlakes=True, lakecolor="#1a2535",
+                bgcolor="#0f0f0c", showland=True, landcolor="#1e2018",
+                showframe=False, showcoastlines=False,
+                subunitcolor="#3a3a2a", subunitwidth=0.5,
+            )
             if _zoom_coords and _zoom_scale:
                 fig_map.update_layout(
-                    geo=dict(scope="usa", showlakes=True, lakecolor="lightblue",
-                             bgcolor="white", showland=True, landcolor="#f5f5f5",
+                    geo=dict(**_geo_base,
                              projection_scale=_zoom_scale,
                              center=dict(lat=_zoom_coords[0], lon=_zoom_coords[1])),
                 )
             else:
                 fig_map.update_layout(
-                    geo=dict(scope="usa", showlakes=True, lakecolor="lightblue",
-                             bgcolor="white", showland=True, landcolor="#f5f5f5",
+                    geo=dict(**_geo_base,
                              projection_scale=1, center=dict(lat=38, lon=-96)),
                 )
 
@@ -974,22 +989,35 @@ with main_tab_re:
             )
 
         with legend_col:
-            st.markdown("<br><br>", unsafe_allow_html=True)
-            for color, label in [
-                ("#1b5e20", " High Growth (70–100)"),
-                ("#388e3c", " Growing (55–70)"),
-                ("#fff9c4", " Stable (45–55)"),
-                ("#ef5350", " Declining (25–45)"),
-                ("#b71c1c", "⛔ High Outflow (<25)"),
+            st.markdown(
+                "<div style='margin-top:24px;padding:14px 12px;background:#16160f;"
+                "border:1px solid #3a3a2a;border-radius:8px;'>"
+                "<div style='font-size:0.78rem;font-weight:700;color:#CFB991;"
+                "letter-spacing:0.08em;margin-bottom:10px;'>MIGRATION SCORE</div>",
+                unsafe_allow_html=True
+            )
+            for color, label, desc in [
+                ("#1b5e20", "High Growth", "70 – 100"),
+                ("#2e7d32", "Growing",     "55 – 70"),
+                ("#d4c5a9", "Stable",      "45 – 55"),
+                ("#c62828", "Declining",   "25 – 45"),
+                ("#7f0000", "High Outflow","< 25"),
             ]:
                 st.markdown(
-                    f"<div style='display:flex;align-items:center;margin:6px 0;font-size:0.82rem;'>"
-                    f"<div style='width:16px;height:16px;background:{color};border-radius:3px;margin-right:8px;flex-shrink:0;'></div>"
-                    f"{label}</div>",
+                    f"<div style='display:flex;align-items:center;margin:5px 0;font-size:0.80rem;'>"
+                    f"<div style='width:14px;height:14px;background:{color};border-radius:2px;"
+                    f"margin-right:9px;flex-shrink:0;border:1px solid #555;'></div>"
+                    f"<span style='color:#e8dfc4;font-weight:600;'>{label}</span>"
+                    f"<span style='color:#888;font-size:0.74rem;margin-left:6px;'>{desc}</span>"
+                    f"</div>",
                     unsafe_allow_html=True
                 )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.caption("Score = 60% Pop Growth + 40% Business Migration Index")
+            st.markdown(
+                "<div style='margin-top:10px;padding-top:8px;border-top:1px solid #3a3a2a;"
+                "font-size:0.72rem;color:#888;line-height:1.5;'>"
+                "60% Population Growth<br>+ 40% Business Migration Index</div></div>",
+                unsafe_allow_html=True
+            )
 
         # ── Top 10 States ──────────────────────────────────────────────────────
         section(" Top 10 States for CRE Investment (Migration Score)")
