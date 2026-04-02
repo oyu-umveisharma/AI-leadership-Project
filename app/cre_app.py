@@ -58,85 +58,112 @@ st.markdown(f"""
   html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; }}
 
   /* push content flush to top so banner starts at the very top */
-  .block-container {{ padding-top: 0 !important; }}
-  section[data-testid="stAppViewContainer"] > div:first-child {{ padding-top: 0 !important; }}
+  .block-container { padding-top: 0 !important; }
+  section[data-testid="stAppViewContainer"] > div:first-child { padding-top: 0 !important; }
 
-  .agent-card {{
-    background: {BLACK};
-    border-radius: 8px;
+  /* ── Dark intelligence dashboard theme ── */
+  .stApp, [data-testid="stAppViewContainer"], .main, .block-container {
+    background-color: #0f0f0c !important;
+    color: #e8dfc4 !important;
+  }
+  p, li, span, label, div { color: #e8dfc4; }
+  .stMarkdown p { color: #e8dfc4; }
+  .stCaption, [data-testid="stCaptionContainer"] p { color: #a09880 !important; }
+  [data-testid="stMetricValue"] { color: #CFB991 !important; }
+  [data-testid="stMetricLabel"] { color: #e8dfc4 !important; }
+  [data-testid="stDataFrame"] { background: #16160f; }
+  .stDataFrame th { background: #1e1e16 !important; color: #CFB991 !important; }
+  .stDataFrame td { background: #1a1a14 !important; color: #e8dfc4 !important; }
+  [data-testid="stInfo"] { background: #1a1f14; border-color: #8E6F3E; color: #e8dfc4; }
+  [data-testid="stWarning"] { background: #1f1a0f; border-color: #CFB991; color: #e8dfc4; }
+
+  .agent-card {
+    background: #16160f;
+    border-radius: 6px;
     padding: 20px 24px;
     margin: 12px 0;
-    border-left: 5px solid {GOLD};
-  }}
-  .agent-card .agent-label {{
-    color: {GOLD};
+    border: 1px solid #8E6F3E;
+    border-left: 5px solid #CFB991;
+  }
+  .agent-card .agent-label {
+    color: #CFB991;
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 2px;
     margin-bottom: 8px;
-  }}
-  .agent-card .agent-text {{
-    color: #eee;
+  }
+  .agent-card .agent-text {
+    color: #e8dfc4;
     font-size: 0.92rem;
     line-height: 1.7;
     white-space: pre-wrap;
-  }}
+  }
 
-  .metric-card {{
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-top: 4px solid {GOLD};
+  .metric-card {
+    background: #16160f;
+    border: 1px solid #8E6F3E;
+    border-top: 3px solid #CFB991;
     border-radius: 6px;
     padding: 16px;
     text-align: center;
-  }}
-  .metric-card .label {{ font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }}
-  .metric-card .value {{ font-size: 1.6rem; font-weight: 700; color: {BLACK}; margin: 4px 0; }}
-  .metric-card .sub   {{ font-size: 0.78rem; color: #888; }}
+  }
+  .metric-card .label { font-size: 0.75rem; color: #a09880; text-transform: uppercase; letter-spacing: 0.5px; }
+  .metric-card .value { font-size: 1.6rem; font-weight: 700; color: #CFB991; margin: 4px 0; }
+  .metric-card .sub   { font-size: 0.78rem; color: #7a7060; }
 
-  .section-header {{
-    background: {BLACK};
-    color: {GOLD};
+  .section-header {
+    background: #16160f;
+    color: #CFB991;
     padding: 9px 16px;
     border-radius: 4px;
     font-size: 1rem;
     font-weight: 700;
     margin: 24px 0 14px 0;
-    border-left: 5px solid {GOLD};
-  }}
+    border-left: 5px solid #CFB991;
+    border-bottom: 1px solid #8E6F3E;
+  }
 
-  .listing-card {{
-    background: #f9f9f9;
-    border: 1px solid #e0e0e0;
-    border-left: 4px solid {GOLD};
+  .listing-card {
+    background: #16160f;
+    border: 1px solid #8E6F3E;
+    border-left: 4px solid #CFB991;
     border-radius: 6px;
     padding: 14px 18px;
     margin: 8px 0;
-  }}
-  .listing-card .l-price {{ font-size: 1.4rem; font-weight: 700; color: {BLACK}; }}
-  .listing-card .l-address {{ font-size: 0.9rem; color: #333; margin: 2px 0; }}
-  .listing-card .l-detail {{ font-size: 0.8rem; color: #666; }}
-  .listing-card .l-tag {{
+  }
+  .listing-card .l-price { font-size: 1.4rem; font-weight: 700; color: #CFB991; }
+  .listing-card .l-address { font-size: 0.9rem; color: #e8dfc4; margin: 2px 0; }
+  .listing-card .l-detail { font-size: 0.8rem; color: #a09880; }
+  .listing-card .l-tag {
     display: inline-block;
-    background: {GOLD};
-    color: {BLACK};
+    background: #CFB991;
+    color: #0f0f0c;
     border-radius: 12px;
     padding: 2px 10px;
     font-size: 0.72rem;
     font-weight: 700;
     margin-right: 4px;
     margin-top: 4px;
-  }}
+  }
 
-  .status-ok    {{ color: #2e7d32; font-weight: 700; }}
-  .status-error {{ color: #b71c1c; font-weight: 700; }}
-  .status-run   {{ color: #e65100; font-weight: 700; }}
-  .status-idle  {{ color: #757575; }}
+  .status-ok    { color: #4caf6e; font-weight: 700; }
+  .status-error { color: #e05050; font-weight: 700; }
+  .status-run   { color: #CFB991; font-weight: 700; }
+  .status-idle  { color: #666; }
 
-  div[data-testid="stTabs"] button {{
+  div[data-testid="stTabs"] {
+    background: #0f0f0c !important;
+  }
+  div[data-testid="stTabs"] button {
     font-weight: 600 !important;
     font-size: 0.92rem !important;
-  }}
+    color: #a09880 !important;
+    background: transparent !important;
+  }
+  div[data-testid="stTabs"] button[aria-selected="true"] {
+    color: #CFB991 !important;
+    border-bottom: 2px solid #CFB991 !important;
+  }
 </style>
 """, unsafe_allow_html=True)
 
@@ -308,13 +335,13 @@ with main_tab_re:
                 hovertemplate="%{text}<extra></extra>",
             ))
             fig_map.update_layout(
-                geo=dict(scope="usa", showlakes=True, lakecolor="lightblue",
-                         bgcolor="white", showland=True, landcolor="#f5f5f5",
+                geo=dict(scope="usa", showlakes=True, lakecolor="#1a2535",
+                         bgcolor="#0f0f0c", showland=True, landcolor="#1e2018",
                          projection_scale=1, center=dict(lat=38, lon=-96)),
-                paper_bgcolor="white",
+                paper_bgcolor="#16160f",
                 margin=dict(t=10, b=10, l=0, r=0),
                 height=460,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 dragmode=False,
             )
             st.plotly_chart(fig_map, use_container_width=True, config={"scrollZoom": False, "displayModeBar": False})
@@ -352,7 +379,7 @@ with main_tab_re:
                         colorscale=[[0, GOLD_DARK], [1, GOLD]], showscale=False),
             text=top10["composite_score"].apply(lambda x: f"{x:.0f}"),
             textposition="outside",
-            textfont=dict(color="#1a1a1a", size=12),
+            textfont=dict(color="#e8dfc4", size=12),
             customdata=top10[["state_name", "pop_growth_pct", "key_companies"]].values,
             hovertemplate=(
                 "<b>%{customdata[0]}</b><br>"
@@ -361,12 +388,12 @@ with main_tab_re:
             ),
         ))
         fig_bar.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white",
-            xaxis=dict(showgrid=True, gridcolor="#f0f0f0", range=[0, 110],
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            yaxis=dict(autorange="reversed", tickfont=dict(color="#1a1a1a", size=12)),
+            plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+            xaxis=dict(showgrid=True, gridcolor="#2d2d22", range=[0, 110],
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            yaxis=dict(autorange="reversed", tickfont=dict(color="#e8dfc4", size=12)),
             margin=dict(t=20, b=20, l=60, r=60),
-            height=320, font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            height=320, font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
         st.plotly_chart(fig_bar, use_container_width=True)
         st.caption(
@@ -410,15 +437,15 @@ with main_tab_re:
                     "composite_score": "Composite"},
             hover_data={"state_name": True, "key_companies": True, "growth_drivers": True},
         )
-        fig_bubble.update_traces(textposition="middle center", textfont=dict(size=9, color="#1a1a1a"))
+        fig_bubble.update_traces(textposition="middle center", textfont=dict(size=9, color="#e8dfc4"))
         fig_bubble.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white",
-            xaxis=dict(showgrid=True, gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            yaxis=dict(showgrid=True, gridcolor="#f0f0f0",
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+            plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+            xaxis=dict(showgrid=True, gridcolor="#2d2d22", zeroline=True, zerolinecolor="#ccc",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            yaxis=dict(showgrid=True, gridcolor="#2d2d22",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
             coloraxis_showscale=False, margin=dict(t=20, b=40),
-            height=380, font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            height=380, font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
         st.plotly_chart(fig_bubble, use_container_width=True)
         st.caption(
@@ -496,13 +523,13 @@ with main_tab_re:
                             ),
                         ))
                         fig_p.update_layout(
-                            plot_bgcolor="white", paper_bgcolor="white",
+                            plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
                             yaxis_title="Price ($)", margin=dict(t=30, b=30),
-                            height=260, font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                            height=260, font=dict(family="Source Sans Pro", color="#e8dfc4"),
                         )
-                        fig_p.update_xaxes(showgrid=False, tickfont=dict(color="#1a1a1a"))
-                        fig_p.update_yaxes(gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
-                                           title_font=dict(color="#1a1a1a"))
+                        fig_p.update_xaxes(showgrid=False, tickfont=dict(color="#e8dfc4"))
+                        fig_p.update_yaxes(gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                                           title_font=dict(color="#e8dfc4"))
                         st.plotly_chart(fig_p, use_container_width=True)
                         st.caption(
                             "Live REIT share prices sourced from Yahoo Finance. "
@@ -543,17 +570,17 @@ with main_tab_re:
             z=pivot.values * 100, x=list(pivot.columns), y=list(pivot.index),
             colorscale=[[0.0, "#b71c1c"], [0.3, "#ef9a9a"], [0.5, "#fff9c4"], [0.7, "#a5d6a7"], [1.0, "#1b5e20"]],
             text=[[f"{v:.1f}%" for v in row] for row in pivot.values * 100],
-            texttemplate="%{text}", textfont=dict(size=9, color="#1a1a1a"),
+            texttemplate="%{text}", textfont=dict(size=9, color="#e8dfc4"),
             hovertemplate="<b>%{y}</b><br>%{x}<br>Margin: %{z:.1f}%<extra></extra>",
             colorbar=dict(title="Eff Margin %", thickness=14, len=0.8,
-                          tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                          tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
         ))
         fig_heat.update_layout(
-            paper_bgcolor="white",
-            xaxis=dict(tickangle=-35, tickfont=dict(size=9, color="#1a1a1a")),
-            yaxis=dict(tickfont=dict(size=9, color="#1a1a1a")),
+            paper_bgcolor="#16160f",
+            xaxis=dict(tickangle=-35, tickfont=dict(size=9, color="#e8dfc4")),
+            yaxis=dict(tickfont=dict(size=9, color="#e8dfc4")),
             margin=dict(t=20, b=100, l=180, r=20),
-            height=420, font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            height=420, font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
         st.plotly_chart(fig_heat, use_container_width=True)
         st.caption(
@@ -591,16 +618,16 @@ with main_tab_re:
             marker=dict(size=7), yaxis="y2",
         ))
         fig_pt.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white",
-            yaxis=dict(title="Effective Profit Margin (%)", gridcolor="#f0f0f0",
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+            plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+            yaxis=dict(title="Effective Profit Margin (%)", gridcolor="#2d2d22",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
             yaxis2=dict(title="Cap Rate (%)", overlaying="y", side="right", showgrid=False,
-                        tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a")),
+                        tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4")),
             margin=dict(t=40, b=60),
-            height=360, font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            height=360, font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
-        fig_pt.update_xaxes(showgrid=False, tickangle=-15, tickfont=dict(color="#1a1a1a"))
+        fig_pt.update_xaxes(showgrid=False, tickangle=-15, tickfont=dict(color="#e8dfc4"))
         st.plotly_chart(fig_pt, use_container_width=True)
         st.caption(
             "Bars show effective profit margin (left axis); the line shows cap rate (right axis). "
@@ -657,13 +684,13 @@ with main_tab_re:
                 ))
                 fig_adj.update_layout(
                     barmode="group",
-                    paper_bgcolor="white", plot_bgcolor="white",
-                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#f0f0f0",
-                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickangle=-15, tickfont=dict(color="#1a1a1a", size=10)),
-                    legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a")),
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickangle=-15, tickfont=dict(color="#e8dfc4", size=10)),
+                    legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4")),
                     margin=dict(t=40, b=60), height=340,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 st.plotly_chart(fig_adj, use_container_width=True)
                 st.caption(
@@ -749,19 +776,19 @@ with main_tab_re:
                 meta_line  = "&nbsp;&nbsp;|&nbsp;&nbsp;".join(meta_parts) if meta_parts else ""
 
                 st.markdown(f"""
-                <div style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;
+                <div style="background:#16160f;border:1px solid #8E6F3E;border-radius:8px;
                             padding:16px 20px;margin-bottom:12px;border-left:4px solid {badge_fg};">
                   <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
                     <span style="background:{badge_bg};color:{badge_fg};font-size:0.72rem;
                                  font-weight:700;padding:2px 8px;border-radius:4px;
                                  text-transform:uppercase;letter-spacing:0.5px;">{atype}</span>
-                    <span style="font-size:1rem;font-weight:700;color:#1a1a1a;">{co}{ticker_str}</span>
-                    <span style="font-size:0.85rem;color:#555;margin-left:auto;">{loc}</span>
+                    <span style="font-size:1rem;font-weight:700;color:#e8dfc4;">{co}{ticker_str}</span>
+                    <span style="font-size:0.85rem;color:#a09880;margin-left:auto;">{loc}</span>
                   </div>
-                  <div style="font-size:0.9rem;color:#333;margin-bottom:6px;">{detail}</div>
+                  <div style="font-size:0.9rem;color:#e8dfc4;margin-bottom:6px;">{detail}</div>
                   {"<div style='font-size:0.82rem;color:#555;margin-bottom:6px;'>" + meta_line + "</div>" if meta_line else ""}
                   {"<div style='font-size:0.82rem;color:#1b5e20;'><b>CRE Opportunity:</b> " + impact + "</div>" if impact else ""}
-                  <div style="font-size:0.72rem;color:#aaa;margin-top:6px;">Source: {source}</div>
+                  <div style="font-size:0.72rem;color:#6a6050;margin-top:6px;">Source: {source}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1149,13 +1176,13 @@ with main_tab_energy:
                 ),
             ))
             fig_comm.update_layout(
-                plot_bgcolor="white", paper_bgcolor="white",
+                plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
                 yaxis_title="% Above/Below SMA-60",
-                yaxis=dict(gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                yaxis=dict(gridcolor="#2d2d22", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
                 margin=dict(t=30, b=30), height=320,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
             st.plotly_chart(fig_comm, use_container_width=True)
             st.caption(
@@ -1243,13 +1270,13 @@ with main_tab_energy:
                              annotation_text=f"SPY: {bench_ret:+.1f}%",
                              annotation_position="top right")
             fig_ce.update_layout(
-                plot_bgcolor="white", paper_bgcolor="white",
+                plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
                 yaxis_title="6-Month Return (%)",
-                yaxis=dict(gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                yaxis=dict(gridcolor="#2d2d22", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
                 margin=dict(t=30, b=30), height=320,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
             st.plotly_chart(fig_ce, use_container_width=True)
             st.caption(
@@ -1280,13 +1307,13 @@ with main_tab_energy:
                              annotation_text=f"SPY: {bench_ret:+.1f}%",
                              annotation_position="top right")
             fig_gr.update_layout(
-                plot_bgcolor="white", paper_bgcolor="white",
+                plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
                 yaxis_title="6-Month Return (%)",
-                yaxis=dict(gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                yaxis=dict(gridcolor="#2d2d22", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
                 margin=dict(t=30, b=30), height=320,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
             st.plotly_chart(fig_gr, use_container_width=True)
             st.caption(
@@ -1424,19 +1451,19 @@ with main_tab_macro:
                     marker=dict(size=10, color=line_clr),
                     text=[f"{v:.2f}%" for v in values],
                     textposition="top center",
-                    textfont=dict(size=11, color="#1a1a1a"),
+                    textfont=dict(size=11, color="#e8dfc4"),
                     hovertemplate="%{x}: %{y:.3f}%<extra></extra>",
                 ))
                 fig_yc.add_hline(y=values[0] if values else 0, line_dash="dot",
                                   line_color="#aaa", line_width=1)
                 fig_yc.update_layout(
-                    paper_bgcolor="white", plot_bgcolor="white",
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
                     yaxis=dict(title="Yield (%)", ticksuffix="%",
-                               gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
-                               title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                               gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                               title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
                     margin=dict(t=30, b=30, l=60, r=20), height=300,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                     annotations=[dict(
                         text="⚠ INVERTED" if inverted else "Normal slope",
                         x=0.5, y=1.08, xref="paper", yref="paper",
@@ -1513,13 +1540,13 @@ with main_tab_macro:
                     annotation_font=dict(color="#b71c1c", size=10),
                 )
         fig_tr.update_layout(
-            paper_bgcolor="white", plot_bgcolor="white",
-            yaxis=dict(title="Rate (%)", ticksuffix="%", gridcolor="#f0f0f0",
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            xaxis=dict(tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            legend=dict(orientation="h", y=1.08, font=dict(color="#1a1a1a", size=11)),
+            paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+            yaxis=dict(title="Rate (%)", ticksuffix="%", gridcolor="#2d2d22",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            xaxis=dict(tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            legend=dict(orientation="h", y=1.08, font=dict(color="#e8dfc4", size=11)),
             margin=dict(t=40, b=40), height=380,
-            font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
         st.plotly_chart(fig_tr, use_container_width=True)
         st.caption(
@@ -1548,7 +1575,7 @@ with main_tab_macro:
                     x=pt_labels, y=base_caps,
                     marker_color="#CFB991",
                     text=[f"{v:.2f}%" for v in base_caps],
-                    textposition="inside", textfont=dict(color="#1a1a1a", size=10),
+                    textposition="inside", textfont=dict(color="#e8dfc4", size=10),
                 ))
                 fig_cap.add_trace(go.Bar(
                     name="Rate-Adjusted Cap Rate",
@@ -1556,17 +1583,17 @@ with main_tab_macro:
                     marker_color=bar_colors,
                     opacity=0.85,
                     text=[f"{v:.2f}%\n({'+' if d>0 else ''}{d:.0f}bps)" for v, d in zip(adj_caps, adj_bps)],
-                    textposition="outside", textfont=dict(color="#1a1a1a", size=9),
+                    textposition="outside", textfont=dict(color="#e8dfc4", size=9),
                 ))
                 fig_cap.update_layout(
                     barmode="group",
-                    paper_bgcolor="white", plot_bgcolor="white",
-                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#f0f0f0",
-                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickangle=-20, tickfont=dict(color="#1a1a1a", size=9)),
-                    legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a")),
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickangle=-20, tickfont=dict(color="#e8dfc4", size=9)),
+                    legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4")),
                     margin=dict(t=40, b=60), height=360,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 st.plotly_chart(fig_cap, use_container_width=True)
                 st.caption(
@@ -1626,13 +1653,13 @@ with main_tab_macro:
                     ),
                 ))
                 fig_debt.update_layout(
-                    paper_bgcolor="white", plot_bgcolor="white",
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
                     xaxis=dict(title="Near-Term Debt / Total Debt (%)", ticksuffix="%",
-                               gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
-                               title_font=dict(color="#1a1a1a")),
-                    yaxis=dict(tickfont=dict(color="#1a1a1a", size=9)),
+                               gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                               title_font=dict(color="#e8dfc4")),
+                    yaxis=dict(tickfont=dict(color="#e8dfc4", size=9)),
                     margin=dict(t=20, b=40, l=60, r=60), height=460,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 fig_debt.add_vline(x=25, line_dash="dash", line_color="#b71c1c",
                                     annotation_text="High risk threshold",
@@ -1806,13 +1833,13 @@ with main_tab_macro:
             ))
             fig_sec.add_vline(x=0, line_color="#333", line_width=1)
             fig_sec.update_layout(
-                paper_bgcolor="white", plot_bgcolor="white",
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
                 xaxis=dict(title="Month-over-Month Change (%)", ticksuffix="%",
-                           gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
-                           title_font=dict(color="#1a1a1a")),
-                yaxis=dict(tickfont=dict(color="#1a1a1a", size=10)),
+                           gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                           title_font=dict(color="#e8dfc4")),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=10)),
                 margin=dict(t=20, b=40, l=220, r=80), height=400,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
             st.plotly_chart(fig_sec, use_container_width=True)
 
@@ -1857,13 +1884,13 @@ with main_tab_macro:
             ))
             fig_etf.add_hline(y=0, line_color="#333", line_width=1)
             fig_etf.update_layout(
-                paper_bgcolor="white", plot_bgcolor="white",
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
                 yaxis=dict(title="6-Month Return (%)", ticksuffix="%",
-                           gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                xaxis=dict(tickangle=-20, tickfont=dict(color="#1a1a1a", size=9)),
+                           gridcolor="#2d2d22", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickangle=-20, tickfont=dict(color="#e8dfc4", size=9)),
                 margin=dict(t=30, b=80), height=360,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
             st.plotly_chart(fig_etf, use_container_width=True)
 
@@ -1924,13 +1951,13 @@ with main_tab_macro:
                               annotation_text="Loose (>6%)",
                               annotation_font=dict(color=loose_clr, size=9))
             fig_mu.update_layout(
-                paper_bgcolor="white", plot_bgcolor="white",
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
                 xaxis=dict(title="Unemployment Rate (%)", ticksuffix="%",
-                           gridcolor="#f0f0f0", tickfont=dict(color="#1a1a1a"),
-                           title_font=dict(color="#1a1a1a")),
-                yaxis=dict(tickfont=dict(color="#1a1a1a", size=9)),
+                           gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                           title_font=dict(color="#e8dfc4")),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=9)),
                 margin=dict(t=20, b=40, l=260, r=80), height=360,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
             st.plotly_chart(fig_mu, use_container_width=True)
 
@@ -2071,12 +2098,12 @@ with main_tab_macro:
                                    annotation_text="2% trend", annotation_position="top right",
                                    annotation_font=dict(color="#1b5e20", size=9))
                 fig_gdp.update_layout(
-                    paper_bgcolor="white", plot_bgcolor="white",
-                    yaxis=dict(title="Annualized %", ticksuffix="%", gridcolor="#f0f0f0",
-                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Annualized %", ticksuffix="%", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4")),
                     margin=dict(t=30, b=40), height=320,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 st.plotly_chart(fig_gdp, use_container_width=True)
                 st.caption("Quarterly real GDP growth (annualized). Consecutive negative quarters = recession definition.")
@@ -2096,12 +2123,12 @@ with main_tab_macro:
                     hovertemplate="Date: %{x}<br>IPI: %{y:.1f}<extra></extra>",
                 ))
                 fig_ipi.update_layout(
-                    paper_bgcolor="white", plot_bgcolor="white",
-                    yaxis=dict(title="Index (2017=100)", gridcolor="#f0f0f0",
-                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Index (2017=100)", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4")),
                     margin=dict(t=30, b=40), height=320,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 st.plotly_chart(fig_ipi, use_container_width=True)
                 st.caption("Industrial Production Index (2017=100). Drives demand for industrial/logistics CRE.")
@@ -2132,12 +2159,12 @@ with main_tab_macro:
                                   line_width=0, annotation_text="Weak",
                                   annotation_font=dict(color="#b71c1c", size=9))
                 fig_cs.update_layout(
-                    paper_bgcolor="white", plot_bgcolor="white",
-                    yaxis=dict(title="Index", gridcolor="#f0f0f0",
-                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Index", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4")),
                     margin=dict(t=30, b=40), height=300,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 st.plotly_chart(fig_cs, use_container_width=True)
                 st.caption("U of Michigan Consumer Sentiment. High sentiment → retail & hospitality CRE demand.")
@@ -2160,12 +2187,12 @@ with main_tab_macro:
                                    annotation_text="Recession signal (<−0.7)",
                                    annotation_font=dict(color="#b71c1c", size=9))
                 fig_lei.update_layout(
-                    paper_bgcolor="white", plot_bgcolor="white",
-                    yaxis=dict(title="Index (0 = trend growth)", gridcolor="#f0f0f0",
-                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="Index (0 = trend growth)", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4")),
                     margin=dict(t=30, b=40), height=300,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 st.plotly_chart(fig_lei, use_container_width=True)
                 st.caption("Chicago Fed National Activity Index (3-month MA). 0 = trend growth. Below −0.7 historically signals recession onset.")
@@ -2303,13 +2330,13 @@ with main_tab_macro:
                                annotation_text="Fed 2% target",
                                annotation_font=dict(color="#1b5e20", size=9))
             fig_cpi.update_layout(
-                paper_bgcolor="white", plot_bgcolor="white",
-                yaxis=dict(title="YoY %", ticksuffix="%", gridcolor="#f0f0f0",
-                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                xaxis=dict(tickfont=dict(color="#1a1a1a")),
-                legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a", size=10)),
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                yaxis=dict(title="YoY %", ticksuffix="%", gridcolor="#2d2d22",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4", size=10)),
                 margin=dict(t=40, b=40), height=340,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
             st.plotly_chart(fig_cpi, use_container_width=True)
             st.caption(
@@ -2338,13 +2365,13 @@ with main_tab_macro:
                 ))
             fig_ppi.add_hline(y=0, line_color="#333", line_width=1)
             fig_ppi.update_layout(
-                paper_bgcolor="white", plot_bgcolor="white",
-                yaxis=dict(title="YoY %", ticksuffix="%", gridcolor="#f0f0f0",
-                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                xaxis=dict(tickfont=dict(color="#1a1a1a")),
-                legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a", size=10)),
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                yaxis=dict(title="YoY %", ticksuffix="%", gridcolor="#2d2d22",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4", size=10)),
                 margin=dict(t=40, b=40), height=340,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
             st.plotly_chart(fig_ppi, use_container_width=True)
             st.caption(
@@ -2376,13 +2403,13 @@ with main_tab_macro:
                           annotation_text="Concern threshold",
                           annotation_font=dict(color="#b71c1c", size=9))
         fig_be.update_layout(
-            paper_bgcolor="white", plot_bgcolor="white",
-            yaxis=dict(title="Implied Inflation (%)", ticksuffix="%", gridcolor="#f0f0f0",
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            xaxis=dict(tickfont=dict(color="#1a1a1a")),
-            legend=dict(orientation="h", y=1.08, font=dict(color="#1a1a1a", size=11)),
+            paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+            yaxis=dict(title="Implied Inflation (%)", ticksuffix="%", gridcolor="#2d2d22",
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            xaxis=dict(tickfont=dict(color="#e8dfc4")),
+            legend=dict(orientation="h", y=1.08, font=dict(color="#e8dfc4", size=11)),
             margin=dict(t=40, b=40), height=320,
-            font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
         st.plotly_chart(fig_be, use_container_width=True)
         st.caption(
@@ -2490,15 +2517,15 @@ with main_tab_macro:
                     hovertemplate=f"{skey}: %{{y:.0f}}bps<br>%{{x}}<extra></extra>",
                 ))
             fig_sp.update_layout(
-                paper_bgcolor="white", plot_bgcolor="white",
-                yaxis=dict(title="IG / BBB Spread (bps)", gridcolor="#f0f0f0",
-                           tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
+                paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                yaxis=dict(title="IG / BBB Spread (bps)", gridcolor="#2d2d22",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
                 yaxis2=dict(title="HY Spread (bps)", overlaying="y", side="right",
                             tickfont=dict(color="#c62828"), title_font=dict(color="#c62828")),
-                xaxis=dict(tickfont=dict(color="#1a1a1a")),
-                legend=dict(orientation="h", y=1.1, font=dict(color="#1a1a1a", size=10)),
+                xaxis=dict(tickfont=dict(color="#e8dfc4")),
+                legend=dict(orientation="h", y=1.1, font=dict(color="#e8dfc4", size=10)),
                 margin=dict(t=40, b=40), height=360,
-                font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
             )
             st.plotly_chart(fig_sp, use_container_width=True)
             st.caption(
@@ -2524,12 +2551,12 @@ with main_tab_macro:
                                    annotation_text="Stress (>30)",
                                    annotation_font=dict(color="#b71c1c", size=9))
                 fig_vix.update_layout(
-                    paper_bgcolor="white", plot_bgcolor="white",
-                    yaxis=dict(title="VIX Level", gridcolor="#f0f0f0",
-                               tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-                    xaxis=dict(tickfont=dict(color="#1a1a1a")),
+                    paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+                    yaxis=dict(title="VIX Level", gridcolor="#2d2d22",
+                               tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                    xaxis=dict(tickfont=dict(color="#e8dfc4")),
                     margin=dict(t=30, b=40), height=360,
-                    font=dict(family="Source Sans Pro", color="#1a1a1a"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
                 )
                 st.plotly_chart(fig_vix, use_container_width=True)
                 st.caption("VIX > 20 = elevated uncertainty. VIX > 30 = stress — CRE deal pipelines freeze as buyers demand higher risk premiums.")
@@ -2562,14 +2589,14 @@ with main_tab_macro:
                           line_width=0, annotation_text="Easing territory",
                           annotation_font=dict(color="#1b5e20", size=9))
         fig_ls.update_layout(
-            paper_bgcolor="white", plot_bgcolor="white",
-            yaxis=dict(title="Net % Tightening", ticksuffix="%", gridcolor="#f0f0f0",
+            paper_bgcolor="#16160f", plot_bgcolor="#1a1a14",
+            yaxis=dict(title="Net % Tightening", ticksuffix="%", gridcolor="#2d2d22",
                        zeroline=True, zerolinecolor="#ccc",
-                       tickfont=dict(color="#1a1a1a"), title_font=dict(color="#1a1a1a")),
-            xaxis=dict(tickfont=dict(color="#1a1a1a")),
-            legend=dict(orientation="h", y=1.08, font=dict(color="#1a1a1a", size=11)),
+                       tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+            xaxis=dict(tickfont=dict(color="#e8dfc4")),
+            legend=dict(orientation="h", y=1.08, font=dict(color="#e8dfc4", size=11)),
             margin=dict(t=40, b=40), height=340,
-            font=dict(family="Source Sans Pro", color="#1a1a1a"),
+            font=dict(family="Source Sans Pro", color="#e8dfc4"),
         )
         st.plotly_chart(fig_ls, use_container_width=True)
         st.caption(
