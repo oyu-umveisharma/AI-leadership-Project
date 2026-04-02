@@ -1,5 +1,5 @@
 """
-Background Agent Runner — eight independent agents updating on schedules.
+Background Agent Runner — nine independent agents updating on schedules.
 
 Agent 1 · Migration Tracker    — every 6 hours
 Agent 2 · REIT Pricing          — every 1 hour
@@ -9,6 +9,7 @@ Agent 5 · News & Announcements  — every 4 hours
 Agent 6 · Interest Rate & Debt  — every 1 hour  (requires FRED_API_KEY)
 Agent 7 · Energy & Construction — every 6 hours
 Agent 8 · Sustainability & ESG  — every 6 hours
+Agent 9 · Labor Market & Tenant Demand — every 6 hours
 
 Uses APScheduler + file-based JSON cache so results survive Streamlit reruns.
 """
@@ -83,6 +84,7 @@ _agent_status = {
     "rates":          {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "energy":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "sustainability": {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "labor_market":   {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
 def get_status() -> dict:
@@ -431,6 +433,22 @@ def run_sustainability_agent():
         _set_status("sustainability", "error", str(e))
 
 
+# ── Agent 9 · Labor Market & Tenant Demand ───────────────────────────────────
+
+def run_labor_market_agent():
+    _set_status("labor_market", "running")
+    try:
+        from src.labor_market_agent import run_labor_market_agent as _run
+        result = _run()
+        write_cache("labor_market", result)
+        if result.get("error"):
+            _set_status("labor_market", "error", result["error"])
+        else:
+            _set_status("labor_market", "ok")
+    except Exception as e:
+        _set_status("labor_market", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -452,12 +470,13 @@ def start_scheduler():
         _scheduler.add_job(run_news_agent,         IntervalTrigger(hours=4),        id="news",        replace_existing=True)
         _scheduler.add_job(run_rate_agent,         IntervalTrigger(hours=1),        id="rates",       replace_existing=True)
         _scheduler.add_job(run_energy_agent,       IntervalTrigger(hours=6),        id="energy",      replace_existing=True)
-        _scheduler.add_job(run_sustainability_agent, IntervalTrigger(hours=6),      id="sustainability", replace_existing=True)
+        _scheduler.add_job(run_sustainability_agent, IntervalTrigger(hours=6),      id="sustainability",  replace_existing=True)
+        _scheduler.add_job(run_labor_market_agent,   IntervalTrigger(hours=6),      id="labor_market",    replace_existing=True)
 
         _scheduler.start()
 
         # Run all agents immediately on first start (in background threads)
-        for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent, run_news_agent, run_rate_agent, run_energy_agent, run_sustainability_agent]:
+        for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent, run_news_agent, run_rate_agent, run_energy_agent, run_sustainability_agent, run_labor_market_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -473,6 +492,7 @@ def force_run(agent_name: str):
         "rates":          run_rate_agent,
         "energy":         run_energy_agent,
         "sustainability": run_sustainability_agent,
+        "labor_market":  run_labor_market_agent,
     }
     fn = agents.get(agent_name)
     if fn:
