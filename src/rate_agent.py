@@ -105,7 +105,8 @@ def _load_fred_key() -> str:
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
-                os.environ.setdefault(k.strip(), v.strip())
+                if not os.environ.get(k.strip()):
+                    os.environ[k.strip()] = v.strip()
     return os.getenv("FRED_API_KEY", "")
 
 
@@ -263,7 +264,7 @@ def compute_cap_rate_adjustments(current_10y: float) -> list[dict]:
         base_cap    = bench["cap_rate"]
         adj_cap     = base_cap + adjustment
         noi         = bench["noi_margin"]
-        vacancy     = bench["vacancy"]
+        vacancy     = bench.get("vacancy_rate") or bench.get("vacancy", 0.05)
         rent_growth = bench["rent_growth"]
 
         base_margin = noi * (1 - vacancy) * (1 + rent_growth)

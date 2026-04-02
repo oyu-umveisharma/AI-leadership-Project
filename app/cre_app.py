@@ -19,6 +19,9 @@ Run: streamlit run app/cre_app.py
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"), override=True)
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -52,6 +55,311 @@ GOLD      = "#CFB991"
 GOLD_DARK = "#8E6F3E"
 BLACK     = "#000000"
 
+# ── Session State ────────────────────────────────────────────────────────────
+if "onboarding_complete" not in st.session_state:
+    st.session_state.onboarding_complete = False
+if "user_intent" not in st.session_state:
+    st.session_state.user_intent = {"property_type": None, "location": None, "city": None, "state": None, "raw_input": ""}
+
+# US state name/abbreviation lookup
+_US_STATES = {
+    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California",
+    "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "FL": "Florida", "GA": "Georgia",
+    "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
+    "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
+    "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire",
+    "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York", "NC": "North Carolina",
+    "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania",
+    "RI": "Rhode Island", "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee",
+    "TX": "Texas", "UT": "Utah", "VT": "Vermont", "VA": "Virginia", "WA": "Washington",
+    "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming", "DC": "Dist. of Columbia",
+}
+_STATE_NAME_TO_ABBR = {v.lower(): k for k, v in _US_STATES.items()}
+
+
+def _normalize_input(text: str) -> str:
+    """Normalize user input to proper title case with special handling."""
+    if not text:
+        return text
+    text = text.strip()
+    # Check if it's a state abbreviation (1-2 uppercase letters)
+    upper = text.upper().strip().rstrip(".")
+    if upper in _US_STATES:
+        return _US_STATES[upper]
+    # Title-case each word, but keep state abbreviations uppercase
+    parts = text.split(",")
+    normalized = []
+    for i, part in enumerate(parts):
+        part = part.strip()
+        if i > 0 and len(part) <= 2 and part.upper() in _US_STATES:
+            normalized.append(part.upper())
+        else:
+            normalized.append(part.title())
+    return ", ".join(normalized)
+
+
+_CITY_TO_STATE = {
+    "los angeles": "CA", "san francisco": "CA", "san diego": "CA", "san jose": "CA",
+    "sacramento": "CA", "irvine": "CA", "oakland": "CA", "long beach": "CA",
+    "new york": "NY", "brooklyn": "NY", "queens": "NY", "bronx": "NY", "buffalo": "NY",
+    "chicago": "IL", "aurora": "IL", "naperville": "IL",
+    "houston": "TX", "dallas": "TX", "austin": "TX", "san antonio": "TX", "fort worth": "TX", "el paso": "TX",
+    "miami": "FL", "tampa": "FL", "orlando": "FL", "jacksonville": "FL", "fort lauderdale": "FL", "st. petersburg": "FL",
+    "phoenix": "AZ", "tucson": "AZ", "mesa": "AZ", "scottsdale": "AZ",
+    "seattle": "WA", "tacoma": "WA", "spokane": "WA", "bellevue": "WA",
+    "denver": "CO", "colorado springs": "CO",
+    "atlanta": "GA", "savannah": "GA", "augusta": "GA",
+    "boston": "MA", "cambridge": "MA", "worcester": "MA",
+    "portland": "OR", "salem": "OR", "eugene": "OR",
+    "las vegas": "NV", "reno": "NV", "henderson": "NV",
+    "nashville": "TN", "memphis": "TN", "knoxville": "TN", "chattanooga": "TN",
+    "charlotte": "NC", "raleigh": "NC", "durham": "NC",
+    "salt lake city": "UT", "provo": "UT",
+    "minneapolis": "MN", "st. paul": "MN",
+    "indianapolis": "IN", "fort wayne": "IN",
+    "columbus": "OH", "cleveland": "OH", "cincinnati": "OH",
+    "detroit": "MI", "grand rapids": "MI", "ann arbor": "MI",
+    "philadelphia": "PA", "pittsburgh": "PA",
+    "kansas city": "MO", "st. louis": "MO",
+    "richmond": "VA", "virginia beach": "VA", "arlington": "VA",
+    "baltimore": "MD", "columbia": "MD",
+    "charleston": "SC", "greenville": "SC",
+    "sioux falls": "SD", "rapid city": "SD", "aberdeen": "SD",
+    "fargo": "ND", "bismarck": "ND",
+    "omaha": "NE", "lincoln": "NE",
+    "boise": "ID", "meridian": "ID",
+}
+
+
+def _get_location_scope(location_str: str) -> dict:
+    """Parse a location string into city/state components."""
+    if not location_str:
+        return {"city": None, "state": None, "scope": "national"}
+
+    loc = location_str.strip()
+
+    # "City, ST" pattern
+    if "," in loc:
+        parts = [p.strip() for p in loc.split(",", 1)]
+        city = parts[0]
+        st_part = parts[1].upper().rstrip(".") if len(parts) > 1 else ""
+        state_name = _US_STATES.get(st_part, st_part.title())
+        return {"city": city, "state": state_name, "state_abbr": st_part if st_part in _US_STATES else None, "scope": "city"}
+
+    # Check if it's a full state name
+    if loc.lower() in _STATE_NAME_TO_ABBR:
+        abbr = _STATE_NAME_TO_ABBR[loc.lower()]
+        return {"city": None, "state": _US_STATES[abbr], "state_abbr": abbr, "scope": "state"}
+
+    # Check if it's a state abbreviation
+    if loc.upper() in _US_STATES:
+        return {"city": None, "state": _US_STATES[loc.upper()], "state_abbr": loc.upper(), "scope": "state"}
+
+    # City-to-state lookup for bare city names
+    abbr = _CITY_TO_STATE.get(loc.lower())
+    if abbr:
+        return {"city": loc, "state": _US_STATES[abbr], "state_abbr": abbr, "scope": "city"}
+
+    # Unknown city — no state resolved
+    return {"city": loc, "state": None, "state_abbr": None, "scope": "city"}
+
+
+# Synonyms that map to canonical property types
+_PT_SYNONYMS = {
+    "warehouse": "Industrial", "logistics": "Industrial", "distribution": "Industrial",
+    "fulfillment": "Industrial", "manufacturing": "Industrial", "factory": "Industrial",
+    "apartment": "Multifamily", "apartments": "Multifamily", "residential": "Multifamily",
+    "shop": "Retail", "shopping": "Retail", "mall": "Retail", "store": "Retail",
+    "medical": "Healthcare", "hospital": "Healthcare", "clinic": "Healthcare",
+    "hotel": "Hospitality", "motel": "Hospitality",
+    "storage": "Self-Storage", "self-storage": "Self-Storage",
+}
+
+# Region keywords → list of state abbreviations
+_REGION_STATES = {
+    "west coast":     ["CA", "WA", "OR"],
+    "east coast":     ["NY", "FL", "MA", "NC", "VA", "NJ", "CT", "MD"],
+    "midwest":        ["IL", "OH", "IN", "MI", "MN", "WI", "IA", "MO"],
+    "south":          ["TX", "FL", "GA", "NC", "TN", "SC", "AL", "LA", "MS"],
+    "southeast":      ["FL", "GA", "NC", "SC", "TN", "AL", "VA"],
+    "southwest":      ["AZ", "NV", "NM", "CO"],
+    "mountain west":  ["CO", "UT", "ID", "MT", "WY"],
+    "northeast":      ["NY", "MA", "CT", "NJ", "PA", "NH", "VT", "ME", "RI"],
+    "pacific northwest": ["WA", "OR"],
+    "sun belt":       ["TX", "FL", "AZ", "GA", "NC", "TN", "NV", "SC"],
+    "great plains":   ["ND", "SD", "NE", "KS", "OK"],
+}
+
+
+def _parse_intent(raw: str) -> dict:
+    """Parse free-text input into property_type and location."""
+    raw_lower = raw.lower().strip()
+
+    # Detect property type — check synonyms first, then canonical names
+    prop_type = None
+    for syn, canonical in _PT_SYNONYMS.items():
+        if syn in raw_lower:
+            prop_type = canonical
+            break
+    if not prop_type:
+        for pt in ["industrial", "multifamily", "office", "retail", "data center", "healthcare", "hospitality"]:
+            if pt in raw_lower:
+                prop_type = _normalize_input(pt)
+                break
+
+    # Detect region keywords
+    region = None
+    region_states = None
+    for rname, rstates in _REGION_STATES.items():
+        if rname in raw_lower:
+            region = rname.title()
+            region_states = rstates
+            break
+
+    # Heuristic: everything after "in " or "on the " is the location
+    location = None
+    for prep in [" in the ", " in ", " on the ", " on "]:
+        if prep in raw_lower:
+            location = raw[raw_lower.index(prep) + len(prep):].strip().rstrip(".")
+            break
+    if not location and "," in raw:
+        parts = raw.rsplit(",", 1)
+        if len(parts) == 2 and len(parts[1].strip()) <= 3:
+            location = raw.strip()
+
+    # If we detected a region, don't treat it as a city/state location
+    if region and not location:
+        location = region
+    elif region and location and location.lower() == region.lower():
+        pass  # already set
+
+    # Normalize
+    location = _normalize_input(location) if location else None
+    loc_scope = _get_location_scope(location)
+
+    return {
+        "property_type": prop_type,
+        "location": location,
+        "city": loc_scope.get("city"),
+        "state": loc_scope.get("state"),
+        "state_abbr": loc_scope.get("state_abbr"),
+        "region": region,
+        "region_states": region_states,
+        "raw_input": raw,
+    }
+
+
+def _complete_onboarding(property_type=None, location=None, raw_input="", **kwargs):
+    loc_scope = _get_location_scope(location)
+    st.session_state.user_intent = {
+        "property_type": property_type,
+        "location": location,
+        "city": kwargs.get("city") or loc_scope.get("city"),
+        "state": kwargs.get("state") or loc_scope.get("state"),
+        "state_abbr": kwargs.get("state_abbr") or loc_scope.get("state_abbr"),
+        "region": kwargs.get("region"),
+        "region_states": kwargs.get("region_states"),
+        "raw_input": raw_input,
+    }
+    st.session_state.onboarding_complete = True
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  WELCOME / ONBOARDING SCREEN
+# ═══════════════════════════════════════════════════════════════════════════════
+if not st.session_state.onboarding_complete:
+    st.markdown(f"""
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+      html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; }}
+      .main .block-container {{ max-width: 680px; padding-top: 8vh; }}
+      .welcome-box {{
+        text-align: center;
+        padding: 40px 20px;
+      }}
+      .welcome-icon {{
+        font-size: 3.5rem;
+        margin-bottom: 8px;
+      }}
+      .welcome-title {{
+        font-size: 2rem;
+        font-weight: 700;
+        color: {BLACK};
+        margin-bottom: 4px;
+      }}
+      .welcome-sub {{
+        font-size: 1.05rem;
+        color: #555;
+        margin-bottom: 32px;
+      }}
+      .welcome-prompt {{
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: {BLACK};
+        margin-bottom: 16px;
+      }}
+      .welcome-or {{
+        color: #999;
+        font-size: 0.85rem;
+        margin: 18px 0 12px 0;
+      }}
+      .welcome-footer {{
+        margin-top: 48px;
+        padding-top: 20px;
+        border-top: 3px solid {GOLD};
+      }}
+      .welcome-footer .purdue {{
+        font-size: 0.8rem;
+        color: #888;
+      }}
+      .welcome-footer .purdue b {{
+        color: {GOLD_DARK};
+      }}
+    </style>
+    <div class="welcome-box">
+      <div class="welcome-icon">🏢</div>
+      <div class="welcome-title">CRE Intelligence Platform</div>
+      <div class="welcome-sub">Welcome! I'm your AI-powered commercial real estate assistant.</div>
+      <div class="welcome-prompt">What are you looking to invest in today?</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Text input
+    user_input = st.text_input(
+        "Describe your investment focus",
+        placeholder="e.g., Industrial warehouse in Austin, TX",
+        label_visibility="collapsed",
+    )
+    if user_input:
+        intent = _parse_intent(user_input)
+        _complete_onboarding(**intent)
+        st.rerun()
+
+    # Quick-select buttons
+    st.markdown('<div style="text-align:center;color:#999;font-size:0.85rem;margin:18px 0 12px 0;">or pick a category</div>', unsafe_allow_html=True)
+    cols = st.columns(5)
+    quick_options = ["Industrial", "Multifamily", "Office", "Retail", "Just Exploring"]
+    for col, opt in zip(cols, quick_options):
+        with col:
+            if st.button(opt, use_container_width=True, key=f"quick_{opt}"):
+                if opt == "Just Exploring":
+                    _complete_onboarding()
+                else:
+                    _complete_onboarding(property_type=opt)
+                st.rerun()
+
+    st.markdown(f"""
+    <div class="welcome-footer" style="text-align:center;">
+      <div class="purdue"><b>Purdue University</b> · Daniels School of Business · MSF Program</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  DASHBOARD (only shown after onboarding)
+# ═══════════════════════════════════════════════════════════════════════════════
 st.markdown(f"""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
@@ -223,9 +531,174 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# ── Persistent Chat Bar ─────────────────────────────────────────────────────
+_cur_intent = st.session_state.user_intent
+_cur_pt = _cur_intent.get("property_type")
+_cur_loc = _cur_intent.get("location")
+if _cur_pt and _cur_loc:
+    _focus_label = f"{_cur_pt} in {_cur_loc}"
+elif _cur_pt:
+    _focus_label = _cur_pt
+elif _cur_loc:
+    _focus_label = f"All types in {_cur_loc}"
+else:
+    _focus_label = "All markets"
+
+_bar_left, _bar_right = st.columns([5, 1])
+with _bar_left:
+    _new_query = st.text_input(
+        "Update focus",
+        placeholder=f"Currently analyzing: {_focus_label} — type a new query to change",
+        label_visibility="collapsed",
+        key="chat_bar_input",
+    )
+    if _new_query:
+        _new_intent = _parse_intent(_new_query)
+        _complete_onboarding(**_new_intent)
+        st.rerun()
+with _bar_right:
+    if st.button("Reset", use_container_width=True, key="reset_focus"):
+        st.session_state.onboarding_complete = False
+        st.rerun()
+
+if _cur_pt or _cur_loc:
+    st.markdown(
+        f'<div style="background:{BLACK};color:{GOLD};padding:8px 16px;border-radius:4px;'
+        f'font-size:0.9rem;margin-bottom:16px;display:flex;align-items:center;gap:8px;">'
+        f'<span style="font-size:1.1rem;">🎯</span>'
+        f'<span>Currently analyzing: <b>{_focus_label}</b></span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def section(title):
     st.markdown(f'<div class="section-header">{title}</div>', unsafe_allow_html=True)
+
+
+def _focus_parts() -> tuple:
+    """Return (property_type, location, label) from session state."""
+    i = st.session_state.user_intent
+    pt, loc = i.get("property_type"), i.get("location")
+    parts = [p for p in [pt, loc] if p]
+    label = " in ".join(parts) if parts else "All markets"
+    return pt, loc, label
+
+
+def _personalized_title(tab_name: str) -> str:
+    """Generate a personalized tab question based on user intent."""
+    pt, loc, label = _focus_parts()
+    if not pt and not loc:
+        # Generic fallback titles
+        return {
+            "migration": "Where are people and companies moving in the US?",
+            "pricing": "Where are the highest profit margins in commercial real estate today?",
+            "predictions": "Which companies have announced new plants, factories, and facilities?",
+            "buildings": "Cheapest commercial buildings to purchase in the top migration states",
+            "announcements": "Where are companies building? Live facility & investment announcements across the US",
+            "rates": "How do current interest rates affect CRE cap rates, valuations, and REIT debt risk?",
+            "energy": "How are energy and material costs affecting CRE construction?",
+            "sustainability": "Is green capital flowing into real estate?",
+        }.get(tab_name, "")
+
+    pt_str = pt or "commercial real estate"
+    loc_str = loc or "the US"
+
+    return {
+        "migration": f"Is {loc_str} attracting population and business growth for {pt_str} investment?",
+        "pricing": f"What are the profit margins for {pt_str} in {loc_str}?",
+        "predictions": f"Which companies are building {pt_str} facilities in or near {loc_str}?",
+        "buildings": f"Cheapest {pt_str} properties in {loc_str}",
+        "announcements": f"{pt_str} facility announcements in the {loc_str} region",
+        "rates": f"How do current interest rates affect {pt_str} cap rates and valuations?",
+        "energy": f"How are energy costs affecting {pt_str} construction in {loc_str}?",
+        "sustainability": f"ESG and sustainability trends for {pt_str}",
+    }.get(tab_name, "")
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _generate_insight(tab_name: str, property_type: str, location: str, data_summary: str) -> str:
+    """Generate a personalized 2-3 sentence insight using Groq."""
+    import os
+    key = os.getenv("GROQ_API_KEY", "")
+    if not key:
+        return ""
+    try:
+        from groq import Groq
+        client = Groq(api_key=key)
+        pt_str = property_type or "commercial real estate"
+        loc_str = location or "the US"
+        resp = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are a CRE investment analyst. Give exactly 2-3 sentences of actionable insight. Be specific with numbers when possible. No headers or bullet points."},
+                {"role": "user", "content": f"Tab: {tab_name}. The investor is focused on {pt_str} in {loc_str}.\n\nRelevant data:\n{data_summary[:800]}\n\nGive a brief, personalized insight for this investor."},
+            ],
+            max_tokens=200,
+            temperature=0.3,
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception:
+        return ""
+
+
+def _show_tab_header(tab_name: str, description: str, agent_key: str, data_summary: str = ""):
+    """Show personalized title, insight, and agent timestamp at the top of each tab."""
+    title = _personalized_title(tab_name)
+    st.markdown(f"#### {title}")
+    st.markdown(description)
+    pt, loc, label = _focus_parts()
+    if pt or loc:
+        insight = _generate_insight(tab_name, pt, loc, data_summary)
+        if insight:
+            st.markdown(
+                f'<div style="background:#f5f0e6;border-left:4px solid {GOLD};padding:10px 16px;'
+                f'border-radius:4px;margin:8px 0 12px 0;font-size:0.9rem;color:#333;">'
+                f'<b>🎯 Insight for {label}:</b> {insight}</div>',
+                unsafe_allow_html=True,
+            )
+    agent_last_updated(agent_key)
+
+def _intent_matches_state(loc_str: str, state_name: str, state_abbr: str) -> bool:
+    """Check if user's location intent matches a state."""
+    if not loc_str:
+        return False
+    loc_lower = loc_str.lower().strip()
+    sn_lower = state_name.lower()
+    sa_lower = state_abbr.lower()
+    # Exact or near-exact matches only — avoid substring false positives
+    if loc_lower == sn_lower or loc_lower == sa_lower:
+        return True
+    # "Indiana" in "warehouse in Indiana" — full state name in location string
+    if sn_lower in loc_lower:
+        return True
+    # Location is the full state name
+    if loc_lower in sn_lower and len(loc_lower) > 3:
+        return True
+    # Check if abbreviation appears as a whole word (e.g., "IN" not as part of "Indiana")
+    import re
+    if re.search(r'\b' + re.escape(sa_lower) + r'\b', loc_lower):
+        return True
+    return False
+
+def _intent_matches_metro(loc_str: str, metro: str) -> bool:
+    """Check if user's location intent matches a metro area."""
+    if not loc_str:
+        return False
+    loc_lower = loc_str.lower()
+    metro_lower = metro.lower()
+    # Check city or state portion
+    for part in loc_lower.replace(",", " ").split():
+        if len(part) > 2 and part in metro_lower:
+            return True
+    return loc_lower in metro_lower or metro_lower.startswith(loc_lower.split(",")[0].strip())
+
+def _intent_matches_property_type(user_pt: str, data_pt: str) -> bool:
+    """Check if user's property_type intent matches a data row's property type."""
+    if not user_pt:
+        return False
+    return user_pt.lower() in data_pt.lower()
 
 def metric_card(label, value, sub=""):
     return f"""<div class="metric-card">
@@ -271,12 +744,12 @@ with main_tab_re:
     #  TAB 1 — POPULATION & MIGRATION
     # ═══════════════════════════════════════════════════════════════════════════════
     with tab1:
-        st.markdown("#### Where are people and companies moving in the US?")
-        st.markdown(
+        _show_tab_header(
+            "migration",
             "Agent 1 tracks **domestic population migration** and **corporate headquarters relocations** "
-            "to surface the highest-demand markets for CRE investment. Updates every 6 hours."
+            "to surface the highest-demand markets for CRE investment. Updates every 6 hours.",
+            "migration",
         )
-        agent_last_updated("migration")
 
         cache = read_cache("migration")
         if not stale_banner("migration") or cache["data"] is None:
@@ -285,6 +758,59 @@ with main_tab_re:
         data     = cache["data"]
         mig_df   = pd.DataFrame(data["migration"])
         metros_df = pd.DataFrame(data["metros"])
+
+        # ── Intent-based highlighting ──────────────────────────────────────────
+        _mig_intent = st.session_state.user_intent
+        _mig_state = _mig_intent.get("state")
+        _mig_abbr = _mig_intent.get("state_abbr")
+        _mig_city = _mig_intent.get("city")
+        _mig_region = _mig_intent.get("region")
+        _mig_region_states = _mig_intent.get("region_states")
+        _mig_pt = _mig_intent.get("property_type")
+
+        # Case A: Exact state or city specified → match by state_abbr
+        if _mig_abbr:
+            mig_df["_match"] = mig_df["state_abbr"] == _mig_abbr
+            mig_df = mig_df.sort_values(["_match", "composite_score"], ascending=[False, False]).reset_index(drop=True)
+            matched = mig_df[mig_df["_match"]]
+            if not matched.empty:
+                s = matched.iloc[0]
+                _focus_label = f"{_mig_city}, {s['state_name']}" if _mig_city else s["state_name"]
+                st.success(
+                    f"Your focus area: **{_focus_label}** — "
+                    f"Composite Score: {s['composite_score']}, Pop Growth: {s['pop_growth_pct']:+.1f}%, "
+                    f"Business Score: {s['biz_score']}"
+                )
+            mig_df = mig_df.drop(columns=["_match"])
+            # Sort metros
+            if _mig_city:
+                metros_df["_match"] = metros_df["Metro"].apply(lambda m: _intent_matches_metro(_mig_city, m))
+                metros_df = metros_df.sort_values(["_match"], ascending=False).reset_index(drop=True)
+                metros_df = metros_df.drop(columns=["_match"])
+
+        # Case B: Region specified → find top migration scorer in that region
+        elif _mig_region and _mig_region_states:
+            _region_df = mig_df[mig_df["state_abbr"].isin(_mig_region_states)]
+            if not _region_df.empty:
+                _top_region = _region_df.sort_values("composite_score", ascending=False).iloc[0]
+                st.success(
+                    f"Your focus area: **{_top_region['state_name']}** (top {_mig_region} market) — "
+                    f"Composite Score: {_top_region['composite_score']}, Pop Growth: {_top_region['pop_growth_pct']:+.1f}%, "
+                    f"Business Score: {_top_region['biz_score']}"
+                )
+            # Sort region states to top
+            mig_df["_match"] = mig_df["state_abbr"].isin(_mig_region_states)
+            mig_df = mig_df.sort_values(["_match", "composite_score"], ascending=[False, False]).reset_index(drop=True)
+            mig_df = mig_df.drop(columns=["_match"])
+
+        # Case C: Property type only, no location → recommend #1 migration destination
+        elif _mig_pt and not _mig_state and not _mig_city and not _mig_region:
+            _top = mig_df.iloc[0]
+            st.info(
+                f"You're looking for **{_mig_pt}** properties. "
+                f"Recommended market: **{_top['state_name']}** — #1 migration destination "
+                f"(Composite: {_top['composite_score']}, Pop Growth: {_top['pop_growth_pct']:+.1f}%)"
+            )
 
         # ── KPI strip ──────────────────────────────────────────────────────────
         top1      = mig_df.iloc[0]
@@ -298,12 +824,82 @@ with main_tab_re:
         c3.markdown(metric_card("States Shrinking", str(top_loss), "Negative net migration"), unsafe_allow_html=True)
         c4.markdown(metric_card("Avg Pop Growth", f"{avg_grow:.2f}%", "All states YoY"), unsafe_allow_html=True)
 
-        # ── US CHOROPLETH MAP ──────────────────────────────────────────────────
+        # ── MAP ────────────────────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        section(" US Population Growth Map — Where America is Moving")
+
+        _map_intent = st.session_state.user_intent
+        _map_city = _map_intent.get("city")
+        _map_state = _map_intent.get("state")
+        _map_abbr = _map_intent.get("state_abbr")
+
+        # City coordinate lookup for zoom
+        _CITY_COORDS = {
+            "los angeles": (34.05, -118.24), "new york": (40.71, -74.01), "chicago": (41.88, -87.63),
+            "houston": (29.76, -95.37), "phoenix": (33.45, -112.07), "philadelphia": (39.95, -75.17),
+            "san antonio": (29.42, -98.49), "san diego": (32.72, -117.16), "dallas": (32.78, -96.80),
+            "austin": (30.27, -97.74), "san francisco": (37.77, -122.42), "seattle": (47.61, -122.33),
+            "denver": (39.74, -104.99), "nashville": (36.16, -86.78), "miami": (25.76, -80.19),
+            "atlanta": (33.75, -84.39), "charlotte": (35.23, -80.84), "raleigh": (35.78, -78.64),
+            "orlando": (28.54, -81.38), "tampa": (27.95, -82.46), "salt lake city": (40.76, -111.89),
+            "las vegas": (36.17, -115.14), "portland": (45.52, -122.68), "boise": (43.62, -116.21),
+            "minneapolis": (44.98, -93.27), "indianapolis": (39.77, -86.16), "columbus": (39.96, -82.99),
+            "detroit": (42.33, -83.05), "boston": (42.36, -71.06), "kansas city": (39.10, -94.58),
+            "richmond": (37.54, -77.44), "pittsburgh": (40.44, -79.99), "sacramento": (38.58, -121.49),
+        }
+        # State center coordinates for state-level zoom
+        _STATE_COORDS = {
+            "AL": (32.8, -86.8), "AK": (64.2, -152.5), "AZ": (34.3, -111.7), "AR": (34.8, -92.2),
+            "CA": (37.2, -119.5), "CO": (39.0, -105.5), "CT": (41.6, -72.7), "DE": (39.0, -75.5),
+            "FL": (28.6, -82.5), "GA": (33.0, -83.5), "HI": (20.8, -156.3), "ID": (44.4, -114.6),
+            "IL": (40.0, -89.2), "IN": (39.8, -86.3), "IA": (42.0, -93.5), "KS": (38.5, -98.3),
+            "KY": (37.8, -85.3), "LA": (31.0, -92.0), "ME": (45.3, -69.2), "MD": (39.0, -76.7),
+            "MA": (42.2, -71.5), "MI": (44.3, -85.5), "MN": (46.3, -94.3), "MS": (32.7, -89.7),
+            "MO": (38.4, -92.5), "MT": (47.0, -109.6), "NE": (41.5, -99.8), "NV": (39.3, -116.6),
+            "NH": (43.7, -71.6), "NJ": (40.1, -74.7), "NM": (34.5, -106.0), "NY": (42.9, -75.5),
+            "NC": (35.5, -79.8), "ND": (47.5, -100.5), "OH": (40.4, -82.8), "OK": (35.5, -97.5),
+            "OR": (44.0, -120.5), "PA": (41.0, -77.5), "RI": (41.7, -71.5), "SC": (34.0, -81.0),
+            "SD": (44.4, -100.2), "TN": (35.9, -86.4), "TX": (31.5, -99.3), "UT": (39.3, -111.7),
+            "VT": (44.0, -72.7), "VA": (37.5, -78.9), "WA": (47.4, -120.7), "WV": (38.6, -80.6),
+            "WI": (44.6, -89.7), "WY": (43.0, -107.5), "DC": (38.9, -77.0),
+        }
+
+        # Determine map mode
+        _zoom_coords = None
+        _zoom_scale = None
+        _map_title_suffix = "Where America is Moving"
+        _focus_abbr = _map_abbr  # state to highlight
+
+        if _map_city:
+            coords = _CITY_COORDS.get(_map_city.lower())
+            if coords:
+                _zoom_coords = coords
+                _zoom_scale = 3.5
+                _map_title_suffix = f"Focused on {_map_city}" + (f", {_map_state}" if _map_state else "")
+            # Try to resolve state from city if not already known
+            if not _focus_abbr and _map_state:
+                _focus_abbr = _STATE_NAME_TO_ABBR.get(_map_state.lower(), "").upper() or None
+        elif _map_state and _map_abbr:
+            coords = _STATE_COORDS.get(_map_abbr)
+            if coords:
+                _zoom_coords = coords
+                _zoom_scale = 2.5
+            _map_title_suffix = f"Focused on {_map_state}"
+
+        section(f" US Population Growth Map — {_map_title_suffix}")
 
         map_col, legend_col = st.columns([3, 1])
         with map_col:
+            # Build marker sizes: highlight the focus state
+            _marker_line_widths = []
+            _marker_line_colors = []
+            for abbr in mig_df["state_abbr"]:
+                if _focus_abbr and abbr == _focus_abbr:
+                    _marker_line_widths.append(3)
+                    _marker_line_colors.append(GOLD)
+                else:
+                    _marker_line_widths.append(0.5)
+                    _marker_line_colors.append("#999")
+
             fig_map = go.Figure(go.Choropleth(
                 locations=mig_df["state_abbr"],
                 z=mig_df["composite_score"],
@@ -318,6 +914,7 @@ with main_tab_re:
                     [1.0,  "#1b5e20"],
                 ],
                 zmin=0, zmax=100,
+                marker=dict(line=dict(width=_marker_line_widths, color=_marker_line_colors)),
                 colorbar=dict(
                     title=dict(text="Migration<br>Score", font=dict(size=11)),
                     tickfont=dict(size=10), thickness=14, len=0.7,
@@ -333,10 +930,36 @@ with main_tab_re:
                 ),
                 hovertemplate="%{text}<extra></extra>",
             ))
+
+            # Add city marker if zoomed to city
+            if _map_city and _zoom_coords:
+                fig_map.add_trace(go.Scattergeo(
+                    lat=[_zoom_coords[0]], lon=[_zoom_coords[1]],
+                    mode="markers+text",
+                    marker=dict(size=14, color=GOLD, line=dict(width=2, color=BLACK), symbol="star"),
+                    text=[_map_city],
+                    textposition="top center",
+                    textfont=dict(size=12, color=BLACK, family="Source Sans Pro"),
+                    showlegend=False,
+                    hovertemplate=f"<b>{_map_city}</b><extra></extra>",
+                ))
+
+            # Set map center and zoom
+            if _zoom_coords and _zoom_scale:
+                fig_map.update_layout(
+                    geo=dict(scope="usa", showlakes=True, lakecolor="lightblue",
+                             bgcolor="white", showland=True, landcolor="#f5f5f5",
+                             projection_scale=_zoom_scale,
+                             center=dict(lat=_zoom_coords[0], lon=_zoom_coords[1])),
+                )
+            else:
+                fig_map.update_layout(
+                    geo=dict(scope="usa", showlakes=True, lakecolor="lightblue",
+                             bgcolor="white", showland=True, landcolor="#f5f5f5",
+                             projection_scale=1, center=dict(lat=38, lon=-96)),
+                )
+
             fig_map.update_layout(
-                geo=dict(scope="usa", showlakes=True, lakecolor="#1a2535",
-                         bgcolor="#0f0f0c", showland=True, landcolor="#1e2018",
-                         projection_scale=1, center=dict(lat=38, lon=-96)),
                 paper_bgcolor="#16160f",
                 margin=dict(t=10, b=10, l=0, r=0),
                 height=460,
@@ -402,7 +1025,27 @@ with main_tab_re:
         )
 
         # ── Metro Table ────────────────────────────────────────────────────────
-        section(" Top Metro Areas — Population, Jobs & CRE Demand")
+        _metro_city = st.session_state.user_intent.get("city")
+        _metro_title = " Top Metro Areas — Population, Jobs & CRE Demand"
+        if _metro_city:
+            _metro_title = f" Metro Area Focus: {_metro_city} & Comparisons"
+            # Show matched metro callout
+            _matched_metro = metros_df[metros_df["Metro"].str.lower().str.contains(_metro_city.lower())]
+            if not _matched_metro.empty:
+                _mm = _matched_metro.iloc[0]
+                st.markdown(
+                    f'<div style="background:{BLACK};color:{GOLD};padding:12px 18px;border-radius:6px;margin-bottom:12px;">'
+                    f'<span style="font-size:1.1rem;font-weight:700;">{_mm["Metro"]}</span><br>'
+                    f'<span style="color:#eee;font-size:0.9rem;">'
+                    f'Pop Growth: {_mm["Pop Growth %"]:+.1f}% · Job Growth: {_mm["Job Growth %"]:+.1f}% · '
+                    f'Corp HQ Moves: {_mm["Corp HQ Moves"]:+d} · CRE Demand: {_mm["CRE Demand"]}'
+                    f'</span></div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.info(f"No metro data for {_metro_city}. Showing all metros for comparison.")
+
+        section(_metro_title)
         metros_disp = metros_df.copy()
         metros_disp["Pop Growth %"] = metros_disp["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
         metros_disp["Job Growth %"] = metros_disp["Job Growth %"].apply(lambda x: f"{x:+.1f}%")
@@ -418,8 +1061,13 @@ with main_tab_re:
             }
             return colors.get(val, "")
 
+        def _highlight_metro_row(row):
+            if _metro_city and _metro_city.lower() in row["Metro"].lower():
+                return ["background-color: #f5f0e6; font-weight: 700"] * len(row)
+            return [""] * len(row)
+
         st.dataframe(
-            metros_disp.style.applymap(color_demand, subset=["CRE Demand"]),
+            metros_disp.style.applymap(color_demand, subset=["CRE Demand"]).apply(_highlight_metro_row, axis=1),
             use_container_width=True, hide_index=True
         )
 
@@ -459,12 +1107,12 @@ with main_tab_re:
     #  TAB 2 — CRE PRICING & PROFIT
     # ═══════════════════════════════════════════════════════════════════════════════
     with tab2:
-        st.markdown("#### Where are the highest profit margins in commercial real estate today?")
-        st.markdown(
+        _show_tab_header(
+            "pricing",
             "Agent 2 pulls **live REIT pricing**, estimates **cap rates** and **NOI margins** by property type, "
-            "and ranks market × property type combinations. Updates every hour."
+            "and ranks market × property type combinations. Updates every hour.",
+            "pricing",
         )
-        agent_last_updated("pricing")
 
         from src.cre_pricing import compute_profit_matrix, get_top_opportunities, get_property_type_summary, CAP_RATE_BENCHMARKS
 
@@ -601,7 +1249,17 @@ with main_tab_re:
 
         # ── Property Type Comparison ───────────────────────────────────────────
         section(" Property Type Performance Comparison")
-        colors_pt = [GOLD if i == 0 else (GOLD_DARK if i < 3 else "#aaa") for i in range(len(pt_summary))]
+        _user_pt = st.session_state.user_intent.get("property_type")
+        colors_pt = []
+        for i, row in pt_summary.iterrows():
+            if _user_pt and _intent_matches_property_type(_user_pt, row["Property Type"]):
+                colors_pt.append("#1b5e20")  # highlight green for user's focus
+            elif i == 0:
+                colors_pt.append(GOLD)
+            elif i < 3:
+                colors_pt.append(GOLD_DARK)
+            else:
+                colors_pt.append("#aaa")
         fig_pt = go.Figure()
         fig_pt.add_trace(go.Bar(
             x=pt_summary["Property Type"].str.split("/").str[0].str.strip(),
@@ -704,12 +1362,12 @@ with main_tab_re:
     #  TAB 3 — CONFIRMED FACILITY ANNOUNCEMENTS
     # ═══════════════════════════════════════════════════════════════════════════════
     with tab3:
-        st.markdown("#### Which companies have announced new plants, factories, and facilities?")
-        st.markdown(
+        _show_tab_header(
+            "predictions",
             "Agent 3 scans live news feeds and uses AI to extract **confirmed** corporate facility announcements — "
-            "new manufacturing plants, data centers, warehouses, training centers, and headquarters. Updates every 24 hours."
+            "new manufacturing plants, data centers, warehouses, training centers, and headquarters. Updates every 24 hours.",
+            "predictions",
         )
-        agent_last_updated("predictions")
 
         cache3 = read_cache("predictions")
         if not stale_banner("predictions") or cache3["data"] is None:
@@ -723,6 +1381,27 @@ with main_tab_re:
 
         # Filter out error placeholders
         confirmed = [a for a in confirmed if a.get("company") and a.get("company") != "Error"]
+
+        # Sort by relevance to user intent
+        _user_pt3 = st.session_state.user_intent.get("property_type")
+        _user_loc3 = st.session_state.user_intent.get("location")
+        # Map property_type to facility types
+        _PT_TO_FACILITY = {
+            "industrial": ["manufacturing plant", "warehouse / distribution", "battery plant", "semiconductor fab"],
+            "office": ["headquarters", "research & development"],
+            "data center": ["data center"],
+            "retail": ["other"],
+        }
+        _matching_types = _PT_TO_FACILITY.get((_user_pt3 or "").lower(), [])
+        if _user_pt3 or _user_loc3:
+            def _ann_score(a):
+                score = 0
+                if _matching_types and a.get("type", "").lower() in _matching_types:
+                    score += 2
+                if _user_loc3 and _user_loc3.lower() in (a.get("location", "") or "").lower():
+                    score += 1
+                return score
+            confirmed = sorted(confirmed, key=_ann_score, reverse=True)
 
         if not confirmed:
             st.info(
@@ -823,13 +1502,13 @@ with main_tab_re:
     #  TAB 4 — CHEAPEST BUILDINGS
     # ═══════════════════════════════════════════════════════════════════════════════
     with tab4:
-        st.markdown("#### Cheapest commercial buildings to purchase in the top 3 migration destination states")
-        st.markdown(
+        _show_tab_header(
+            "buildings",
             "Agent 3 sources the lowest-price commercial listings in the states with the highest "
             "migration and business growth scores — identifying acquisition opportunities before demand peaks. "
-            "Updates every 24 hours alongside company predictions."
+            "Updates every 24 hours alongside company predictions.",
+            "predictions",
         )
-        agent_last_updated("predictions")
 
         cache4 = read_cache("predictions")
         if not stale_banner("predictions") or cache4["data"] is None:
@@ -839,17 +1518,103 @@ with main_tab_re:
         listings = pdata4.get("listings", {})
         top3_abbr = pdata4.get("top3_abbr", [])
 
+        # On-demand: generate listings for user's target state if not already cached
+        _user_abbr_b = st.session_state.user_intent.get("state_abbr")
+        if _user_abbr_b and _user_abbr_b not in listings:
+            try:
+                from src.cre_listings import get_cheapest_buildings
+                listings[_user_abbr_b] = get_cheapest_buildings(_user_abbr_b, n=10)
+                if _user_abbr_b not in top3_abbr:
+                    top3_abbr = [_user_abbr_b] + list(top3_abbr)
+            except Exception:
+                pass
+
         if not listings:
             st.info("Listings will appear after the first scheduled agent run (every 24 hours).")
         else:
             from src.cre_listings import format_listing_card
 
-            for abbr in top3_abbr:
-                state_listings = listings.get(abbr, [])
-                if not state_listings:
-                    continue
+            _intent4 = st.session_state.user_intent
+            _user_loc4 = _intent4.get("location")
+            _user_city4 = _intent4.get("city")
+            _user_state4 = _intent4.get("state")
+            _user_abbr4 = _intent4.get("state_abbr")
+            _user_pt4 = _intent4.get("property_type")
 
-                # Get migration cache for state name
+            # Flatten all listings into one list for filtering
+            _all_listings = []
+            for abbr, lst in listings.items():
+                for l in lst:
+                    if isinstance(l, dict):
+                        l["_source_abbr"] = abbr
+                        _all_listings.append(l)
+
+            # Filter by city if specified
+            _filtered = _all_listings
+            _filter_note = ""
+            if _user_city4:
+                _city_match = [l for l in _all_listings if _user_city4.lower() in (l.get("city", "") or "").lower()]
+                if _city_match:
+                    _filtered = _city_match
+                else:
+                    # Try state-level match
+                    _state_match = []
+                    if _user_abbr4:
+                        _state_match = [l for l in _all_listings if (l.get("state", "") or "").upper() == _user_abbr4]
+                    elif _user_state4:
+                        _state_match = [l for l in _all_listings
+                                        if _user_state4.lower() in (l.get("state", "") or "").lower()
+                                        or _intent_matches_state(_user_state4, "", l.get("_source_abbr", ""))]
+                    if _state_match:
+                        _filtered = _state_match
+                        _nearby = set(l.get("city", "Unknown") for l in _state_match[:5])
+                        _filter_note = f"No listings found in {_user_city4}. Showing nearby: {', '.join(_nearby)}"
+                    else:
+                        _filter_note = f"No listings found in {_user_city4} or surrounding area. Showing top migration states instead."
+                        _filtered = _all_listings
+            elif _user_abbr4 or _user_state4:
+                _state_match = []
+                if _user_abbr4:
+                    _state_match = [l for l in _all_listings if l.get("_source_abbr") == _user_abbr4]
+                if not _state_match and _user_state4:
+                    _state_match = [l for l in _all_listings
+                                    if _intent_matches_state(_user_state4, "", l.get("_source_abbr", ""))]
+                if _state_match:
+                    _filtered = _state_match
+                else:
+                    _filter_note = f"No listings found in {_user_state4 or _user_abbr4}. Showing top migration states instead."
+
+            # Filter by property type if specified
+            if _user_pt4:
+                _pt_match = [l for l in _filtered if _user_pt4.lower() in (l.get("property_type", "") or "").lower()]
+                if _pt_match:
+                    _filtered = _pt_match
+                elif _filtered != _all_listings:
+                    _filter_note += f" No exact {_user_pt4} listings — showing all property types."
+
+            if _filter_note:
+                st.info(_filter_note)
+
+            # Group filtered listings by state for display
+            _display_groups = {}
+            for l in _filtered:
+                key = l.get("_source_abbr", "??")
+                _display_groups.setdefault(key, []).append(l)
+
+            # Sort so user's focus state appears first
+            _sorted_abbr4 = list(_display_groups.keys())
+            if _user_abbr4 and _user_abbr4 in _sorted_abbr4:
+                _sorted_abbr4.remove(_user_abbr4)
+                _sorted_abbr4.insert(0, _user_abbr4)
+
+            # Build section title
+            _pt_label = f"{_user_pt4} " if _user_pt4 else "Commercial "
+            _loc_label = _user_loc4 or "Top Migration States"
+
+            for abbr in _sorted_abbr4:
+                group = _display_groups[abbr]
+
+                # Resolve state name
                 mig_cache = read_cache("migration")
                 state_name = abbr
                 if mig_cache["data"]:
@@ -858,35 +1623,38 @@ with main_tab_re:
                     if not row.empty:
                         state_name = row.iloc[0]["state_name"]
 
-                section(f" {state_name} ({abbr}) — Cheapest Commercial Properties")
-                st.caption(f"Showing {len(state_listings)} lowest-price listings sorted by asking price")
+                section(f" Cheapest {_pt_label}Properties — {state_name} ({abbr})")
+                st.caption(f"Showing {len(group)} listings sorted by asking price")
 
-                for listing in state_listings:
-                    if isinstance(listing, dict):
-                        price_fmt  = f"${listing.get('price', 0):,}"
-                        sqft_fmt   = f"{listing.get('sqft', 0):,} sqft"
-                        ppsf_fmt   = f"${listing.get('price_per_sqft', 0):.0f}/sqft"
-                        cap_fmt    = f"{listing.get('cap_rate', 0):.2f}% cap rate"
-                        noi_fmt    = f"${listing.get('noi_annual', 0):,}/yr NOI"
-                        dom_fmt    = f"{listing.get('days_on_market', 0)}d on market"
-                        built_fmt  = f"Built {listing.get('year_built', 'N/A')}"
-                        pt_fmt     = listing.get("property_type", "")
-                        addr_fmt   = f"{listing.get('address', '')}, {listing.get('city', '')}, {listing.get('state', '')}"
-                        highlights = listing.get("highlights", "")
+                for listing in group:
+                    price_fmt  = f"${listing.get('price', 0):,}"
+                    sqft_fmt   = f"{listing.get('sqft', 0):,} sqft"
+                    ppsf_fmt   = f"${listing.get('price_per_sqft', 0):.0f}/sqft"
+                    cap_fmt    = f"{listing.get('cap_rate', 0):.2f}% cap rate"
+                    noi_fmt    = f"${listing.get('noi_annual', 0):,}/yr NOI"
+                    dom_fmt    = f"{listing.get('days_on_market', 0)}d on market"
+                    built_fmt  = f"Built {listing.get('year_built', 'N/A')}"
+                    pt_fmt     = listing.get("property_type", "")
+                    addr_fmt   = f"{listing.get('address', '')}, {listing.get('city', '')}, {listing.get('state', '')}"
+                    highlights = listing.get("highlights", "")
 
-                        st.markdown(f"""
-                        <div class="listing-card">
-                          <div class="l-price">{price_fmt}</div>
-                          <div class="l-address">{addr_fmt}</div>
-                          <div style="margin:4px 0;">
-                            <span class="l-tag">{pt_fmt}</span>
-                            <span class="l-tag">{cap_fmt}</span>
-                            <span class="l-tag">{dom_fmt}</span>
-                          </div>
-                          <div class="l-detail">{sqft_fmt} · {ppsf_fmt} · {noi_fmt} · {built_fmt}</div>
-                          {"<div class='l-detail' style='color:#555;margin-top:4px;font-style:italic;'> " + highlights + "</div>" if highlights else ""}
-                        </div>
-                        """, unsafe_allow_html=True)
+                    # Highlight if city matches
+                    _is_city_match = _user_city4 and _user_city4.lower() in (listing.get("city", "") or "").lower()
+                    _border_clr = "#1b5e20" if _is_city_match else GOLD
+
+                    st.markdown(f"""
+                    <div class="listing-card" style="border-left-color:{_border_clr};">
+                      <div class="l-price">{price_fmt}</div>
+                      <div class="l-address">{addr_fmt}</div>
+                      <div style="margin:4px 0;">
+                        <span class="l-tag">{pt_fmt}</span>
+                        <span class="l-tag">{cap_fmt}</span>
+                        <span class="l-tag">{dom_fmt}</span>
+                      </div>
+                      <div class="l-detail">{sqft_fmt} · {ppsf_fmt} · {noi_fmt} · {built_fmt}</div>
+                      {"<div class='l-detail' style='color:#555;margin-top:4px;font-style:italic;'> " + highlights + "</div>" if highlights else ""}
+                    </div>
+                    """, unsafe_allow_html=True)
 
             # ── Why these markets? ────────────────────────────────────────────
             st.markdown("<br>", unsafe_allow_html=True)
@@ -910,14 +1678,13 @@ with main_tab_re:
     #  TAB 5 — SYSTEM MONITOR / DEBUGGER
     # ═══════════════════════════════════════════════════════════════════════════════
     with tab5:
-        st.markdown("#### Where are companies building? Live facility & investment announcements across the US")
-        st.markdown(
+        _show_tab_header(
+            "announcements",
             "Agent 5 monitors **news wires, government press releases, and industry publications** "
             "every 4 hours — surfacing companies that have announced new manufacturing plants, "
-            "training centers, data centers, warehouses, and other large facilities. "
-            "Sources include Reuters, IndustryWeek, PR Newswire, DOE, Commerce Dept, and EDA."
+            "training centers, data centers, warehouses, and other large facilities.",
+            "news",
         )
-        agent_last_updated("news")
 
         cache_news = read_cache("news")
         if not stale_banner("news") or cache_news["data"] is None:
@@ -1358,13 +2125,13 @@ with main_tab_macro:
     #  TAB — RATE ENVIRONMENT
     # ═══════════════════════════════════════════════════════════════════════════
     with tab_rates:
-        st.markdown("#### How do current interest rates affect CRE cap rates, valuations, and REIT debt risk?")
-        st.markdown(
+        _show_tab_header(
+            "rates",
             "Agent 6 pulls **live rate data from FRED**, classifies the rate environment, "
             "computes dynamic cap rate adjustments by property type, and scores REIT refinancing risk. "
-            "Updates every hour. Requires `FRED_API_KEY` in `.env`."
+            "Updates every hour. Requires `FRED_API_KEY` in `.env`.",
+            "rates",
         )
-        agent_last_updated("rates")
 
         cache_r = read_cache("rates")
         rdata   = cache_r.get("data") or {}
@@ -1616,7 +2383,14 @@ with main_tab_macro:
                     except: pass
                     return ""
 
-                styled = disp_adj.style.applymap(_colour_delta, subset=["Margin Delta bps"])
+                # Highlight user's focus property type row
+                _user_pt_rate = st.session_state.user_intent.get("property_type")
+                def _highlight_focus_row(row):
+                    if _user_pt_rate and _intent_matches_property_type(_user_pt_rate, row["Property Type"]):
+                        return ["background-color: #f5f0e6; font-weight: 700"] * len(row)
+                    return [""] * len(row)
+
+                styled = disp_adj.style.applymap(_colour_delta, subset=["Margin Delta bps"]).apply(_highlight_focus_row, axis=1)
                 st.dataframe(styled, use_container_width=True, hide_index=True, height=290)
                 delta_10y = (current_10y or 0) - baseline
                 direction = "above" if delta_10y > 0 else "below"
