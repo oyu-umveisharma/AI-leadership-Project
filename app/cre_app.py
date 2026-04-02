@@ -168,33 +168,9 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Header banner ────────────────────────────────────────────────────────────
-import os as _os, base64 as _b64
+import os as _os
 _banner = _os.path.join(_os.path.dirname(__file__), "assets", "header_banner.png")
-with open(_banner, "rb") as _f:
-    _b64str = _b64.b64encode(_f.read()).decode()
-
-st.markdown(f"""
-<div style="position:relative; width:100%; margin-bottom:8px; line-height:0;">
-  <img src="data:image/png;base64,{_b64str}"
-       style="width:100%; display:block;" />
-  <!-- Overlay to fix misspelled text while keeping logos intact -->
-  <div style="position:absolute; top:8%; right:14%; width:40%;
-              background:rgba(23,22,20,0.93); padding:6px 14px; border-radius:4px;">
-    <div style="color:#CFB991; font-size:2.6vw; font-weight:700;
-                font-family:'Arial',sans-serif; line-height:1.15;">
-      Purdue University
-    </div>
-    <div style="color:#e8dfc4; font-size:1.65vw; font-family:'Arial',sans-serif;
-                margin-top:3px; line-height:1.2;">
-      Daniels School of Business
-    </div>
-    <div style="color:#a09880; font-size:1.25vw; font-family:'Arial',sans-serif;
-                margin-top:3px;">
-      MSF Program &nbsp;&middot;&nbsp; April 2026
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+st.image(_banner, use_container_width=True)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def section(title):
