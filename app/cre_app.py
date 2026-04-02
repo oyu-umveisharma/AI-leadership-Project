@@ -28,7 +28,7 @@ from datetime import datetime, timedelta
 # ── Page config MUST be first Streamlit command ──────────────────────────────
 st.set_page_config(
     page_title="CRE Intelligence | Purdue MSF",
-    page_icon="🏢",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -150,7 +150,7 @@ st.markdown(f"""
 # ── Header ───────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div class="cre-header">
-  <h1>🏢 CRE Intelligence Platform</h1>
+  <h1> CRE Intelligence Platform</h1>
   <span>Purdue University · Daniels School of Business · MSF Program &nbsp;|&nbsp; {datetime.today().strftime('%B %d, %Y')}</span>
 </div>
 <div class="gold-bar"></div>
@@ -174,9 +174,9 @@ def stale_banner(cache_key: str):
         return False
     age = cache_age_label(cache_key)
     if c.get("stale"):
-        st.warning(f"⚠️ Data is stale (last updated {age}). Agent may be restarting.")
+        st.warning(f"⚠ Data is stale (last updated {age}). Agent may be restarting.")
     else:
-        st.caption(f"🔄 Last updated: {age} · Auto-refreshes in background")
+        st.caption(f" Last updated: {age} · Auto-refreshes in background")
     return True
 
 def agent_force_button(agent_name: str, label: str, key_suffix: str = ""):
@@ -244,21 +244,18 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  MAIN TAB
+#  MAIN TABS
 # ═══════════════════════════════════════════════════════════════════════════════
-(main_tab,) = st.tabs(["🏢  Real Estate"])
+main_tab_re, main_tab_energy = st.tabs(["Real Estate", "Energy"])
 
-with main_tab:
-    tab1, tab2, tab_rates, tab3, tab4, tab5, tab_energy, tab_esg, tab6 = st.tabs([
-        "🗺️  Migration Intelligence",
-        "💰  Pricing & Profit",
-        "📈  Rate Environment",
-        "🔮  Company Predictions",
-        "🏗️  Cheapest Buildings",
-        "📰  Industry Announcements",
-        "🛢️  Energy & Construction Costs",
-        "🌱  Sustainability & ESG",
-        "🛠️  System Monitor",
+with main_tab_re:
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "Migration Intelligence",
+        "Pricing & Profit",
+        "Company Predictions",
+        "Cheapest Buildings",
+        "Industry Announcements",
+        "System Monitor",
     ])
 
 
@@ -295,7 +292,7 @@ with main_tab:
 
         # ── US CHOROPLETH MAP ──────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        section("🗺️ US Population Growth Map — Where America is Moving")
+        section(" US Population Growth Map — Where America is Moving")
 
         map_col, legend_col = st.columns([3, 1])
         with map_col:
@@ -341,10 +338,10 @@ with main_tab:
         with legend_col:
             st.markdown("<br><br>", unsafe_allow_html=True)
             for color, label in [
-                ("#1b5e20", "🟢 High Growth (70–100)"),
-                ("#388e3c", "🟩 Growing (55–70)"),
-                ("#fff9c4", "🟡 Stable (45–55)"),
-                ("#ef5350", "🔴 Declining (25–45)"),
+                ("#1b5e20", " High Growth (70–100)"),
+                ("#388e3c", " Growing (55–70)"),
+                ("#fff9c4", " Stable (45–55)"),
+                ("#ef5350", " Declining (25–45)"),
                 ("#b71c1c", "⛔ High Outflow (<25)"),
             ]:
                 st.markdown(
@@ -357,7 +354,7 @@ with main_tab:
             st.caption("Score = 60% Pop Growth + 40% Business Migration Index")
 
         # ── Top 10 States ──────────────────────────────────────────────────────
-        section("🏆 Top 10 States for CRE Investment (Migration Score)")
+        section(" Top 10 States for CRE Investment (Migration Score)")
         top10 = mig_df.head(10)
         fig_bar = go.Figure(go.Bar(
             x=top10["composite_score"], y=top10["state_abbr"],
@@ -385,7 +382,7 @@ with main_tab:
         st.plotly_chart(fig_bar, use_container_width=True)
 
         # ── Metro Table ────────────────────────────────────────────────────────
-        section("🏙️ Top Metro Areas — Population, Jobs & CRE Demand")
+        section(" Top Metro Areas — Population, Jobs & CRE Demand")
         metros_disp = metros_df.copy()
         metros_disp["Pop Growth %"] = metros_disp["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
         metros_disp["Job Growth %"] = metros_disp["Job Growth %"].apply(lambda x: f"{x:+.1f}%")
@@ -407,7 +404,7 @@ with main_tab:
         )
 
         # ── Bubble chart ───────────────────────────────────────────────────────
-        section("🏭 Business Migration vs. Population Growth")
+        section(" Business Migration vs. Population Growth")
         biz_data = mig_df[mig_df["biz_score"] != 50].copy()
         fig_bubble = px.scatter(
             biz_data, x="pop_growth_pct", y="biz_score",
@@ -473,7 +470,7 @@ with main_tab:
 
         # ── Live REIT Prices ────────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        section(f"📈 Live REIT Prices — {datetime.today().strftime('%B %d, %Y')}")
+        section(f" Live REIT Prices — {datetime.today().strftime('%B %d, %Y')}")
 
         prop_types = reit_df["Property Type"].unique()
         tabs_reit  = st.tabs(list(prop_types))
@@ -529,7 +526,7 @@ with main_tab:
 
         # ── Profit Margin Heatmap ──────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        section("🔥 Profit Margin Heatmap — Market × Property Type")
+        section(" Profit Margin Heatmap — Market × Property Type")
 
         profit_df = compute_profit_matrix()
         pivot = profit_df.pivot_table(
@@ -558,11 +555,11 @@ with main_tab:
         st.caption("Effective Profit Margin = NOI Margin × (1 − Vacancy) × (1 + Rent Growth).")
 
         # ── Top 10 Opportunities ───────────────────────────────────────────────
-        section("🏆 Top 10 Highest Profit Margin Opportunities Right Now")
+        section(" Top 10 Highest Profit Margin Opportunities Right Now")
         st.dataframe(top_opps, use_container_width=True, hide_index=True)
 
         # ── Property Type Comparison ───────────────────────────────────────────
-        section("📊 Property Type Performance Comparison")
+        section(" Property Type Performance Comparison")
         colors_pt = [GOLD if i == 0 else (GOLD_DARK if i < 3 else "#aaa") for i in range(len(pt_summary))]
         fig_pt = go.Figure()
         fig_pt.add_trace(go.Bar(
@@ -605,7 +602,7 @@ with main_tab:
 
         if cap_adj2 and cur_10y2:
             st.markdown("<br>", unsafe_allow_html=True)
-            section(f"📈 Rate-Adjusted Cap Rates — 10Y at {cur_10y2:.2f}%")
+            section(f" Rate-Adjusted Cap Rates — 10Y at {cur_10y2:.2f}%")
             show_adj = st.toggle("Show rate-adjusted profit matrix", value=True, key="rate_adj_toggle")
             if show_adj:
                 adj_df2 = pd.DataFrame(cap_adj2)
@@ -657,6 +654,393 @@ with main_tab:
 
 
     # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB 3 — COMPANY PREDICTIONS
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab3:
+        st.markdown("#### Which companies are most likely to relocate or expand in the next 12 months?")
+        st.markdown(
+            "Agent 3 uses an LLM (Llama 3.3-70B via Groq) to analyze migration signals, tax policy, "
+            "labor markets, and corporate announcements — then predicts HQ moves. Updates every 24 hours."
+        )
+        agent_force_button("predictions", "Predictions Agent")
+
+        cache3 = read_cache("predictions")
+        if not stale_banner("predictions") or cache3["data"] is None:
+            st.stop()
+
+        pdata3 = cache3["data"]
+
+        # ── AI Predictions ────────────────────────────────────────────────────
+        section(" AI-Predicted Corporate Relocations & Expansions (Next 12 Months)")
+        pred_text = pdata3.get("predictions_text", "")
+        if pred_text:
+            st.markdown(f"""
+            <div class="agent-card">
+              <div class="agent-label"> Agent 3 · Corporate Relocation Intelligence · {datetime.today().strftime('%b %d, %Y')}</div>
+              <div class="agent-text">{pred_text}</div>
+            </div>""", unsafe_allow_html=True)
+        else:
+            st.info("Predictions not yet available. Click Force Refresh or check that GROQ_API_KEY is set in .env")
+
+        # ── Top 5 States breakdown ─────────────────────────────────────────────
+        section(" Top 5 States Driving Predictions")
+        top5 = pdata3.get("top5_states", [])
+        if top5:
+            top5_df = pd.DataFrame(top5)
+            cols_show = [c for c in ["state_name","state_abbr","pop_growth_pct","biz_score","key_companies","growth_drivers"] if c in top5_df.columns]
+            top5_df = top5_df[cols_show].copy()
+            if "pop_growth_pct" in top5_df.columns:
+                top5_df["pop_growth_pct"] = top5_df["pop_growth_pct"].apply(lambda x: f"{x:+.2f}%")
+            st.dataframe(top5_df, use_container_width=True, hide_index=True)
+
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB 4 — CHEAPEST BUILDINGS
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab4:
+        st.markdown("#### Cheapest commercial buildings to purchase in the top 3 migration destination states")
+        st.markdown(
+            "Agent 3 sources the lowest-price commercial listings in the states with the highest "
+            "migration and business growth scores — identifying acquisition opportunities before demand peaks. "
+            "Updates every 24 hours alongside company predictions."
+        )
+        agent_force_button("predictions", "Listings Agent", key_suffix="_listings")
+
+        cache4 = read_cache("predictions")
+        if not stale_banner("predictions") or cache4["data"] is None:
+            st.stop()
+
+        pdata4   = cache4["data"]
+        listings = pdata4.get("listings", {})
+        top3_abbr = pdata4.get("top3_abbr", [])
+
+        if not listings:
+            st.info("No listings available yet. Click Force Refresh above or wait for the agent to complete its first run.")
+        else:
+            from src.cre_listings import format_listing_card
+
+            for abbr in top3_abbr:
+                state_listings = listings.get(abbr, [])
+                if not state_listings:
+                    continue
+
+                # Get migration cache for state name
+                mig_cache = read_cache("migration")
+                state_name = abbr
+                if mig_cache["data"]:
+                    mig_df2 = pd.DataFrame(mig_cache["data"]["migration"])
+                    row = mig_df2[mig_df2["state_abbr"] == abbr]
+                    if not row.empty:
+                        state_name = row.iloc[0]["state_name"]
+
+                section(f" {state_name} ({abbr}) — Cheapest Commercial Properties")
+                st.caption(f"Showing {len(state_listings)} lowest-price listings sorted by asking price")
+
+                for listing in state_listings:
+                    if isinstance(listing, dict):
+                        price_fmt  = f"${listing.get('price', 0):,}"
+                        sqft_fmt   = f"{listing.get('sqft', 0):,} sqft"
+                        ppsf_fmt   = f"${listing.get('price_per_sqft', 0):.0f}/sqft"
+                        cap_fmt    = f"{listing.get('cap_rate', 0):.2f}% cap rate"
+                        noi_fmt    = f"${listing.get('noi_annual', 0):,}/yr NOI"
+                        dom_fmt    = f"{listing.get('days_on_market', 0)}d on market"
+                        built_fmt  = f"Built {listing.get('year_built', 'N/A')}"
+                        pt_fmt     = listing.get("property_type", "")
+                        addr_fmt   = f"{listing.get('address', '')}, {listing.get('city', '')}, {listing.get('state', '')}"
+                        highlights = listing.get("highlights", "")
+
+                        st.markdown(f"""
+                        <div class="listing-card">
+                          <div class="l-price">{price_fmt}</div>
+                          <div class="l-address">{addr_fmt}</div>
+                          <div style="margin:4px 0;">
+                            <span class="l-tag">{pt_fmt}</span>
+                            <span class="l-tag">{cap_fmt}</span>
+                            <span class="l-tag">{dom_fmt}</span>
+                          </div>
+                          <div class="l-detail">{sqft_fmt} · {ppsf_fmt} · {noi_fmt} · {built_fmt}</div>
+                          {"<div class='l-detail' style='color:#555;margin-top:4px;font-style:italic;'> " + highlights + "</div>" if highlights else ""}
+                        </div>
+                        """, unsafe_allow_html=True)
+
+            # ── Why these markets? ────────────────────────────────────────────
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Why These Markets? Investment Thesis")
+
+            mig_cache2 = read_cache("migration")
+            if mig_cache2["data"]:
+                mig_df3 = pd.DataFrame(mig_cache2["data"]["migration"])
+                top3_rows = mig_df3[mig_df3["state_abbr"].isin(top3_abbr)].head(3)
+                for _, row in top3_rows.iterrows():
+                    with st.expander(f" {row['state_name']} ({row['state_abbr']}) — Why Invest Here?"):
+                        col_a, col_b, col_c = st.columns(3)
+                        col_a.metric("Population Growth", f"{row['pop_growth_pct']:+.2f}%", "YoY")
+                        col_b.metric("Business Score", str(row['biz_score']), "Migration index")
+                        col_c.metric("Composite Score", str(row['composite_score']), "0–100 scale")
+                        st.markdown(f"**Key Companies:** {row['key_companies']}")
+                        st.markdown(f"**Growth Drivers:** {row['growth_drivers']}")
+
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB 5 — SYSTEM MONITOR / DEBUGGER
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab5:
+        st.markdown("#### Where are companies building? Live facility & investment announcements across the US")
+        st.markdown(
+            "Agent 5 monitors **news wires, government press releases, and industry publications** "
+            "every 4 hours — surfacing companies that have announced new manufacturing plants, "
+            "training centers, data centers, warehouses, and other large facilities. "
+            "Sources include Reuters, IndustryWeek, PR Newswire, DOE, Commerce Dept, and EDA."
+        )
+        agent_force_button("news", "News Agent", key_suffix="_news")
+
+        cache_news = read_cache("news")
+        if not stale_banner("news") or cache_news["data"] is None:
+            st.stop()
+
+        ndata = cache_news["data"]
+
+        # ── KPI strip ─────────────────────────────────────────────────────────
+        c1, c2, c3 = st.columns(3)
+        c1.markdown(metric_card("Articles Found", str(ndata.get("article_count", 0)), "Facility announcements"), unsafe_allow_html=True)
+        c2.markdown(metric_card("Sources Checked", str(ndata.get("sources_checked", 0)), "News + gov feeds"), unsafe_allow_html=True)
+        fetched = ndata.get("fetched_at", "")
+        fetched_label = datetime.fromisoformat(fetched).strftime("%b %d, %Y %I:%M %p") if fetched else "N/A"
+        c3.markdown(metric_card("Last Scan", fetched_label, "Updates every 4 hours"), unsafe_allow_html=True)
+
+        # ── AI Summary ────────────────────────────────────────────────────────
+        section(" Agent 5 — AI Investment Brief: Facility Announcements")
+        summary = ndata.get("summary", "")
+        if summary:
+            st.markdown(f"""
+            <div class="agent-card">
+              <div class="agent-label"> Agent 5 · Industry Announcements · {datetime.today().strftime('%b %d, %Y')}</div>
+              <div class="agent-text">{summary}</div>
+            </div>""", unsafe_allow_html=True)
+        else:
+            st.info("Summary not yet available. Click Force Refresh or ensure GROQ_API_KEY is set in .env")
+
+        # ── Raw Article Feed ─────────────────────────────────────────────────
+        raw = ndata.get("raw_articles", [])
+        if raw:
+            section(f" Raw Announcement Feed ({len(raw)} articles)")
+
+            feed_type_filter = st.selectbox(
+                "Filter by source type",
+                options=["All", "news", "industry", "press", "government"],
+                key="news_filter",
+            )
+
+            source_colors = {
+                "government": "#1565c0",
+                "industry":   "#2e7d32",
+                "press":      "#6a1b9a",
+                "news":       "#bf360c",
+            }
+
+            for art in raw:
+                if feed_type_filter != "All" and art.get("feed_type") != feed_type_filter:
+                    continue
+                ft    = art.get("feed_type", "news")
+                color = source_colors.get(ft, "#555")
+                link  = art.get("link", "#")
+                title = art.get("title", "No title")
+                desc  = art.get("description", "")[:280]
+                src   = art.get("source", "")
+                date  = art.get("pub_date", "")[:22]
+
+                href = f'<a href="{link}" target="_blank" style="color:{color};font-weight:700;text-decoration:none;">{title}</a>' if link and link != "#" else f'<span style="font-weight:700;">{title}</span>'
+
+                st.markdown(f"""
+                <div style="border-left:3px solid {color};padding:10px 14px;margin:6px 0;background:#fafafa;border-radius:4px;">
+                  <div style="font-size:0.7rem;color:{color};text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">
+                    {src} &nbsp;·&nbsp; {ft.upper()} &nbsp;·&nbsp; {date}
+                  </div>
+                  <div style="font-size:0.9rem;margin-bottom:4px;">{href}</div>
+                  <div style="font-size:0.8rem;color:#555;">{desc}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        st.caption(
+            "Sources: Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, "
+            "US Dept of Energy, US Dept of Commerce, EDA, Expansion Solutions, Site Selection Magazine."
+        )
+
+
+    with tab6:
+        st.markdown("#### Background Agent Monitor — Agent 4 runs every 30 minutes")
+        st.markdown(
+            "Agent 4 continuously verifies that all data sources are live, caches are fresh, "
+            "and APIs are reachable. This tab shows the live health dashboard."
+        )
+
+        col_refresh, _ = st.columns([2, 5])
+        with col_refresh:
+            if st.button("⚡ Force Debugger Run"):
+                force_run("debugger")
+                st.toast("Debugger triggered — refreshing in ~10s", icon="")
+
+        # ── Agent Status ────────────────────────────────────────────────────────
+        section(" Agent Status")
+        status = get_status()
+
+        agent_labels = {
+            "migration":      ("Agent 1", "Population & Migration", "Every 6h"),
+            "pricing":        ("Agent 2", "REIT Pricing",           "Every 1h"),
+            "predictions":    ("Agent 3", "Company Predictions",    "Every 24h"),
+            "debugger":       ("Agent 4", "Debugger / Monitor",     "Every 30min"),
+            "news":           ("Agent 5", "Industry Announcements", "Every 4h"),
+            "rates":          ("Agent 6", "Interest Rate & Debt",   "Every 1h"),
+            "energy":         ("Agent 7", "Energy & Construction",  "Every 6h"),
+            "sustainability": ("Agent 8", "Sustainability & ESG",   "Every 6h"),
+        }
+
+        cols = st.columns(len(agent_labels))
+        for col, (agent_key, (num, name, freq)) in zip(cols, agent_labels.items()):
+            s = status.get(agent_key, {})
+            st_val = s.get("status", "idle")
+            runs   = s.get("runs", 0)
+            err    = s.get("last_error", None)
+            icon   = {"ok": "", "running": "⏳", "error": "", "idle": ""}.get(st_val, "")
+            color  = {"ok": "status-ok", "running": "status-run", "error": "status-error", "idle": "status-idle"}.get(st_val, "")
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{num} · {freq}</div>
+              <div class="value">{icon}</div>
+              <div class="sub">{name}</div>
+              <div class="{color}" style="font-size:0.75rem;margin-top:4px;">{st_val.upper()} · {runs} runs</div>
+              {"<div style='color:#b71c1c;font-size:0.7rem;margin-top:4px;'>⚠ " + str(err)[:60] + "</div>" if err else ""}
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ── Cache Ages ─────────────────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Cache Status")
+        cache_keys = [
+            ("migration",           "Every 6h",    7),
+            ("pricing",             "Every 1h",    2),
+            ("predictions",         "Every 24h",   25),
+            ("debugger",            "Every 30min", 1),
+            ("news",                "Every 4h",    5),
+            ("rates",               "Every 1h",    2),
+            ("energy_data",         "Every 6h",    7),
+            ("sustainability_data", "Every 6h",    7),
+        ]
+        c_cols = st.columns(len(cache_keys))
+        for col, (key, freq, max_h) in zip(c_cols, cache_keys):
+            c = read_cache(key)
+            age_label = cache_age_label(key)
+            stale = c.get("stale", True)
+            has_data = c["data"] is not None
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{key.title()} Cache</div>
+              <div class="value">{"" if has_data and not stale else ("⚠" if has_data else "")}</div>
+              <div class="sub">{age_label}</div>
+              <div style="font-size:0.72rem;color:#888;margin-top:4px;">Refresh: {freq} · Max age: {max_h}h</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ── Health Report from Debugger Agent ──────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Health Report — Agent 4 Output")
+
+        dbg_cache = read_cache("debugger")
+        if dbg_cache["data"]:
+            dbg = dbg_cache["data"]
+            checked = dbg.get("checked_at", "unknown")
+            st.caption(f"Last health check: {checked}")
+
+            issues  = dbg.get("issues", [])
+            healthy = dbg.get("healthy", [])
+
+            if healthy:
+                st.markdown("**Healthy systems:**")
+                for h in healthy:
+                    st.markdown(f"- {h}")
+
+            if issues:
+                st.markdown("**Issues detected:**")
+                for i in issues:
+                    st.markdown(f"- {i}")
+            elif healthy:
+                st.success("All systems healthy — no issues detected.")
+
+            # ── Agent sub-status from debugger ────────────────────────────────
+            agent_status_in_dbg = dbg.get("agent_status", {})
+            if agent_status_in_dbg:
+                st.markdown("<br>", unsafe_allow_html=True)
+                section(" Last Known Agent States (from Debugger)")
+                dbg_df = pd.DataFrame([
+                    {
+                        "Agent":    k,
+                        "Status":   v.get("status", "?"),
+                        "Last Run": v.get("last_run", "Never"),
+                        "Runs":     v.get("runs", 0),
+                        "Last Error": (v.get("last_error") or "")[:80],
+                    }
+                    for k, v in agent_status_in_dbg.items()
+                ])
+                st.dataframe(dbg_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("Debugger agent has not completed its first run yet. Refresh in 30 seconds.")
+
+        # ── Manual force run buttons ────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section("⚡ Manual Agent Triggers")
+        st.markdown("Force any agent to run immediately (runs in background — data appears after ~15-30s refresh):")
+        b1, b2, b3, b4, b5, b6, b7, b8 = st.columns(8)
+        with b1:
+            if st.button(" Run Migration Agent"):
+                force_run("migration")
+                st.toast("Migration agent triggered", icon="")
+        with b2:
+            if st.button(" Run Pricing Agent"):
+                force_run("pricing")
+                st.toast("Pricing agent triggered", icon="")
+        with b3:
+            if st.button(" Run Predictions Agent"):
+                force_run("predictions")
+                st.toast("Predictions agent triggered (takes ~30s)", icon="")
+        with b4:
+            if st.button(" Run Debugger Agent"):
+                force_run("debugger")
+                st.toast("Debugger agent triggered", icon="")
+        with b5:
+            if st.button(" Run News Agent"):
+                force_run("news")
+                st.toast("News agent triggered (takes ~20s)", icon="")
+        with b6:
+            if st.button(" Run Rate Agent"):
+                force_run("rates")
+                st.toast("Rate agent triggered (takes ~30s)", icon="")
+        with b7:
+            if st.button(" Run Energy Agent"):
+                force_run("energy")
+                st.toast("Energy agent triggered", icon="")
+        with b8:
+            if st.button(" Run Sustainability Agent"):
+                force_run("sustainability")
+                st.toast("Sustainability agent triggered", icon="")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.caption(
+            "All agents run independently in background threads managed by APScheduler. "
+            "Data is stored in JSON cache files and survives Streamlit reruns. "
+            "Requires GROQ_API_KEY in .env for Agent 3 predictions."
+        )
+
+
+
+with main_tab_energy:
+    tab_rates, tab_energy, tab_esg = st.tabs([
+        "Rate Environment",
+        "Energy & Construction Costs",
+        "Sustainability",
+    ])
+
+
+    # ═══════════════════════════════════════════════════════════════════════════════
     #  TAB — RATE ENVIRONMENT
     # ═══════════════════════════════════════════════════════════════════════════════
     with tab_rates:
@@ -674,7 +1058,7 @@ with main_tab:
         if not rdata or rdata.get("error"):
             err = rdata.get("error") if rdata else None
             if err:
-                st.warning(f"⚠️ {err}")
+                st.warning(f"⚠ {err}")
             else:
                 st.info("Rate agent has not completed its first run yet. Click **Force Refresh** above or check that `FRED_API_KEY` is set in `.env`.")
             st.stop()
@@ -706,7 +1090,7 @@ with main_tab:
         </div>""", unsafe_allow_html=True)
 
         # ── Key Rate Cards ──────────────────────────────────────────────────────
-        section("📊 Current Rates")
+        section(" Current Rates")
         display_rates = [
             "10Y Treasury", "2Y Treasury", "Fed Funds Rate",
             "SOFR", "30Y Mortgage", "Prime Rate", "IG Corp Spread",
@@ -738,7 +1122,7 @@ with main_tab:
         # ── Yield Curve + Rate Comparison Table ─────────────────────────────────
         col_yc, col_tbl = st.columns([3, 2])
         with col_yc:
-            section("📉 Yield Curve (Current Shape)")
+            section(" Yield Curve (Current Shape)")
             if yc:
                 tenor_order = ["3M", "2Y", "5Y", "10Y", "30Y"]
                 tenors  = [t for t in tenor_order if t in yc]
@@ -767,7 +1151,7 @@ with main_tab:
                     margin=dict(t=30, b=30, l=60, r=20), height=300,
                     font=dict(family="Source Sans Pro", color="#1a1a1a"),
                     annotations=[dict(
-                        text="⚠️ INVERTED" if inverted else "Normal slope",
+                        text="⚠ INVERTED" if inverted else "Normal slope",
                         x=0.5, y=1.08, xref="paper", yref="paper",
                         showarrow=False, font=dict(size=12,
                         color="#b71c1c" if inverted else "#1b5e20", family="Source Sans Pro"),
@@ -778,7 +1162,7 @@ with main_tab:
                 st.info("Yield curve data unavailable.")
 
         with col_tbl:
-            section("📋 Rate Change Summary")
+            section(" Rate Change Summary")
             tbl_rows = []
             for name in display_rates:
                 r = rates.get(name)
@@ -802,7 +1186,7 @@ with main_tab:
         st.markdown("<br>", unsafe_allow_html=True)
 
         # ── Rate Trends (12 months) ──────────────────────────────────────────────
-        section("📈 Rate Trends — Past 12 Months")
+        section(" Rate Trends — Past 12 Months")
         trend_series = ["10Y Treasury", "2Y Treasury", "Fed Funds Rate", "SOFR"]
         trend_colors = ["#1565c0", "#e65100", "#1b5e20", "#6a1b9a"]
         fig_tr = go.Figure()
@@ -852,7 +1236,7 @@ with main_tab:
         st.markdown("<br>", unsafe_allow_html=True)
 
         # ── Cap Rate Adjustment Impact ───────────────────────────────────────────
-        section(f"🏗️ Cap Rate Adjustment — Current 10Y ({current_10y:.2f}%) vs. {baseline:.1f}% Baseline")
+        section(f" Cap Rate Adjustment — Current 10Y ({current_10y:.2f}%) vs. {baseline:.1f}% Baseline")
         if cap_adj:
             adj_df = pd.DataFrame(cap_adj)
             col_bars, col_impact = st.columns([3, 2])
@@ -921,7 +1305,7 @@ with main_tab:
         st.markdown("<br>", unsafe_allow_html=True)
 
         # ── REIT Refinancing Risk ────────────────────────────────────────────────
-        section("💳 REIT Near-Term Refinancing Risk")
+        section(" REIT Near-Term Refinancing Risk")
         if debt_risk:
             debt_df = pd.DataFrame(debt_risk)
             risk_colors = {"High": "#b71c1c", "Medium": "#e65100", "Low": "#1b5e20"}
@@ -974,11 +1358,11 @@ with main_tab:
             if not high_risk.empty:
                 names = ", ".join(high_risk["Ticker"].tolist())
                 st.warning(
-                    f"⚠️ **High refinancing risk:** {names} — these REITs have ≥25% of debt maturing "
+                    f"⚠ **High refinancing risk:** {names} — these REITs have ≥25% of debt maturing "
                     f"within 12 months. Elevated 10Y rates ({current_10y:.2f}%) increase rollover costs."
                 )
             else:
-                st.success("✅ No REITs with high near-term refinancing risk detected.")
+                st.success(" No REITs with high near-term refinancing risk detected.")
 
             st.caption(
                 "Near-term debt = current portion of long-term debt from latest quarterly balance sheet (yfinance). "
@@ -994,7 +1378,7 @@ with main_tab:
             direction_word = "above" if delta > 0 else "below"
             impact_word    = "expanding cap rates" if delta > 0 else "compressing cap rates"
             st.info(
-                f"💡 **Impact on Pricing & Profit tab:** With 10Y at **{current_10y:.2f}%** "
+                f" **Impact on Pricing & Profit tab:** With 10Y at **{current_10y:.2f}%** "
                 f"({abs(delta):.2f}% {direction_word} the {baseline:.1f}% static benchmark), "
                 f"rates are currently **{impact_word}** across all property types. "
                 f"The adjustments above are applied in the rate-adjusted view on the Pricing & Profit tab."
@@ -1004,220 +1388,6 @@ with main_tab:
             "Data: Federal Reserve Bank of St. Louis (FRED). "
             "Cap rate adjustment model: adjusted = benchmark + (10Y − baseline) × sector beta. "
             "This is research, not financial advice."
-        )
-
-
-    # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB 3 — COMPANY PREDICTIONS
-    # ═══════════════════════════════════════════════════════════════════════════════
-    with tab3:
-        st.markdown("#### Which companies are most likely to relocate or expand in the next 12 months?")
-        st.markdown(
-            "Agent 3 uses an LLM (Llama 3.3-70B via Groq) to analyze migration signals, tax policy, "
-            "labor markets, and corporate announcements — then predicts HQ moves. Updates every 24 hours."
-        )
-        agent_force_button("predictions", "Predictions Agent")
-
-        cache3 = read_cache("predictions")
-        if not stale_banner("predictions") or cache3["data"] is None:
-            st.stop()
-
-        pdata3 = cache3["data"]
-
-        # ── AI Predictions ────────────────────────────────────────────────────
-        section("🔮 AI-Predicted Corporate Relocations & Expansions (Next 12 Months)")
-        pred_text = pdata3.get("predictions_text", "")
-        if pred_text:
-            st.markdown(f"""
-            <div class="agent-card">
-              <div class="agent-label">🤖 Agent 3 · Corporate Relocation Intelligence · {datetime.today().strftime('%b %d, %Y')}</div>
-              <div class="agent-text">{pred_text}</div>
-            </div>""", unsafe_allow_html=True)
-        else:
-            st.info("Predictions not yet available. Click Force Refresh or check that GROQ_API_KEY is set in .env")
-
-        # ── Top 5 States breakdown ─────────────────────────────────────────────
-        section("📊 Top 5 States Driving Predictions")
-        top5 = pdata3.get("top5_states", [])
-        if top5:
-            top5_df = pd.DataFrame(top5)
-            cols_show = [c for c in ["state_name","state_abbr","pop_growth_pct","biz_score","key_companies","growth_drivers"] if c in top5_df.columns]
-            top5_df = top5_df[cols_show].copy()
-            if "pop_growth_pct" in top5_df.columns:
-                top5_df["pop_growth_pct"] = top5_df["pop_growth_pct"].apply(lambda x: f"{x:+.2f}%")
-            st.dataframe(top5_df, use_container_width=True, hide_index=True)
-
-
-    # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB 4 — CHEAPEST BUILDINGS
-    # ═══════════════════════════════════════════════════════════════════════════════
-    with tab4:
-        st.markdown("#### Cheapest commercial buildings to purchase in the top 3 migration destination states")
-        st.markdown(
-            "Agent 3 sources the lowest-price commercial listings in the states with the highest "
-            "migration and business growth scores — identifying acquisition opportunities before demand peaks. "
-            "Updates every 24 hours alongside company predictions."
-        )
-        agent_force_button("predictions", "Listings Agent", key_suffix="_listings")
-
-        cache4 = read_cache("predictions")
-        if not stale_banner("predictions") or cache4["data"] is None:
-            st.stop()
-
-        pdata4   = cache4["data"]
-        listings = pdata4.get("listings", {})
-        top3_abbr = pdata4.get("top3_abbr", [])
-
-        if not listings:
-            st.info("No listings available yet. Click Force Refresh above or wait for the agent to complete its first run.")
-        else:
-            from src.cre_listings import format_listing_card
-
-            for abbr in top3_abbr:
-                state_listings = listings.get(abbr, [])
-                if not state_listings:
-                    continue
-
-                # Get migration cache for state name
-                mig_cache = read_cache("migration")
-                state_name = abbr
-                if mig_cache["data"]:
-                    mig_df2 = pd.DataFrame(mig_cache["data"]["migration"])
-                    row = mig_df2[mig_df2["state_abbr"] == abbr]
-                    if not row.empty:
-                        state_name = row.iloc[0]["state_name"]
-
-                section(f"🏗️ {state_name} ({abbr}) — Cheapest Commercial Properties")
-                st.caption(f"Showing {len(state_listings)} lowest-price listings sorted by asking price")
-
-                for listing in state_listings:
-                    if isinstance(listing, dict):
-                        price_fmt  = f"${listing.get('price', 0):,}"
-                        sqft_fmt   = f"{listing.get('sqft', 0):,} sqft"
-                        ppsf_fmt   = f"${listing.get('price_per_sqft', 0):.0f}/sqft"
-                        cap_fmt    = f"{listing.get('cap_rate', 0):.2f}% cap rate"
-                        noi_fmt    = f"${listing.get('noi_annual', 0):,}/yr NOI"
-                        dom_fmt    = f"{listing.get('days_on_market', 0)}d on market"
-                        built_fmt  = f"Built {listing.get('year_built', 'N/A')}"
-                        pt_fmt     = listing.get("property_type", "")
-                        addr_fmt   = f"{listing.get('address', '')}, {listing.get('city', '')}, {listing.get('state', '')}"
-                        highlights = listing.get("highlights", "")
-
-                        st.markdown(f"""
-                        <div class="listing-card">
-                          <div class="l-price">{price_fmt}</div>
-                          <div class="l-address">{addr_fmt}</div>
-                          <div style="margin:4px 0;">
-                            <span class="l-tag">{pt_fmt}</span>
-                            <span class="l-tag">{cap_fmt}</span>
-                            <span class="l-tag">{dom_fmt}</span>
-                          </div>
-                          <div class="l-detail">{sqft_fmt} · {ppsf_fmt} · {noi_fmt} · {built_fmt}</div>
-                          {"<div class='l-detail' style='color:#555;margin-top:4px;font-style:italic;'>✓ " + highlights + "</div>" if highlights else ""}
-                        </div>
-                        """, unsafe_allow_html=True)
-
-            # ── Why these markets? ────────────────────────────────────────────
-            st.markdown("<br>", unsafe_allow_html=True)
-            section("💡 Why These Markets? Investment Thesis")
-
-            mig_cache2 = read_cache("migration")
-            if mig_cache2["data"]:
-                mig_df3 = pd.DataFrame(mig_cache2["data"]["migration"])
-                top3_rows = mig_df3[mig_df3["state_abbr"].isin(top3_abbr)].head(3)
-                for _, row in top3_rows.iterrows():
-                    with st.expander(f"📍 {row['state_name']} ({row['state_abbr']}) — Why Invest Here?"):
-                        col_a, col_b, col_c = st.columns(3)
-                        col_a.metric("Population Growth", f"{row['pop_growth_pct']:+.2f}%", "YoY")
-                        col_b.metric("Business Score", str(row['biz_score']), "Migration index")
-                        col_c.metric("Composite Score", str(row['composite_score']), "0–100 scale")
-                        st.markdown(f"**Key Companies:** {row['key_companies']}")
-                        st.markdown(f"**Growth Drivers:** {row['growth_drivers']}")
-
-
-    # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB 5 — SYSTEM MONITOR / DEBUGGER
-    # ═══════════════════════════════════════════════════════════════════════════════
-    with tab5:
-        st.markdown("#### Where are companies building? Live facility & investment announcements across the US")
-        st.markdown(
-            "Agent 5 monitors **news wires, government press releases, and industry publications** "
-            "every 4 hours — surfacing companies that have announced new manufacturing plants, "
-            "training centers, data centers, warehouses, and other large facilities. "
-            "Sources include Reuters, IndustryWeek, PR Newswire, DOE, Commerce Dept, and EDA."
-        )
-        agent_force_button("news", "News Agent", key_suffix="_news")
-
-        cache_news = read_cache("news")
-        if not stale_banner("news") or cache_news["data"] is None:
-            st.stop()
-
-        ndata = cache_news["data"]
-
-        # ── KPI strip ─────────────────────────────────────────────────────────
-        c1, c2, c3 = st.columns(3)
-        c1.markdown(metric_card("Articles Found", str(ndata.get("article_count", 0)), "Facility announcements"), unsafe_allow_html=True)
-        c2.markdown(metric_card("Sources Checked", str(ndata.get("sources_checked", 0)), "News + gov feeds"), unsafe_allow_html=True)
-        fetched = ndata.get("fetched_at", "")
-        fetched_label = datetime.fromisoformat(fetched).strftime("%b %d, %Y %I:%M %p") if fetched else "N/A"
-        c3.markdown(metric_card("Last Scan", fetched_label, "Updates every 4 hours"), unsafe_allow_html=True)
-
-        # ── AI Summary ────────────────────────────────────────────────────────
-        section("🤖 Agent 5 — AI Investment Brief: Facility Announcements")
-        summary = ndata.get("summary", "")
-        if summary:
-            st.markdown(f"""
-            <div class="agent-card">
-              <div class="agent-label">🤖 Agent 5 · Industry Announcements · {datetime.today().strftime('%b %d, %Y')}</div>
-              <div class="agent-text">{summary}</div>
-            </div>""", unsafe_allow_html=True)
-        else:
-            st.info("Summary not yet available. Click Force Refresh or ensure GROQ_API_KEY is set in .env")
-
-        # ── Raw Article Feed ─────────────────────────────────────────────────
-        raw = ndata.get("raw_articles", [])
-        if raw:
-            section(f"📋 Raw Announcement Feed ({len(raw)} articles)")
-
-            feed_type_filter = st.selectbox(
-                "Filter by source type",
-                options=["All", "news", "industry", "press", "government"],
-                key="news_filter",
-            )
-
-            source_colors = {
-                "government": "#1565c0",
-                "industry":   "#2e7d32",
-                "press":      "#6a1b9a",
-                "news":       "#bf360c",
-            }
-
-            for art in raw:
-                if feed_type_filter != "All" and art.get("feed_type") != feed_type_filter:
-                    continue
-                ft    = art.get("feed_type", "news")
-                color = source_colors.get(ft, "#555")
-                link  = art.get("link", "#")
-                title = art.get("title", "No title")
-                desc  = art.get("description", "")[:280]
-                src   = art.get("source", "")
-                date  = art.get("pub_date", "")[:22]
-
-                href = f'<a href="{link}" target="_blank" style="color:{color};font-weight:700;text-decoration:none;">{title}</a>' if link and link != "#" else f'<span style="font-weight:700;">{title}</span>'
-
-                st.markdown(f"""
-                <div style="border-left:3px solid {color};padding:10px 14px;margin:6px 0;background:#fafafa;border-radius:4px;">
-                  <div style="font-size:0.7rem;color:{color};text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">
-                    {src} &nbsp;·&nbsp; {ft.upper()} &nbsp;·&nbsp; {date}
-                  </div>
-                  <div style="font-size:0.9rem;margin-bottom:4px;">{href}</div>
-                  <div style="font-size:0.8rem;color:#555;">{desc}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        st.caption(
-            "Sources: Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, "
-            "US Dept of Energy, US Dept of Commerce, EDA, Expansion Solutions, Site Selection Magazine."
         )
 
 
@@ -1237,7 +1407,7 @@ with main_tab:
             st.warning("⏳ Energy agent is fetching data for the first time — please wait ~30 seconds and refresh.")
             st.stop()
         age_e = cache_age_label("energy_data")
-        st.caption(f"🔄 Last updated: {age_e} · Auto-refreshes in background")
+        st.caption(f" Last updated: {age_e} · Auto-refreshes in background")
 
         edata = cache_e["data"]
         commodities = edata.get("commodities", [])
@@ -1245,7 +1415,7 @@ with main_tab:
         avg_momentum = edata.get("avg_momentum_pct", 0)
 
         # ── KPI strip ──────────────────────────────────────────────────────────
-        signal_color = {"HIGH": "🔴", "MODERATE": "🟡", "LOW": "🟢"}.get(cost_signal, "⚪")
+        signal_color = {"HIGH": "", "MODERATE": "", "LOW": ""}.get(cost_signal, "⚪")
         c1, c2, c3, c4 = st.columns(4)
         c1.markdown(metric_card("Construction Cost Signal", f"{signal_color} {cost_signal}",
                                  "Based on commodity momentum"), unsafe_allow_html=True)
@@ -1258,7 +1428,7 @@ with main_tab:
 
         # ── Commodity Price Table ──────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        section("📊 Commodity Prices vs 60-Day Moving Average")
+        section(" Commodity Prices vs 60-Day Moving Average")
 
         if commodities:
             comm_df = pd.DataFrame(commodities)
@@ -1289,7 +1459,7 @@ with main_tab:
             st.plotly_chart(fig_comm, use_container_width=True)
 
             # Detail table
-            section("📋 Commodity Detail")
+            section(" Commodity Detail")
             disp_comm = comm_df[["label", "latest_price", "sma_60", "pct_above_sma"]].copy()
             disp_comm.columns = ["Commodity", "Latest Price", "SMA-60", "% vs SMA"]
             disp_comm["Latest Price"] = disp_comm["Latest Price"].apply(lambda x: f"${x:.2f}")
@@ -1319,7 +1489,7 @@ with main_tab:
             st.warning("⏳ Sustainability agent is fetching data for the first time — please wait ~30 seconds and refresh.")
             st.stop()
         age_s = cache_age_label("sustainability_data")
-        st.caption(f"🔄 Last updated: {age_s} · Auto-refreshes in background")
+        st.caption(f" Last updated: {age_s} · Auto-refreshes in background")
 
         sdata = cache_s["data"]
         clean_energy = sdata.get("clean_energy", [])
@@ -1329,7 +1499,7 @@ with main_tab:
         avg_clean_ret = sdata.get("avg_clean_energy_return_pct", 0)
 
         # ── KPI strip ──────────────────────────────────────────────────────────
-        esg_icon = {"STRONG": "🟢", "NEUTRAL": "🟡", "WEAK": "🔴"}.get(esg_signal, "⚪")
+        esg_icon = {"STRONG": "", "NEUTRAL": "", "WEAK": ""}.get(esg_signal, "⚪")
         c1, c2, c3, c4 = st.columns(4)
         c1.markdown(metric_card("ESG Momentum Signal", f"{esg_icon} {esg_signal}",
                                  "Clean energy vs SPY"), unsafe_allow_html=True)
@@ -1378,7 +1548,7 @@ with main_tab:
             st.plotly_chart(fig_ce, use_container_width=True)
 
         # ── Green REITs ────────────────────────────────────────────────────────
-        section("🏢 Green REIT Performance (PLD, EQIX, ARE)")
+        section(" Green REIT Performance (PLD, EQIX, ARE)")
 
         if green_reits:
             gr_df = pd.DataFrame(green_reits)
@@ -1410,7 +1580,7 @@ with main_tab:
             st.plotly_chart(fig_gr, use_container_width=True)
 
         # ── Combined Detail Table ──────────────────────────────────────────────
-        section("📋 Full Detail — Clean Energy & Green REITs")
+        section(" Full Detail — Clean Energy & Green REITs")
         all_esg = clean_energy + green_reits
         if all_esg:
             esg_df = pd.DataFrame(all_esg)
@@ -1425,170 +1595,6 @@ with main_tab:
         st.caption(
             "Data sourced from Yahoo Finance. ESG Momentum Signal: STRONG (clean energy outperforms SPY by >2pp), "
             "NEUTRAL (±2pp), WEAK (underperforms by >2pp). Green REITs: Prologis (LEED), Equinix (renewables), Alexandria (carbon-neutral)."
-        )
-
-
-    with tab6:
-        st.markdown("#### Background Agent Monitor — Agent 4 runs every 30 minutes")
-        st.markdown(
-            "Agent 4 continuously verifies that all data sources are live, caches are fresh, "
-            "and APIs are reachable. This tab shows the live health dashboard."
-        )
-
-        col_refresh, _ = st.columns([2, 5])
-        with col_refresh:
-            if st.button("⚡ Force Debugger Run"):
-                force_run("debugger")
-                st.toast("Debugger triggered — refreshing in ~10s", icon="🛠️")
-
-        # ── Agent Status ────────────────────────────────────────────────────────
-        section("🤖 Agent Status")
-        status = get_status()
-
-        agent_labels = {
-            "migration":      ("Agent 1", "Population & Migration", "Every 6h"),
-            "pricing":        ("Agent 2", "REIT Pricing",           "Every 1h"),
-            "predictions":    ("Agent 3", "Company Predictions",    "Every 24h"),
-            "debugger":       ("Agent 4", "Debugger / Monitor",     "Every 30min"),
-            "news":           ("Agent 5", "Industry Announcements", "Every 4h"),
-            "rates":          ("Agent 6", "Interest Rate & Debt",   "Every 1h"),
-            "energy":         ("Agent 7", "Energy & Construction",  "Every 6h"),
-            "sustainability": ("Agent 8", "Sustainability & ESG",   "Every 6h"),
-        }
-
-        cols = st.columns(len(agent_labels))
-        for col, (agent_key, (num, name, freq)) in zip(cols, agent_labels.items()):
-            s = status.get(agent_key, {})
-            st_val = s.get("status", "idle")
-            runs   = s.get("runs", 0)
-            err    = s.get("last_error", None)
-            icon   = {"ok": "✅", "running": "⏳", "error": "❌", "idle": "💤"}.get(st_val, "❓")
-            color  = {"ok": "status-ok", "running": "status-run", "error": "status-error", "idle": "status-idle"}.get(st_val, "")
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{num} · {freq}</div>
-              <div class="value">{icon}</div>
-              <div class="sub">{name}</div>
-              <div class="{color}" style="font-size:0.75rem;margin-top:4px;">{st_val.upper()} · {runs} runs</div>
-              {"<div style='color:#b71c1c;font-size:0.7rem;margin-top:4px;'>⚠ " + str(err)[:60] + "</div>" if err else ""}
-            </div>
-            """, unsafe_allow_html=True)
-
-        # ── Cache Ages ─────────────────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section("📦 Cache Status")
-        cache_keys = [
-            ("migration",           "Every 6h",    7),
-            ("pricing",             "Every 1h",    2),
-            ("predictions",         "Every 24h",   25),
-            ("debugger",            "Every 30min", 1),
-            ("news",                "Every 4h",    5),
-            ("rates",               "Every 1h",    2),
-            ("energy_data",         "Every 6h",    7),
-            ("sustainability_data", "Every 6h",    7),
-        ]
-        c_cols = st.columns(len(cache_keys))
-        for col, (key, freq, max_h) in zip(c_cols, cache_keys):
-            c = read_cache(key)
-            age_label = cache_age_label(key)
-            stale = c.get("stale", True)
-            has_data = c["data"] is not None
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{key.title()} Cache</div>
-              <div class="value">{"✅" if has_data and not stale else ("⚠️" if has_data else "❌")}</div>
-              <div class="sub">{age_label}</div>
-              <div style="font-size:0.72rem;color:#888;margin-top:4px;">Refresh: {freq} · Max age: {max_h}h</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # ── Health Report from Debugger Agent ──────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section("🔍 Health Report — Agent 4 Output")
-
-        dbg_cache = read_cache("debugger")
-        if dbg_cache["data"]:
-            dbg = dbg_cache["data"]
-            checked = dbg.get("checked_at", "unknown")
-            st.caption(f"Last health check: {checked}")
-
-            issues  = dbg.get("issues", [])
-            healthy = dbg.get("healthy", [])
-
-            if healthy:
-                st.markdown("**Healthy systems:**")
-                for h in healthy:
-                    st.markdown(f"- {h}")
-
-            if issues:
-                st.markdown("**Issues detected:**")
-                for i in issues:
-                    st.markdown(f"- {i}")
-            elif healthy:
-                st.success("All systems healthy — no issues detected.")
-
-            # ── Agent sub-status from debugger ────────────────────────────────
-            agent_status_in_dbg = dbg.get("agent_status", {})
-            if agent_status_in_dbg:
-                st.markdown("<br>", unsafe_allow_html=True)
-                section("📋 Last Known Agent States (from Debugger)")
-                dbg_df = pd.DataFrame([
-                    {
-                        "Agent":    k,
-                        "Status":   v.get("status", "?"),
-                        "Last Run": v.get("last_run", "Never"),
-                        "Runs":     v.get("runs", 0),
-                        "Last Error": (v.get("last_error") or "")[:80],
-                    }
-                    for k, v in agent_status_in_dbg.items()
-                ])
-                st.dataframe(dbg_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("Debugger agent has not completed its first run yet. Refresh in 30 seconds.")
-
-        # ── Manual force run buttons ────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section("⚡ Manual Agent Triggers")
-        st.markdown("Force any agent to run immediately (runs in background — data appears after ~15-30s refresh):")
-        b1, b2, b3, b4, b5, b6, b7, b8 = st.columns(8)
-        with b1:
-            if st.button("🗺️ Run Migration Agent"):
-                force_run("migration")
-                st.toast("Migration agent triggered", icon="🗺️")
-        with b2:
-            if st.button("💰 Run Pricing Agent"):
-                force_run("pricing")
-                st.toast("Pricing agent triggered", icon="💰")
-        with b3:
-            if st.button("🔮 Run Predictions Agent"):
-                force_run("predictions")
-                st.toast("Predictions agent triggered (takes ~30s)", icon="🔮")
-        with b4:
-            if st.button("🛠️ Run Debugger Agent"):
-                force_run("debugger")
-                st.toast("Debugger agent triggered", icon="🛠️")
-        with b5:
-            if st.button("📰 Run News Agent"):
-                force_run("news")
-                st.toast("News agent triggered (takes ~20s)", icon="📰")
-        with b6:
-            if st.button("📈 Run Rate Agent"):
-                force_run("rates")
-                st.toast("Rate agent triggered (takes ~30s)", icon="📈")
-        with b7:
-            if st.button("🛢️ Run Energy Agent"):
-                force_run("energy")
-                st.toast("Energy agent triggered", icon="🛢️")
-        with b8:
-            if st.button("🌱 Run Sustainability Agent"):
-                force_run("sustainability")
-                st.toast("Sustainability agent triggered", icon="🌱")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.caption(
-            "All agents run independently in background threads managed by APScheduler. "
-            "Data is stored in JSON cache files and survives Streamlit reruns. "
-            "Requires GROQ_API_KEY in .env for Agent 3 predictions."
         )
 
 
