@@ -85,6 +85,9 @@ _agent_status = {
     "energy":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "sustainability": {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "labor_market":   {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "gdp":            {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "inflation":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "credit":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
 def get_status() -> dict:
@@ -449,6 +452,54 @@ def run_labor_market_agent():
         _set_status("labor_market", "error", str(e))
 
 
+# ── Agent 10 · GDP & Economic Growth ─────────────────────────────────────────
+
+def run_gdp_agent():
+    _set_status("gdp", "running")
+    try:
+        from src.gdp_agent import run_gdp_agent as _run
+        result = _run()
+        write_cache("gdp_data", result)
+        if result.get("error"):
+            _set_status("gdp", "error", result["error"])
+        else:
+            _set_status("gdp", "ok")
+    except Exception as e:
+        _set_status("gdp", "error", str(e))
+
+
+# ── Agent 11 · Inflation & Construction Costs ─────────────────────────────────
+
+def run_inflation_agent():
+    _set_status("inflation", "running")
+    try:
+        from src.inflation_agent import run_inflation_agent as _run
+        result = _run()
+        write_cache("inflation_data", result)
+        if result.get("error"):
+            _set_status("inflation", "error", result["error"])
+        else:
+            _set_status("inflation", "ok")
+    except Exception as e:
+        _set_status("inflation", "error", str(e))
+
+
+# ── Agent 12 · Credit & Capital Markets ──────────────────────────────────────
+
+def run_credit_markets_agent():
+    _set_status("credit", "running")
+    try:
+        from src.credit_markets_agent import run_credit_markets_agent as _run
+        result = _run()
+        write_cache("credit_data", result)
+        if result.get("error"):
+            _set_status("credit", "error", result["error"])
+        else:
+            _set_status("credit", "ok")
+    except Exception as e:
+        _set_status("credit", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -472,11 +523,16 @@ def start_scheduler():
         _scheduler.add_job(run_energy_agent,       IntervalTrigger(hours=6),        id="energy",      replace_existing=True)
         _scheduler.add_job(run_sustainability_agent, IntervalTrigger(hours=6),      id="sustainability",  replace_existing=True)
         _scheduler.add_job(run_labor_market_agent,   IntervalTrigger(hours=6),      id="labor_market",    replace_existing=True)
+        _scheduler.add_job(run_gdp_agent,            IntervalTrigger(hours=6),      id="gdp",             replace_existing=True)
+        _scheduler.add_job(run_inflation_agent,      IntervalTrigger(hours=6),      id="inflation",       replace_existing=True)
+        _scheduler.add_job(run_credit_markets_agent, IntervalTrigger(hours=6),      id="credit",          replace_existing=True)
 
         _scheduler.start()
 
         # Run all agents immediately on first start (in background threads)
-        for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent, run_news_agent, run_rate_agent, run_energy_agent, run_sustainability_agent, run_labor_market_agent]:
+        for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent,
+                   run_news_agent, run_rate_agent, run_energy_agent, run_sustainability_agent,
+                   run_labor_market_agent, run_gdp_agent, run_inflation_agent, run_credit_markets_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -493,6 +549,9 @@ def force_run(agent_name: str):
         "energy":         run_energy_agent,
         "sustainability": run_sustainability_agent,
         "labor_market":  run_labor_market_agent,
+        "gdp":           run_gdp_agent,
+        "inflation":     run_inflation_agent,
+        "credit":        run_credit_markets_agent,
     }
     fn = agents.get(agent_name)
     if fn:
