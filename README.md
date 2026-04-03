@@ -1,6 +1,6 @@
 # CRE Intelligence Platform
 
-> Real-time commercial real estate intelligence powered by eight autonomous AI agents — tracking migration flows, REIT pricing, interest rates, facility announcements, energy costs, and ESG momentum across US markets.
+> Real-time commercial real estate intelligence powered by twelve autonomous AI agents — tracking migration flows, REIT pricing, interest rates, labor markets, GDP, inflation, credit conditions, facility announcements, energy costs, and ESG momentum across US markets.
 
 **Purdue Daniels School of Business · MGMT 690: AI Leadership**
 
@@ -8,7 +8,7 @@
 
 ## What It Does
 
-Most CRE research tools require manual data pulls, static spreadsheets, and hours of synthesis. This platform replaces that workflow with a live dashboard backed by eight background agents that update continuously — surfacing which markets to watch, which property types are most profitable, and which companies are building new facilities.
+Most CRE research tools require manual data pulls, static spreadsheets, and hours of synthesis. This platform replaces that workflow with a live dashboard backed by twelve background agents that update continuously — surfacing which markets to watch, which property types are most profitable, which companies are building new facilities, and what macro conditions mean for CRE valuations.
 
 The app opens with an AI-powered chatbox that asks what you are looking for. Type a query like "industrial in Los Angeles" or "office in Chicago" and the entire dashboard personalizes to that search — tab titles rewrite, maps zoom to your metro, listings filter to your city, and AI-generated insights appear for your specific property type and location. Over 200 US cities are recognized with accurate metro-level neighborhood maps.
 
@@ -18,7 +18,7 @@ The agents run on a scheduler. Open the dashboard and the data is already there.
 
 ## Agent Architecture
 
-Eight specialized agents operate independently on fixed schedules, writing to a shared JSON cache that survives Streamlit reruns.
+Twelve specialized agents operate independently on fixed schedules, writing to a shared JSON cache that survives Streamlit reruns.
 
 | Agent | Responsibility | Schedule |
 |-------|---------------|----------|
@@ -30,6 +30,10 @@ Eight specialized agents operate independently on fixed schedules, writing to a 
 | Rate Environment | Fed Funds, Treasuries, yield curve, cap rate adjustments, REIT debt risk | Every 1 hour |
 | Energy Analyst | Oil, gas, copper, steel prices vs. 60-day moving average | Every 6 hours |
 | Sustainability Analyst | Clean energy ETFs, green REIT performance vs. S&P 500 | Every 6 hours |
+| Labor Market Analyst | Job growth by metro, sector payrolls, tenant demand signal, hiring momentum | Every 6 hours |
+| GDP & Economic Growth | Real GDP, industrial production, retail sales, consumer sentiment, CFNAI | Every 6 hours |
+| Inflation Analyst | CPI (headline/core/shelter/rent), PPI, breakeven inflation expectations | Every 6 hours |
+| Credit & Capital Markets | Corporate spreads, VIX, bank lending standards, CRE loan conditions | Every 6 hours |
 
 All agents start automatically when the app launches. No manual triggers needed.
 
@@ -80,7 +84,7 @@ The map auto-selects the appropriate level based on the user's query. Typing "Te
 
 ## Dashboard
 
-Two top-level tabs — **Real Estate** and **Energy** — each with focused sub-tabs.
+Three top-level tabs — **Real Estate**, **Energy**, and **Macro Environment** — each with focused sub-tabs.
 
 ### Real Estate
 
@@ -97,9 +101,18 @@ Two top-level tabs — **Real Estate** and **Energy** — each with focused sub-
 
 | Tab | What You See |
 |-----|-------------|
-| Rate Environment | Current rates table, yield curve shape, 12-month trend, cap rate adjustments by property type, REIT refinancing risk scores |
 | Energy & Construction Costs | Commodity prices vs. 60-day SMA, construction cost signal (HIGH / MODERATE / LOW) |
 | Sustainability | Clean energy ETF performance (ICLN, TAN, QCLN), green REIT performance (PLD, EQIX, ARE) vs. SPY |
+
+### Macro Environment
+
+| Tab | What You See |
+|-----|-------------|
+| Rate Environment | Current rates table, yield curve shape, 12-month trend, cap rate adjustments by property type, REIT refinancing risk scores |
+| Labor Market | Tenant demand signal, nonfarm payrolls, JOLTS job openings, BLS sector payrolls by CRE property type, sector ETF momentum, state unemployment for top CRE destination markets |
+| GDP & Economic Growth | Economic cycle phase (Expansion / Slowdown / Contraction), real GDP growth, industrial production, consumer sentiment, Chicago Fed Activity Index, CRE outlook by cycle phase |
+| Inflation | Inflation regime (Hot / Moderate / Cooling), CPI headline/core/shelter/rent YoY trends, PPI construction cost pressure, market breakeven inflation expectations (5Y/10Y) |
+| Credit & Capital Markets | Credit conditions (Loose / Neutral / Tight), IG/HY/BBB corporate spreads, VIX volatility, Fed bank lending standards (C&I and CRE), Moody's BAA–AAA spread |
 
 ---
 
@@ -119,9 +132,11 @@ export FRED_API_KEY=your_key_here
 
 # 4. Run
 streamlit run app/cre_app.py
+# or on a specific port:
+streamlit run app/cre_app.py --server.port 8503
 ```
 
-The app opens at `http://localhost:8501`. All eight agents start in the background immediately. Data populates within 30–60 seconds.
+The app opens at `http://localhost:8501` by default. All twelve agents start in the background immediately. Data populates within 30–60 seconds.
 
 ---
 
@@ -130,9 +145,16 @@ The app opens at `http://localhost:8501`. All eight agents start in the backgrou
 | Key | Required | Purpose | Get It |
 |-----|----------|---------|--------|
 | `GROQ_API_KEY` | Recommended | Company facility announcements (Llama 3.3-70B) and news summaries | [console.groq.com](https://console.groq.com) — free tier available |
-| `FRED_API_KEY` | Recommended | Interest rates, yield curve, mortgage rates from the Federal Reserve | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) — free |
+| `FRED_API_KEY` | Recommended | Interest rates, yield curve, labor market, GDP, inflation, and credit market data from the Federal Reserve | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) — free |
 
-The app runs without both keys — migration, REIT pricing, energy, and sustainability tabs work on public data alone. AI-powered features degrade gracefully with a status message.
+Store keys in a `.env` file at the project root (no spaces around `=`):
+
+```
+GROQ_API_KEY=your_key_here
+FRED_API_KEY=your_key_here
+```
+
+The app runs without both keys — migration, REIT pricing, energy, and sustainability tabs work on public data alone. FRED-powered tabs (Rate Environment, Labor Market, GDP, Inflation, Credit) degrade gracefully with a status message.
 
 ---
 
@@ -143,9 +165,10 @@ The app runs without both keys — migration, REIT pricing, energy, and sustaina
 | Dashboard | Streamlit |
 | Agent Scheduling | APScheduler — BackgroundScheduler with IntervalTrigger |
 | Data Cache | File-based JSON (`/cache/`) — persists across Streamlit reruns |
-| Market Data | yfinance — REIT prices, dividends, commodities, ETFs |
+| Market Data | yfinance — REIT prices, dividends, commodities, sector ETFs |
 | Population Data | US Census Bureau Population Estimates API (2023) |
-| Interest Rate Data | FRED API — 10 series including Treasuries, SOFR, Fed Funds, mortgage rates |
+| Macro Data | FRED API — 40+ series across rates, labor, GDP, inflation, and credit markets |
+| Labor Data | BLS Public API — supersector payroll data (10 industry groups) |
 | AI / LLM | Groq API — llama-3.3-70b-versatile |
 | News Sources | Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, Dept. of Energy, Dept. of Commerce, EDA, Expansion Solutions, Site Selection Magazine |
 | Charts | Plotly — choropleth maps, heatmaps, bar, scatter, line |
@@ -158,21 +181,25 @@ The app runs without both keys — migration, REIT pricing, energy, and sustaina
 ```
 AI-leadership-Project/
 ├── app/
-│   └── cre_app.py              # Streamlit dashboard — all tabs and visualization
+│   └── cre_app.py                  # Streamlit dashboard — all tabs and visualization
 ├── src/
-│   ├── cre_agents.py           # Agent runner, scheduler, cache helpers
-│   ├── cre_population.py       # Census API — migration scores, metro data
-│   ├── cre_pricing.py          # REIT universe, cap rates, profit matrix
-│   ├── cre_news.py             # RSS feed scraper, facility keyword filter
-│   ├── cre_listings.py         # Commercial property listings by state (28 states, 200+ cities)
-│   ├── rate_agent.py           # FRED API — interest rates, yield curve
-│   ├── energy_analyst.py       # Commodity prices, construction cost signal
-│   ├── sustainability_analyst.py # Clean energy ETFs, green REIT tracking
-│   ├── county_migration.py    # County-level migration data (FIPS codes, 12 states seeded)
-│   └── zip_migration.py       # Neighborhood-level data (17 metros, real lat/lon)
-├── chief-of-staff/             # CLI tool for project coordination
-├── .pipeline/                  # Auto-sync agent for team machines
-├── cache/                      # Runtime JSON cache (gitignored)
+│   ├── cre_agents.py               # Agent runner, scheduler, cache helpers (12 agents)
+│   ├── cre_population.py           # Census API — migration scores, metro data
+│   ├── cre_pricing.py              # REIT universe, cap rates, profit matrix
+│   ├── cre_news.py                 # RSS feed scraper, facility keyword filter
+│   ├── cre_listings.py             # Commercial property listings by state (28 states, 200+ cities)
+│   ├── rate_agent.py               # FRED API — interest rates, yield curve
+│   ├── energy_analyst.py           # Commodity prices, construction cost signal
+│   ├── sustainability_analyst.py   # Clean energy ETFs, green REIT tracking
+│   ├── labor_market_agent.py       # BLS + FRED + yfinance — labor market & tenant demand
+│   ├── gdp_agent.py                # FRED — GDP, industrial production, consumer sentiment
+│   ├── inflation_agent.py          # FRED — CPI, PPI, breakeven inflation expectations
+│   ├── credit_markets_agent.py     # FRED — corporate spreads, VIX, lending standards
+│   ├── county_migration.py         # County-level migration data (FIPS codes, 12 states seeded)
+│   └── zip_migration.py            # Neighborhood-level data (17 metros, real lat/lon)
+├── chief-of-staff/                 # CLI tool for project coordination
+├── .pipeline/                      # Auto-sync agent for team machines
+├── cache/                          # Runtime JSON cache (gitignored)
 ├── requirements.txt
 └── README.md
 ```
