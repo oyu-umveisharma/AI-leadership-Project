@@ -285,18 +285,18 @@ if not st.session_state.onboarding_complete:
       .welcome-title {{
         font-size: 2rem;
         font-weight: 700;
-        color: {BLACK};
+        color: {GOLD};
         margin-bottom: 4px;
       }}
       .welcome-sub {{
         font-size: 1.05rem;
-        color: #555;
+        color: #e8e9ed;
         margin-bottom: 32px;
       }}
       .welcome-prompt {{
         font-size: 1.15rem;
         font-weight: 600;
-        color: {BLACK};
+        color: #e8e9ed;
         margin-bottom: 16px;
       }}
       .welcome-or {{
@@ -318,7 +318,7 @@ if not st.session_state.onboarding_complete:
       }}
     </style>
     <div class="welcome-box">
-      <div class="welcome-icon">🏢</div>
+      <div class="welcome-icon"></div>
       <div class="welcome-title">CRE Intelligence Platform</div>
       <div class="welcome-sub">Welcome! I'm your AI-powered commercial real estate assistant.</div>
       <div class="welcome-prompt">What are you looking to invest in today?</div>
@@ -362,109 +362,173 @@ if not st.session_state.onboarding_complete:
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown(f"""
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
-  html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; }}
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
-  /* small top padding so banner is fully visible */
-  .block-container {{ padding-top: 1rem !important; }}
-  section[data-testid="stAppViewContainer"] > div:first-child {{ padding-top: 0 !important; }}
-
-  /* ── Dark intelligence dashboard theme ── */
-  .stApp, [data-testid="stAppViewContainer"], .main, .block-container {{
-    background-color: #0f0f0c !important;
-    color: #e8dfc4 !important;
+  html, body, [class*="css"], [data-testid="stAppViewContainer"],
+  [data-testid="stApp"], section[data-testid="stMain"] {{
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #111111 !important;
+    color: #e8e9ed !important;
   }}
-  p, li, span, label, div {{ color: #e8dfc4; }}
-  .stMarkdown p {{ color: #e8dfc4; }}
-  .stCaption, [data-testid="stCaptionContainer"] p {{ color: #a09880 !important; }}
-  [data-testid="stMetricValue"] {{ color: #CFB991 !important; }}
-  [data-testid="stMetricLabel"] {{ color: #e8dfc4 !important; }}
-  [data-testid="stDataFrame"] {{ background: #16160f; }}
-  .stDataFrame th {{ background: #1e1e16 !important; color: #CFB991 !important; }}
-  .stDataFrame td {{ background: #1a1a14 !important; color: #e8dfc4 !important; }}
-  [data-testid="stInfo"] {{ background: #1a1f14; border-color: #8E6F3E; color: #e8dfc4; }}
-  [data-testid="stWarning"] {{ background: #1f1a0f; border-color: #CFB991; color: #e8dfc4; }}
 
+  .main .block-container {{
+    padding-top: 1rem !important;
+    padding-bottom: 0 !important;
+    max-width: 1360px;
+  }}
+
+  /* ── Text ── */
+  p, li, span, label, div {{ color: #e8e9ed; }}
+  .stMarkdown p {{ color: #e8e9ed; }}
+  h1, h2, h3, h4, h5, h6 {{ color: #e8e9ed !important; }}
+  .stCaption, [data-testid="stCaptionContainer"] p {{ color: #8890a1 !important; }}
+
+  /* ── Metrics ── */
+  [data-testid="stMetricValue"] {{
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    color: {GOLD} !important;
+  }}
+  [data-testid="stMetricLabel"] {{ color: #e8e9ed !important; }}
+
+  /* ── Data tables ── */
+  [data-testid="stDataFrame"] {{ background: #1c1c1c; border: 1px solid #2a2a2a; border-radius: 4px; }}
+  .stDataFrame th {{ background: #1c1c1c !important; color: {GOLD} !important; font-size: 0.65rem !important; font-weight: 600 !important; text-transform: uppercase !important; }}
+  .stDataFrame td {{ background: #1c1c1c !important; color: #e8e9ed !important; font-family: 'JetBrains Mono', monospace !important; font-size: 0.7rem !important; }}
+
+  /* ── Alerts ── */
+  [data-testid="stInfo"] {{ background: #1a1f1a; border-color: #2a2a2a; color: #e8e9ed; }}
+  [data-testid="stWarning"] {{ background: #1f1a0f; border-color: #2a2a2a; color: #e8e9ed; }}
+  [data-testid="stSuccess"] {{ background: #1a1f1a; border-color: #2a2a2a; color: #e8e9ed; }}
+
+  /* ── Cards ── */
   .agent-card {{
-    background: #16160f;
-    border-radius: 6px;
+    background: #1c1c1c;
+    border-radius: 4px;
     padding: 20px 24px;
     margin: 12px 0;
-    border: 1px solid #8E6F3E;
-    border-left: 5px solid #CFB991;
+    border: 1px solid #2a2a2a;
+    border-left: 3px solid {GOLD};
   }}
   .agent-card .agent-label {{
-    color: #CFB991;
-    font-size: 0.72rem;
+    color: {GOLD};
+    font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 2px;
     margin-bottom: 8px;
   }}
   .agent-card .agent-text {{
-    color: #e8dfc4;
+    color: #e8e9ed;
     font-size: 0.92rem;
     line-height: 1.7;
     white-space: pre-wrap;
   }}
 
   .metric-card {{
-    background: #16160f;
-    border: 1px solid #8E6F3E;
-    border-top: 3px solid #CFB991;
-    border-radius: 6px;
+    background: #1c1c1c;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
     padding: 16px;
     text-align: center;
+    transition: box-shadow 0.2s;
   }}
-  .metric-card .label {{ font-size: 0.75rem; color: #a09880; text-transform: uppercase; letter-spacing: 0.5px; }}
-  .metric-card .value {{ font-size: 1.6rem; font-weight: 700; color: #CFB991; margin: 4px 0; }}
-  .metric-card .sub   {{ font-size: 0.78rem; color: #7a7060; }}
+  .metric-card:hover {{ box-shadow: 0 2px 12px rgba(0,0,0,0.3); border-color: {GOLD}; }}
+  .metric-card .label {{ font-size: 0.68rem; color: #8890a1; text-transform: uppercase; letter-spacing: 0.5px; }}
+  .metric-card .value {{ font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 700; color: {GOLD}; margin: 4px 0; }}
+  .metric-card .sub   {{ font-size: 0.75rem; color: #8890a1; }}
 
   .section-header {{
-    background: #16160f;
-    color: #CFB991;
+    background: #1c1c1c;
+    color: {GOLD};
     padding: 9px 16px;
     border-radius: 4px;
-    font-size: 1rem;
+    font-size: 0.85rem;
     font-weight: 700;
     margin: 24px 0 14px 0;
-    border-left: 5px solid #CFB991;
-    border-bottom: 1px solid #8E6F3E;
+    border-left: 3px solid {GOLD};
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }}
 
   .listing-card {{
-    background: #16160f;
-    border: 1px solid #8E6F3E;
-    border-left: 4px solid #CFB991;
-    border-radius: 6px;
+    background: #1c1c1c;
+    border: 1px solid #2a2a2a;
+    border-left: 3px solid {GOLD};
+    border-radius: 4px;
     padding: 14px 18px;
     margin: 8px 0;
   }}
-  .listing-card .l-price {{ font-size: 1.4rem; font-weight: 700; color: #CFB991; }}
-  .listing-card .l-address {{ font-size: 0.9rem; color: #e8dfc4; margin: 2px 0; }}
-  .listing-card .l-detail {{ font-size: 0.8rem; color: #a09880; }}
+  .listing-card .l-price {{ font-family: 'JetBrains Mono', monospace; font-size: 1.3rem; font-weight: 700; color: {GOLD}; }}
+  .listing-card .l-address {{ font-size: 0.9rem; color: #e8e9ed; margin: 2px 0; }}
+  .listing-card .l-detail {{ font-size: 0.8rem; color: #8890a1; }}
   .listing-card .l-tag {{
     display: inline-block;
-    background: #CFB991;
-    color: #0f0f0c;
-    border-radius: 12px;
-    padding: 2px 10px;
-    font-size: 0.72rem;
-    font-weight: 700;
+    background: #252525;
+    color: {GOLD};
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 0.65rem;
+    font-weight: 600;
     margin-right: 4px;
     margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
   }}
 
   .status-ok    {{ color: #4caf6e; font-weight: 700; }}
   .status-error {{ color: #e05050; font-weight: 700; }}
-  .status-run   {{ color: #CFB991; font-weight: 700; }}
-  .status-idle  {{ color: #666; }}
+  .status-run   {{ color: {GOLD}; font-weight: 700; }}
+  .status-idle  {{ color: #555; }}
 
-  div[data-testid="stTabs"] {{
-    background: #0f0f0c !important;
-  }}
-  div[data-testid="stTabs"] button {{
+  /* ── Tabs ── */
+  div[data-testid="stTabs"] {{ background: #111111 !important; }}
+  div[data-testid="stTabs"] [data-baseweb="tab-list"] {{ border-bottom: 1px solid #2a2a2a !important; background: #111111 !important; }}
+  div[data-testid="stTabs"] button[role="tab"] {{ color: #8890a1 !important; font-weight: 500 !important; font-size: 0.82rem !important; }}
+  div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {{ color: {GOLD} !important; border-bottom-color: {GOLD} !important; font-weight: 700 !important; }}
+
+  /* ── Buttons ── */
+  .stButton > button {{
+    background: #1c1c1c !important;
+    color: {GOLD} !important;
+    border: 1px solid {GOLD} !important;
+    border-radius: 3px !important;
+    font-size: 0.68rem !important;
     font-weight: 600 !important;
-    font-size: 0.92rem !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    padding: 0.45rem 1.4rem !important;
+    transition: all 0.2s !important;
+  }}
+  .stButton > button:hover {{ background: {GOLD} !important; color: #000 !important; }}
+
+  /* ── Form controls ── */
+  [data-baseweb="select"] > div, [data-baseweb="input"] > div {{
+    background: #1c1c1c !important;
+    border-color: #2a2a2a !important;
+    color: #e8e9ed !important;
+  }}
+  .stTextInput input {{ background: #1c1c1c !important; color: #e8e9ed !important; border-color: #2a2a2a !important; }}
+
+  /* ── Plotly dark mode ── */
+  .js-plotly-plot text {{ fill: #c8c8c8 !important; }}
+  .js-plotly-plot .gtitle {{ fill: {GOLD} !important; }}
+  .js-plotly-plot .xtick text, .js-plotly-plot .ytick text {{ fill: #8890a1 !important; }}
+
+  /* ── Sidebar ── */
+  [data-testid="stSidebar"] {{ background: #111111 !important; }}
+
+  /* ── Footer accent ── */
+  body::after {{
+    content: '';
+    position: fixed;
+    bottom: 0; left: 0; width: 100%; height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(207,185,145,0.12) 8%, rgba(207,185,145,0.55) 25%, {GOLD} 50%, rgba(207,185,145,0.55) 75%, rgba(207,185,145,0.12) 92%, transparent 100%);
+    z-index: 9998; pointer-events: none;
+  }}
+
+  /* push content above footer */
+  .main .block-container {{ padding-bottom: 40px; }}
     color: #a09880 !important;
     background: transparent !important;
   }}
@@ -497,12 +561,12 @@ st.markdown(f"""
          style="height:90px; width:90px; object-fit:contain;" />
     <div>
       <div style="color:#CFB991; font-size:2.1rem; font-weight:700;
-                  font-family:'Source Sans Pro',Arial,sans-serif;
+                  font-family:'DM Sans',-apple-system,sans-serif;
                   letter-spacing:0.5px; line-height:1.1;">
         CRE Intelligence Platform
       </div>
       <div style="color:#8E6F3E; font-size:0.85rem;
-                  font-family:'Source Sans Pro',Arial,sans-serif;
+                  font-family:'DM Sans',-apple-system,sans-serif;
                   letter-spacing:2px; text-transform:uppercase; margin-top:4px;">
         AI-Powered Commercial Real Estate Intelligence
       </div>
@@ -515,15 +579,15 @@ st.markdown(f"""
   <!-- Right: Purdue branding -->
   <div style="text-align:right;">
     <div style="color:#CFB991; font-size:1.55rem; font-weight:700;
-                font-family:'Source Sans Pro',Arial,sans-serif; line-height:1.1;">
+                font-family:'DM Sans',-apple-system,sans-serif; line-height:1.1;">
       Purdue University
     </div>
     <div style="color:#e8dfc4; font-size:1.05rem;
-                font-family:'Source Sans Pro',Arial,sans-serif; margin-top:4px;">
+                font-family:'DM Sans',-apple-system,sans-serif; margin-top:4px;">
       Daniels School of Business
     </div>
     <div style="color:#8E6F3E; font-size:0.75rem; letter-spacing:2px;
-                text-transform:uppercase; font-family:'Source Sans Pro',Arial,sans-serif;
+                text-transform:uppercase; font-family:'DM Sans',-apple-system,sans-serif;
                 margin-top:4px;">
       MSF Program
     </div>
@@ -563,10 +627,10 @@ with _bar_right:
 
 if _cur_pt or _cur_loc:
     st.markdown(
-        f'<div style="background:{BLACK};color:{GOLD};padding:8px 16px;border-radius:4px;'
-        f'font-size:0.9rem;margin-bottom:16px;display:flex;align-items:center;gap:8px;">'
-        f'<span style="font-size:1.1rem;">🎯</span>'
-        f'<span>Currently analyzing: <b>{_focus_label}</b></span>'
+        f'<div style="background:#1c1c1c;color:{GOLD};padding:8px 16px;border-radius:4px;'
+        f'border:1px solid #2a2a2a;border-left:3px solid {GOLD};'
+        f'font-size:0.82rem;margin-bottom:16px;letter-spacing:0.04em;text-transform:uppercase;">'
+        f'Currently analyzing: <b>{_focus_label}</b>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -653,9 +717,9 @@ def _show_tab_header(tab_name: str, description: str, agent_key: str, data_summa
         insight = _generate_insight(tab_name, pt, loc, data_summary)
         if insight:
             st.markdown(
-                f'<div style="background:#f5f0e6;border-left:4px solid {GOLD};padding:10px 16px;'
-                f'border-radius:4px;margin:8px 0 12px 0;font-size:0.9rem;color:#333;">'
-                f'<b>🎯 Insight for {label}:</b> {insight}</div>',
+                f'<div style="background:#1c1c1c;border-left:3px solid {GOLD};padding:10px 16px;'
+                f'border-radius:4px;margin:8px 0 12px 0;font-size:0.88rem;color:#e8e9ed;border:1px solid #2a2a2a;">'
+                f'<b style="color:{GOLD};">Insight for {label}:</b> {insight}</div>',
                 unsafe_allow_html=True,
             )
     agent_last_updated(agent_key)
@@ -710,11 +774,11 @@ def metric_card(label, value, sub=""):
 def stale_banner(cache_key: str):
     c = read_cache(cache_key)
     if c["data"] is None:
-        st.warning(f"⏳ Agent is fetching {cache_key} data for the first time — please wait ~30 seconds and refresh.")
+        st.warning(f" Agent is fetching {cache_key} data for the first time — please wait ~30 seconds and refresh.")
         return False
     age = cache_age_label(cache_key)
     if c.get("stale"):
-        st.warning(f"⚠ Data is stale (last updated {age}). Agent may be restarting.")
+        st.warning(f" Data is stale (last updated {age}). Agent may be restarting.")
     else:
         st.caption(f" Last updated: {age} · Auto-refreshes in background")
     return True
@@ -1815,7 +1879,7 @@ with main_tab_re:
             st_val = s.get("status", "idle")
             runs   = s.get("runs", 0)
             err    = s.get("last_error", None)
-            icon   = {"ok": "", "running": "⏳", "error": "", "idle": ""}.get(st_val, "")
+            icon   = {"ok": "OK", "running": "...", "error": "ERR", "idle": "--"}.get(st_val, "?")
             color  = {"ok": "status-ok", "running": "status-run", "error": "status-error", "idle": "status-idle"}.get(st_val, "")
             col.markdown(f"""
             <div class="metric-card">
@@ -1823,7 +1887,7 @@ with main_tab_re:
               <div class="value">{icon}</div>
               <div class="sub">{name}</div>
               <div class="{color}" style="font-size:0.75rem;margin-top:4px;">{st_val.upper()} · {runs} runs</div>
-              {"<div style='color:#b71c1c;font-size:0.7rem;margin-top:4px;'>⚠ " + str(err)[:60] + "</div>" if err else ""}
+              {"<div style='color:#b71c1c;font-size:0.7rem;margin-top:4px;'> " + str(err)[:60] + "</div>" if err else ""}
             </div>
             """, unsafe_allow_html=True)
 
@@ -1849,7 +1913,7 @@ with main_tab_re:
             col.markdown(f"""
             <div class="metric-card">
               <div class="label">{key.title()} Cache</div>
-              <div class="value">{"" if has_data and not stale else ("⚠" if has_data else "")}</div>
+              <div class="value">{"OK" if has_data and not stale else ("STALE" if has_data else "NONE")}</div>
               <div class="sub">{age_label}</div>
               <div style="font-size:0.72rem;color:#888;margin-top:4px;">Refresh: {freq} · Max age: {max_h}h</div>
             </div>
@@ -1927,7 +1991,7 @@ with main_tab_energy:
 
         cache_e = read_cache("energy_data")
         if cache_e["data"] is None:
-            st.warning("⏳ Energy agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+            st.warning(" Energy agent is fetching data for the first time — please wait ~30 seconds and refresh.")
             st.stop()
         age_e = cache_age_label("energy_data")
         st.caption(f" Last updated: {age_e} · Auto-refreshes in background")
@@ -1938,7 +2002,7 @@ with main_tab_energy:
         avg_momentum = edata.get("avg_momentum_pct", 0)
 
         # ── KPI strip ──────────────────────────────────────────────────────────
-        signal_color = {"HIGH": "", "MODERATE": "", "LOW": ""}.get(cost_signal, "⚪")
+        signal_color = {"HIGH": "HIGH", "MODERATE": "MOD", "LOW": "LOW"}.get(cost_signal, "?")
         c1, c2, c3, c4 = st.columns(4)
         c1.markdown(metric_card("Construction Cost Signal", f"{signal_color} {cost_signal}",
                                  "Based on commodity momentum"), unsafe_allow_html=True)
@@ -2014,7 +2078,7 @@ with main_tab_energy:
 
         cache_s = read_cache("sustainability_data")
         if cache_s["data"] is None:
-            st.warning("⏳ Sustainability agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+            st.warning(" Sustainability agent is fetching data for the first time — please wait ~30 seconds and refresh.")
             st.stop()
         age_s = cache_age_label("sustainability_data")
         st.caption(f" Last updated: {age_s} · Auto-refreshes in background")
@@ -2027,7 +2091,7 @@ with main_tab_energy:
         avg_clean_ret = sdata.get("avg_clean_energy_return_pct") or 0
 
         # ── KPI strip ──────────────────────────────────────────────────────────
-        esg_icon = {"STRONG": "", "NEUTRAL": "", "WEAK": ""}.get(esg_signal, "⚪")
+        esg_icon = ""
         c1, c2, c3, c4 = st.columns(4)
         c1.markdown(metric_card("ESG Momentum Signal", f"{esg_icon} {esg_signal}",
                                  "Clean energy vs SPY"), unsafe_allow_html=True)
@@ -2041,7 +2105,7 @@ with main_tab_energy:
 
         # ── Clean Energy ETFs ──────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        section("⚡ Clean Energy ETF Performance (ICLN, TAN, QCLN)")
+        section(" Clean Energy ETF Performance (ICLN, TAN, QCLN)")
 
         if clean_energy:
             ce_df = pd.DataFrame(clean_energy)
@@ -2167,7 +2231,7 @@ with main_tab_macro:
         if not rdata or rdata.get("error"):
             err = rdata.get("error") if rdata else None
             if err:
-                st.warning(f"⚠ {err}")
+                st.warning(f" {err}")
             else:
                 st.info("Rate data is fetched every hour. Check that `FRED_API_KEY` is set in `.env`.")
             st.stop()
@@ -2189,7 +2253,7 @@ with main_tab_macro:
         <div style="background:{bg_clr};border-left:6px solid {sig_clr};
                     padding:18px 24px;border-radius:6px;margin-bottom:20px;">
           <div style="font-size:1.4rem;font-weight:700;color:{sig_clr};">
-            {env.get('icon','⚪')} Rate Environment: {signal}
+            {env.get('icon','')} Rate Environment: {signal}
           </div>
           <div style="color:#333;margin-top:6px;font-size:0.95rem;">{env.get('summary','')}</div>
           <ul style="margin-top:10px;color:#444;font-size:0.88rem;">
@@ -2260,7 +2324,7 @@ with main_tab_macro:
                     margin=dict(t=30, b=30, l=60, r=20), height=300,
                     font=dict(family="Source Sans Pro", color="#e8dfc4"),
                     annotations=[dict(
-                        text="⚠ INVERTED" if inverted else "Normal slope",
+                        text=" INVERTED" if inverted else "Normal slope",
                         x=0.5, y=1.08, xref="paper", yref="paper",
                         showarrow=False, font=dict(size=12,
                         color="#b71c1c" if inverted else "#1b5e20", family="Source Sans Pro"),
@@ -2488,7 +2552,7 @@ with main_tab_macro:
             if not high_risk.empty:
                 names = ", ".join(high_risk["Ticker"].tolist())
                 st.warning(
-                    f"⚠ **High refinancing risk:** {names} — these REITs have ≥25% of debt maturing "
+                    f" **High refinancing risk:** {names} — these REITs have ≥25% of debt maturing "
                     f"within 12 months. Elevated 10Y rates ({current_10y:.2f}%) increase rollover costs."
                 )
             else:
@@ -2536,7 +2600,7 @@ with main_tab_macro:
         ldata    = cache_lm.get("data") or {}
 
         if not ldata:
-            st.info("⏳ Labor market agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+            st.info(" Labor market agent is fetching data for the first time — please wait ~30 seconds and refresh.")
             st.stop()
 
         fred_labor   = ldata.get("fred_labor", {})
@@ -2804,7 +2868,7 @@ with main_tab_macro:
         cache_gdp = read_cache("gdp_data")
         gdata = cache_gdp.get("data") or {}
         if not gdata:
-            st.info("⏳ GDP agent is fetching data — please refresh in ~30 seconds.")
+            st.info(" GDP agent is fetching data — please refresh in ~30 seconds.")
             st.stop()
 
         g_series = gdata.get("series", {})
@@ -2815,7 +2879,7 @@ with main_tab_macro:
         cycle_score = g_cycle.get("score", 50)
         cycle_clr = {"EXPANSION": "#1b5e20", "SLOWDOWN": "#e65100", "CONTRACTION": "#b71c1c"}.get(cycle_label, "#555")
         cycle_bg  = {"EXPANSION": "#e8f5e9", "SLOWDOWN": "#fff3e0", "CONTRACTION": "#ffebee"}.get(cycle_label, "#f5f5f5")
-        cycle_icon = {"EXPANSION": "", "SLOWDOWN": "", "CONTRACTION": ""}.get(cycle_label, "⚪")
+        cycle_icon = ""
         st.markdown(f"""
         <div style="background:{cycle_bg};border-left:6px solid {cycle_clr};
                     padding:18px 24px;border-radius:6px;margin-bottom:20px;">
@@ -3042,7 +3106,7 @@ with main_tab_macro:
         cache_inf = read_cache("inflation_data")
         idata = cache_inf.get("data") or {}
         if not idata:
-            st.info("⏳ Inflation agent is fetching data — please refresh in ~30 seconds.")
+            st.info(" Inflation agent is fetching data — please refresh in ~30 seconds.")
             st.stop()
 
         inf_series = idata.get("series", {})
@@ -3053,7 +3117,7 @@ with main_tab_macro:
         inf_score = inf_signal.get("score", 50)
         inf_clr = {"HOT": "#b71c1c", "MODERATE": "#e65100", "COOLING": "#1b5e20"}.get(inf_label, "#555")
         inf_bg  = {"HOT": "#ffebee", "MODERATE": "#fff3e0", "COOLING": "#e8f5e9"}.get(inf_label, "#f5f5f5")
-        inf_icon = {"HOT": "", "MODERATE": "", "COOLING": ""}.get(inf_label, "⚪")
+        inf_icon = ""
         st.markdown(f"""
         <div style="background:{inf_bg};border-left:6px solid {inf_clr};
                     padding:18px 24px;border-radius:6px;margin-bottom:20px;">
@@ -3237,7 +3301,7 @@ with main_tab_macro:
         cache_cr = read_cache("credit_data")
         crdata = cache_cr.get("data") or {}
         if not crdata:
-            st.info("⏳ Credit agent is fetching data — please refresh in ~30 seconds.")
+            st.info(" Credit agent is fetching data — please refresh in ~30 seconds.")
             st.stop()
 
         cr_series = crdata.get("series", {})
@@ -3248,7 +3312,7 @@ with main_tab_macro:
         cr_score = cr_signal.get("score", 50)
         cr_clr = {"LOOSE": "#1b5e20", "NEUTRAL": "#e65100", "TIGHT": "#b71c1c"}.get(cr_label, "#555")
         cr_bg  = {"LOOSE": "#e8f5e9", "NEUTRAL": "#fff3e0", "TIGHT": "#ffebee"}.get(cr_label, "#f5f5f5")
-        cr_icon = {"LOOSE": "", "NEUTRAL": "", "TIGHT": ""}.get(cr_label, "⚪")
+        cr_icon = ""
         st.markdown(f"""
         <div style="background:{cr_bg};border-left:6px solid {cr_clr};
                     padding:18px 24px;border-radius:6px;margin-bottom:20px;">
