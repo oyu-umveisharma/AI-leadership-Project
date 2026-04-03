@@ -112,96 +112,117 @@ def _normalize_input(text: str) -> str:
 
 
 _CITY_TO_STATE = {
+    # Alabama
+    "birmingham": "AL", "montgomery": "AL", "huntsville": "AL", "mobile": "AL",
+    # Alaska
+    "anchorage": "AK", "fairbanks": "AK", "juneau": "AK",
+    # Arizona
+    "phoenix": "AZ", "tucson": "AZ", "scottsdale": "AZ", "mesa": "AZ", "tempe": "AZ", "chandler": "AZ", "gilbert": "AZ",
+    # Arkansas
+    "little rock": "AR", "fayetteville": "AR", "fort smith": "AR", "bentonville": "AR",
     # California
     "los angeles": "CA", "la": "CA", "san francisco": "CA", "sf": "CA", "san diego": "CA",
     "san jose": "CA", "sacramento": "CA", "irvine": "CA", "oakland": "CA", "long beach": "CA",
     "fresno": "CA", "anaheim": "CA", "santa monica": "CA", "pasadena": "CA", "riverside": "CA",
+    "bakersfield": "CA", "glendale": "CA", "burbank": "CA",
+    # Colorado
+    "denver": "CO", "colorado springs": "CO", "aurora": "CO", "boulder": "CO", "fort collins": "CO",
+    # Connecticut
+    "hartford": "CT", "new haven": "CT", "stamford": "CT", "bridgeport": "CT", "norwalk": "CT",
+    # Delaware
+    "wilmington": "DE", "dover": "DE", "newark": "DE",
+    # DC
+    "washington dc": "DC", "washington d.c.": "DC", "dc": "DC",
+    # Florida
+    "miami": "FL", "tampa": "FL", "orlando": "FL", "jacksonville": "FL",
+    "fort lauderdale": "FL", "st. petersburg": "FL", "st petersburg": "FL",
+    "west palm beach": "FL", "naples": "FL", "sarasota": "FL", "tallahassee": "FL",
+    # Georgia
+    "atlanta": "GA", "savannah": "GA", "augusta": "GA", "athens": "GA", "macon": "GA",
+    # Hawaii
+    "honolulu": "HI", "hilo": "HI", "kailua": "HI",
+    # Idaho
+    "boise": "ID", "meridian": "ID", "nampa": "ID", "idaho falls": "ID", "pocatello": "ID",
+    # Illinois
+    "chicago": "IL", "aurora": "IL", "naperville": "IL", "rockford": "IL", "joliet": "IL", "schaumburg": "IL",
+    # Indiana
+    "indianapolis": "IN", "fort wayne": "IN", "evansville": "IN", "south bend": "IN", "carmel": "IN",
+    # Iowa
+    "des moines": "IA", "cedar rapids": "IA", "davenport": "IA", "iowa city": "IA",
+    # Kansas
+    "wichita": "KS", "overland park": "KS", "kansas city": "KS", "topeka": "KS",
+    # Kentucky
+    "louisville": "KY", "lexington": "KY", "bowling green": "KY",
+    # Louisiana
+    "new orleans": "LA", "baton rouge": "LA", "shreveport": "LA", "lafayette": "LA",
+    # Maine
+    "portland": "ME", "bangor": "ME", "lewiston": "ME",
+    # Maryland
+    "baltimore": "MD", "annapolis": "MD", "rockville": "MD", "silver spring": "MD", "bethesda": "MD", "columbia": "MD",
+    # Massachusetts
+    "boston": "MA", "cambridge": "MA", "worcester": "MA", "springfield": "MA", "lowell": "MA",
+    # Michigan
+    "detroit": "MI", "grand rapids": "MI", "ann arbor": "MI", "lansing": "MI", "flint": "MI",
+    # Minnesota
+    "minneapolis": "MN", "st. paul": "MN", "st paul": "MN", "rochester": "MN", "duluth": "MN", "bloomington": "MN",
+    # Mississippi
+    "jackson": "MS", "gulfport": "MS", "biloxi": "MS",
+    # Missouri
+    "kansas city": "MO", "st. louis": "MO", "st louis": "MO", "springfield": "MO", "columbia": "MO",
+    # Montana
+    "billings": "MT", "missoula": "MT", "great falls": "MT", "bozeman": "MT",
+    # Nebraska
+    "omaha": "NE", "lincoln": "NE", "bellevue": "NE",
+    # Nevada
+    "las vegas": "NV", "reno": "NV", "henderson": "NV", "sparks": "NV",
+    # New Hampshire
+    "manchester": "NH", "nashua": "NH", "concord": "NH",
+    # New Jersey
+    "newark": "NJ", "jersey city": "NJ", "hoboken": "NJ", "trenton": "NJ", "atlantic city": "NJ", "princeton": "NJ",
+    # New Mexico
+    "albuquerque": "NM", "santa fe": "NM", "las cruces": "NM",
     # New York
     "new york": "NY", "new york city": "NY", "nyc": "NY", "manhattan": "NY",
     "brooklyn": "NY", "queens": "NY", "bronx": "NY", "buffalo": "NY",
     "white plains": "NY", "yonkers": "NY", "albany": "NY", "rochester": "NY", "syracuse": "NY",
-    # Texas
-    "houston": "TX", "dallas": "TX", "austin": "TX", "san antonio": "TX",
-    "fort worth": "TX", "el paso": "TX", "plano": "TX", "arlington": "TX",
-    # Florida
-    "miami": "FL", "tampa": "FL", "orlando": "FL", "jacksonville": "FL",
-    "fort lauderdale": "FL", "st. petersburg": "FL", "st petersburg": "FL",
-    "west palm beach": "FL", "naples": "FL", "sarasota": "FL",
-    # Illinois
-    "chicago": "IL", "aurora": "IL", "naperville": "IL", "schaumburg": "IL",
-    # Arizona
-    "phoenix": "AZ", "tucson": "AZ", "mesa": "AZ", "scottsdale": "AZ", "tempe": "AZ", "chandler": "AZ",
-    # Washington
-    "seattle": "WA", "tacoma": "WA", "spokane": "WA", "bellevue": "WA", "redmond": "WA",
-    # Colorado
-    "denver": "CO", "colorado springs": "CO", "boulder": "CO", "aurora": "CO",
-    # Georgia
-    "atlanta": "GA", "savannah": "GA", "augusta": "GA", "athens": "GA",
-    # Massachusetts
-    "boston": "MA", "cambridge": "MA", "worcester": "MA", "springfield": "MA",
-    # Oregon
-    "portland": "OR", "salem": "OR", "eugene": "OR", "beaverton": "OR",
-    # Nevada
-    "las vegas": "NV", "reno": "NV", "henderson": "NV",
-    # Tennessee
-    "nashville": "TN", "memphis": "TN", "knoxville": "TN", "chattanooga": "TN",
     # North Carolina
     "charlotte": "NC", "raleigh": "NC", "durham": "NC", "greensboro": "NC",
-    "winston-salem": "NC", "fayetteville": "NC", "research triangle": "NC",
-    # Utah
-    "salt lake city": "UT", "provo": "UT", "ogden": "UT",
-    # Minnesota
-    "minneapolis": "MN", "st. paul": "MN", "st paul": "MN", "bloomington": "MN",
-    # Indiana
-    "indianapolis": "IN", "fort wayne": "IN", "carmel": "IN",
-    # Ohio
-    "columbus": "OH", "cleveland": "OH", "cincinnati": "OH", "dayton": "OH", "akron": "OH",
-    # Michigan
-    "detroit": "MI", "grand rapids": "MI", "ann arbor": "MI", "lansing": "MI",
-    # Pennsylvania
-    "philadelphia": "PA", "pittsburgh": "PA", "allentown": "PA",
-    # Missouri
-    "kansas city": "MO", "st. louis": "MO", "st louis": "MO",
-    # Virginia
-    "richmond": "VA", "virginia beach": "VA", "arlington": "VA", "norfolk": "VA", "alexandria": "VA",
-    # Maryland
-    "baltimore": "MD", "columbia": "MD", "bethesda": "MD", "silver spring": "MD",
-    # South Carolina
-    "charleston": "SC", "greenville": "SC", "columbia": "SC",
-    # South Dakota
-    "sioux falls": "SD", "rapid city": "SD", "aberdeen": "SD",
+    "winston-salem": "NC", "fayetteville": "NC", "research triangle": "NC", "asheville": "NC",
     # North Dakota
-    "fargo": "ND", "bismarck": "ND",
-    # Nebraska
-    "omaha": "NE", "lincoln": "NE",
-    # Idaho
-    "boise": "ID", "meridian": "ID",
-    # Wisconsin
-    "milwaukee": "WI", "madison": "WI",
-    # Iowa
-    "des moines": "IA", "cedar rapids": "IA",
-    # Connecticut
-    "hartford": "CT", "new haven": "CT", "stamford": "CT",
-    # New Jersey
-    "newark": "NJ", "jersey city": "NJ", "hoboken": "NJ",
-    # Louisiana
-    "new orleans": "LA", "baton rouge": "LA",
-    # Alabama
-    "birmingham": "AL", "huntsville": "AL", "montgomery": "AL",
+    "fargo": "ND", "bismarck": "ND", "grand forks": "ND",
+    # Ohio
+    "columbus": "OH", "cleveland": "OH", "cincinnati": "OH", "dayton": "OH", "toledo": "OH", "akron": "OH",
     # Oklahoma
-    "oklahoma city": "OK", "tulsa": "OK",
-    # Kentucky
-    "louisville": "KY", "lexington": "KY",
-    # DC
-    "washington dc": "DC", "washington d.c.": "DC", "dc": "DC",
-    # Hawaii
-    "honolulu": "HI",
-    # New Mexico
-    "albuquerque": "NM", "santa fe": "NM",
-    # Kansas
-    "wichita": "KS", "overland park": "KS",
-    # Arkansas
-    "little rock": "AR",
+    "oklahoma city": "OK", "tulsa": "OK", "norman": "OK",
+    # Oregon
+    "portland": "OR", "salem": "OR", "eugene": "OR", "bend": "OR", "beaverton": "OR",
+    # Pennsylvania
+    "philadelphia": "PA", "pittsburgh": "PA", "allentown": "PA", "harrisburg": "PA", "scranton": "PA",
+    # Rhode Island
+    "providence": "RI", "warwick": "RI", "newport": "RI", "cranston": "RI",
+    # South Carolina
+    "charleston": "SC", "columbia": "SC", "greenville": "SC", "myrtle beach": "SC",
+    # South Dakota
+    "sioux falls": "SD", "rapid city": "SD",
+    # Tennessee
+    "nashville": "TN", "memphis": "TN", "knoxville": "TN", "chattanooga": "TN", "murfreesboro": "TN",
+    # Texas
+    "houston": "TX", "dallas": "TX", "austin": "TX", "san antonio": "TX",
+    "fort worth": "TX", "el paso": "TX", "plano": "TX", "arlington": "TX", "frisco": "TX",
+    # Utah
+    "salt lake city": "UT", "provo": "UT", "ogden": "UT", "st. george": "UT", "st george": "UT",
+    # Vermont
+    "burlington": "VT", "montpelier": "VT",
+    # Virginia
+    "richmond": "VA", "virginia beach": "VA", "arlington": "VA", "norfolk": "VA", "alexandria": "VA", "roanoke": "VA",
+    # Washington
+    "seattle": "WA", "tacoma": "WA", "spokane": "WA", "bellevue": "WA", "redmond": "WA", "vancouver": "WA",
+    # West Virginia
+    "charleston": "WV", "huntington": "WV", "morgantown": "WV",
+    # Wisconsin
+    "milwaukee": "WI", "madison": "WI", "green bay": "WI",
+    # Wyoming
+    "cheyenne": "WY", "casper": "WY", "laramie": "WY",
 }
 
 
