@@ -1262,43 +1262,43 @@ with main_tab_re:
         if _show_national_map:
             # City coordinate lookup for zoom
             _CITY_COORDS = {
-            "los angeles": (34.05, -118.24), "new york": (40.71, -74.01), "chicago": (41.88, -87.63),
-            "houston": (29.76, -95.37), "phoenix": (33.45, -112.07), "philadelphia": (39.95, -75.17),
-            "san antonio": (29.42, -98.49), "san diego": (32.72, -117.16), "dallas": (32.78, -96.80),
-            "austin": (30.27, -97.74), "san francisco": (37.77, -122.42), "seattle": (47.61, -122.33),
-            "denver": (39.74, -104.99), "nashville": (36.16, -86.78), "miami": (25.76, -80.19),
-            "atlanta": (33.75, -84.39), "charlotte": (35.23, -80.84), "raleigh": (35.78, -78.64),
-            "orlando": (28.54, -81.38), "tampa": (27.95, -82.46), "salt lake city": (40.76, -111.89),
-            "las vegas": (36.17, -115.14), "portland": (45.52, -122.68), "boise": (43.62, -116.21),
-            "minneapolis": (44.98, -93.27), "indianapolis": (39.77, -86.16), "columbus": (39.96, -82.99),
-            "detroit": (42.33, -83.05), "boston": (42.36, -71.06), "kansas city": (39.10, -94.58),
-            "richmond": (37.54, -77.44), "pittsburgh": (40.44, -79.99), "sacramento": (38.58, -121.49),
-        }
-        # State center coordinates for state-level zoom
-        _STATE_COORDS = {
-            "AL": (32.8, -86.8), "AK": (64.2, -152.5), "AZ": (34.3, -111.7), "AR": (34.8, -92.2),
-            "CA": (37.2, -119.5), "CO": (39.0, -105.5), "CT": (41.6, -72.7), "DE": (39.0, -75.5),
-            "FL": (28.6, -82.5), "GA": (33.0, -83.5), "HI": (20.8, -156.3), "ID": (44.4, -114.6),
-            "IL": (40.0, -89.2), "IN": (39.8, -86.3), "IA": (42.0, -93.5), "KS": (38.5, -98.3),
-            "KY": (37.8, -85.3), "LA": (31.0, -92.0), "ME": (45.3, -69.2), "MD": (39.0, -76.7),
-            "MA": (42.2, -71.5), "MI": (44.3, -85.5), "MN": (46.3, -94.3), "MS": (32.7, -89.7),
-            "MO": (38.4, -92.5), "MT": (47.0, -109.6), "NE": (41.5, -99.8), "NV": (39.3, -116.6),
-            "NH": (43.7, -71.6), "NJ": (40.1, -74.7), "NM": (34.5, -106.0), "NY": (42.9, -75.5),
-            "NC": (35.5, -79.8), "ND": (47.5, -100.5), "OH": (40.4, -82.8), "OK": (35.5, -97.5),
-            "OR": (44.0, -120.5), "PA": (41.0, -77.5), "RI": (41.7, -71.5), "SC": (34.0, -81.0),
-            "SD": (44.4, -100.2), "TN": (35.9, -86.4), "TX": (31.5, -99.3), "UT": (39.3, -111.7),
-            "VT": (44.0, -72.7), "VA": (37.5, -78.9), "WA": (47.4, -120.7), "WV": (38.6, -80.6),
-            "WI": (44.6, -89.7), "WY": (43.0, -107.5), "DC": (38.9, -77.0),
-        }
+                "los angeles": (34.05, -118.24), "new york": (40.71, -74.01), "chicago": (41.88, -87.63),
+                "houston": (29.76, -95.37), "phoenix": (33.45, -112.07), "philadelphia": (39.95, -75.17),
+                "san antonio": (29.42, -98.49), "san diego": (32.72, -117.16), "dallas": (32.78, -96.80),
+                "austin": (30.27, -97.74), "san francisco": (37.77, -122.42), "seattle": (47.61, -122.33),
+                "denver": (39.74, -104.99), "nashville": (36.16, -86.78), "miami": (25.76, -80.19),
+                "atlanta": (33.75, -84.39), "charlotte": (35.23, -80.84), "raleigh": (35.78, -78.64),
+                "orlando": (28.54, -81.38), "tampa": (27.95, -82.46), "salt lake city": (40.76, -111.89),
+                "las vegas": (36.17, -115.14), "portland": (45.52, -122.68), "boise": (43.62, -116.21),
+                "minneapolis": (44.98, -93.27), "indianapolis": (39.77, -86.16), "columbus": (39.96, -82.99),
+                "detroit": (42.33, -83.05), "boston": (42.36, -71.06), "kansas city": (39.10, -94.58),
+                "richmond": (37.54, -77.44), "pittsburgh": (40.44, -79.99), "sacramento": (38.58, -121.49),
+            }
+            # State center coordinates for state-level zoom
+            _STATE_COORDS = {
+                "AL": (32.8, -86.8), "AK": (64.2, -152.5), "AZ": (34.3, -111.7), "AR": (34.8, -92.2),
+                "CA": (37.2, -119.5), "CO": (39.0, -105.5), "CT": (41.6, -72.7), "DE": (39.0, -75.5),
+                "FL": (28.6, -82.5), "GA": (33.0, -83.5), "HI": (20.8, -156.3), "ID": (44.4, -114.6),
+                "IL": (40.0, -89.2), "IN": (39.8, -86.3), "IA": (42.0, -93.5), "KS": (38.5, -98.3),
+                "KY": (37.8, -85.3), "LA": (31.0, -92.0), "ME": (45.3, -69.2), "MD": (39.0, -76.7),
+                "MA": (42.2, -71.5), "MI": (44.3, -85.5), "MN": (46.3, -94.3), "MS": (32.7, -89.7),
+                "MO": (38.4, -92.5), "MT": (47.0, -109.6), "NE": (41.5, -99.8), "NV": (39.3, -116.6),
+                "NH": (43.7, -71.6), "NJ": (40.1, -74.7), "NM": (34.5, -106.0), "NY": (42.9, -75.5),
+                "NC": (35.5, -79.8), "ND": (47.5, -100.5), "OH": (40.4, -82.8), "OK": (35.5, -97.5),
+                "OR": (44.0, -120.5), "PA": (41.0, -77.5), "RI": (41.7, -71.5), "SC": (34.0, -81.0),
+                "SD": (44.4, -100.2), "TN": (35.9, -86.4), "TX": (31.5, -99.3), "UT": (39.3, -111.7),
+                "VT": (44.0, -72.7), "VA": (37.5, -78.9), "WA": (47.4, -120.7), "WV": (38.6, -80.6),
+                "WI": (44.6, -89.7), "WY": (43.0, -107.5), "DC": (38.9, -77.0),
+            }
 
-        # Determine map mode
-        _zoom_coords = None
-        _zoom_scale = None
-        _map_title_suffix = "Where America is Moving"
-        _focus_abbr = _map_abbr  # state to highlight
+            # Determine map mode
+            _zoom_coords = None
+            _zoom_scale = None
+            _map_title_suffix = "Where America is Moving"
+            _focus_abbr = _map_abbr  # state to highlight
 
-        if _map_city:
-            coords = _CITY_COORDS.get(_map_city.lower())
+            if _map_city:
+                coords = _CITY_COORDS.get(_map_city.lower())
             if coords:
                 _zoom_coords = coords
                 _zoom_scale = 3.5
@@ -1306,146 +1306,146 @@ with main_tab_re:
             # Try to resolve state from city if not already known
             if not _focus_abbr and _map_state:
                 _focus_abbr = _STATE_NAME_TO_ABBR.get(_map_state.lower(), "").upper() or None
-        elif _map_state and _map_abbr:
-            coords = _STATE_COORDS.get(_map_abbr)
-            if coords:
-                _zoom_coords = coords
-                _zoom_scale = 2.5
-            _map_title_suffix = f"Focused on {_map_state}"
+            elif _map_state and _map_abbr:
+                coords = _STATE_COORDS.get(_map_abbr)
+                if coords:
+                    _zoom_coords = coords
+                    _zoom_scale = 2.5
+                _map_title_suffix = f"Focused on {_map_state}"
 
-        section(f" US Population Growth Map — {_map_title_suffix}")
+            section(f" US Population Growth Map — {_map_title_suffix}")
 
-        map_col, legend_col = st.columns([3, 1])
-        with map_col:
-            # Build marker sizes: highlight the focus state
-            _marker_line_widths = []
-            _marker_line_colors = []
-            for abbr in mig_df["state_abbr"]:
-                if _focus_abbr and abbr == _focus_abbr:
-                    _marker_line_widths.append(3)
-                    _marker_line_colors.append(GOLD)
-                else:
-                    _marker_line_widths.append(0.5)
-                    _marker_line_colors.append("#999")
+            map_col, legend_col = st.columns([3, 1])
+            with map_col:
+                # Build marker sizes: highlight the focus state
+                _marker_line_widths = []
+                _marker_line_colors = []
+                for abbr in mig_df["state_abbr"]:
+                    if _focus_abbr and abbr == _focus_abbr:
+                        _marker_line_widths.append(3)
+                        _marker_line_colors.append(GOLD)
+                    else:
+                        _marker_line_widths.append(0.5)
+                        _marker_line_colors.append("#999")
 
-            def _classify(score):
-                if score >= 70:   return "High Growth"
-                elif score >= 55: return "Growing"
-                elif score >= 45: return "Stable"
-                elif score >= 25: return "Declining"
-                else:             return "High Outflow"
+                def _classify(score):
+                    if score >= 70:   return "High Growth"
+                    elif score >= 55: return "Growing"
+                    elif score >= 45: return "Stable"
+                    elif score >= 25: return "Declining"
+                    else:             return "High Outflow"
 
-            fig_map = go.Figure(go.Choropleth(
-                locations=mig_df["state_abbr"],
-                z=mig_df["composite_score"],
-                locationmode="USA-states",
-                colorscale=[
-                    [0.0,  "#7f0000"],
-                    [0.25, "#c62828"],
-                    [0.45, "#e57373"],
-                    [0.55, "#d4c5a9"],
-                    [0.70, "#81c784"],
-                    [0.85, "#2e7d32"],
-                    [1.0,  "#1b5e20"],
-                ],
-                zmin=0, zmax=100,
-                marker=dict(line=dict(width=_marker_line_widths, color=_marker_line_colors)),
-                colorbar=dict(
-                    title=dict(text="Migration<br>Score", font=dict(size=11, color="#e8dfc4")),
-                    tickfont=dict(size=10, color="#e8dfc4"),
-                    thickness=14, len=0.65,
-                    bgcolor="#16160f",
-                    bordercolor="#3a3a2a",
-                    borderwidth=1,
-                ),
-                text=mig_df.apply(
-                    lambda r: (
-                        f"<b>{r['state_name']}</b><br>"
-                        f"Migration Score: {r['composite_score']:.0f}<br>"
-                        f"Classification: {_classify(r['composite_score'])}<br>"
-                        f"Key Drivers: {r['growth_drivers']}"
+                fig_map = go.Figure(go.Choropleth(
+                    locations=mig_df["state_abbr"],
+                    z=mig_df["composite_score"],
+                    locationmode="USA-states",
+                    colorscale=[
+                        [0.0,  "#7f0000"],
+                        [0.25, "#c62828"],
+                        [0.45, "#e57373"],
+                        [0.55, "#d4c5a9"],
+                        [0.70, "#81c784"],
+                        [0.85, "#2e7d32"],
+                        [1.0,  "#1b5e20"],
+                    ],
+                    zmin=0, zmax=100,
+                    marker=dict(line=dict(width=_marker_line_widths, color=_marker_line_colors)),
+                    colorbar=dict(
+                        title=dict(text="Migration<br>Score", font=dict(size=11, color="#e8dfc4")),
+                        tickfont=dict(size=10, color="#e8dfc4"),
+                        thickness=14, len=0.65,
+                        bgcolor="#16160f",
+                        bordercolor="#3a3a2a",
+                        borderwidth=1,
                     ),
-                    axis=1
-                ),
-                hovertemplate="%{text}<extra></extra>",
-            ))
-
-            # Add city marker if zoomed to city
-            if _map_city and _zoom_coords:
-                fig_map.add_trace(go.Scattergeo(
-                    lat=[_zoom_coords[0]], lon=[_zoom_coords[1]],
-                    mode="markers+text",
-                    marker=dict(size=14, color=GOLD, line=dict(width=2, color=BLACK), symbol="star"),
-                    text=[_map_city],
-                    textposition="top center",
-                    textfont=dict(size=12, color=BLACK, family="Source Sans Pro"),
-                    showlegend=False,
-                    hovertemplate=f"<b>{_map_city}</b><extra></extra>",
+                    text=mig_df.apply(
+                        lambda r: (
+                            f"<b>{r['state_name']}</b><br>"
+                            f"Migration Score: {r['composite_score']:.0f}<br>"
+                            f"Classification: {_classify(r['composite_score'])}<br>"
+                            f"Key Drivers: {r['growth_drivers']}"
+                        ),
+                        axis=1
+                    ),
+                    hovertemplate="%{text}<extra></extra>",
                 ))
 
-            # Set map center and zoom
-            _geo_base = dict(
-                scope="usa", showlakes=True, lakecolor="#1a2535",
-                bgcolor="#0f0f0c", showland=True, landcolor="#1e2018",
-                showframe=False, showcoastlines=False,
-                subunitcolor="#3a3a2a", subunitwidth=0.5,
-            )
-            if _zoom_coords and _zoom_scale:
-                fig_map.update_layout(
-                    geo=dict(**_geo_base,
-                             projection_scale=_zoom_scale,
-                             center=dict(lat=_zoom_coords[0], lon=_zoom_coords[1])),
+                # Add city marker if zoomed to city
+                if _map_city and _zoom_coords:
+                    fig_map.add_trace(go.Scattergeo(
+                        lat=[_zoom_coords[0]], lon=[_zoom_coords[1]],
+                        mode="markers+text",
+                        marker=dict(size=14, color=GOLD, line=dict(width=2, color=BLACK), symbol="star"),
+                        text=[_map_city],
+                        textposition="top center",
+                        textfont=dict(size=12, color=BLACK, family="Source Sans Pro"),
+                        showlegend=False,
+                        hovertemplate=f"<b>{_map_city}</b><extra></extra>",
+                    ))
+
+                # Set map center and zoom
+                _geo_base = dict(
+                    scope="usa", showlakes=True, lakecolor="#1a2535",
+                    bgcolor="#0f0f0c", showland=True, landcolor="#1e2018",
+                    showframe=False, showcoastlines=False,
+                    subunitcolor="#3a3a2a", subunitwidth=0.5,
                 )
-            else:
+                if _zoom_coords and _zoom_scale:
+                    fig_map.update_layout(
+                        geo=dict(**_geo_base,
+                                 projection_scale=_zoom_scale,
+                                 center=dict(lat=_zoom_coords[0], lon=_zoom_coords[1])),
+                    )
+                else:
+                    fig_map.update_layout(
+                        geo=dict(**_geo_base,
+                                 projection_scale=1, center=dict(lat=38, lon=-96)),
+                    )
+
                 fig_map.update_layout(
-                    geo=dict(**_geo_base,
-                             projection_scale=1, center=dict(lat=38, lon=-96)),
+                    paper_bgcolor="#16160f",
+                    margin=dict(t=10, b=10, l=0, r=0),
+                    height=460,
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                    dragmode=False,
+                )
+                st.plotly_chart(fig_map, use_container_width=True, config={"scrollZoom": False, "displayModeBar": False})
+                st.caption(
+                    "Darker green indicates states with the strongest combined population inflow and business migration. "
+                    "These markets historically see the earliest and sharpest increases in CRE demand — "
+                    "particularly for multifamily, industrial, and mixed-use properties."
                 )
 
-            fig_map.update_layout(
-                paper_bgcolor="#16160f",
-                margin=dict(t=10, b=10, l=0, r=0),
-                height=460,
-                font=dict(family="Source Sans Pro", color="#e8dfc4"),
-                dragmode=False,
-            )
-            st.plotly_chart(fig_map, use_container_width=True, config={"scrollZoom": False, "displayModeBar": False})
-            st.caption(
-                "Darker green indicates states with the strongest combined population inflow and business migration. "
-                "These markets historically see the earliest and sharpest increases in CRE demand — "
-                "particularly for multifamily, industrial, and mixed-use properties."
-            )
-
-        with legend_col:
-            st.markdown(
-                "<div style='margin-top:24px;padding:14px 12px;background:#16160f;"
-                "border:1px solid #3a3a2a;border-radius:8px;'>"
-                "<div style='font-size:0.78rem;font-weight:700;color:#CFB991;"
-                "letter-spacing:0.08em;margin-bottom:10px;'>MIGRATION SCORE</div>",
-                unsafe_allow_html=True
-            )
-            for color, label, desc in [
-                ("#1b5e20", "High Growth", "70 – 100"),
-                ("#2e7d32", "Growing",     "55 – 70"),
-                ("#d4c5a9", "Stable",      "45 – 55"),
-                ("#c62828", "Declining",   "25 – 45"),
-                ("#7f0000", "High Outflow","< 25"),
-            ]:
+            with legend_col:
                 st.markdown(
-                    f"<div style='display:flex;align-items:center;margin:5px 0;font-size:0.80rem;'>"
-                    f"<div style='width:14px;height:14px;background:{color};border-radius:2px;"
-                    f"margin-right:9px;flex-shrink:0;border:1px solid #555;'></div>"
-                    f"<span style='color:#e8dfc4;font-weight:600;'>{label}</span>"
-                    f"<span style='color:#888;font-size:0.74rem;margin-left:6px;'>{desc}</span>"
-                    f"</div>",
+                    "<div style='margin-top:24px;padding:14px 12px;background:#16160f;"
+                    "border:1px solid #3a3a2a;border-radius:8px;'>"
+                    "<div style='font-size:0.78rem;font-weight:700;color:#CFB991;"
+                    "letter-spacing:0.08em;margin-bottom:10px;'>MIGRATION SCORE</div>",
                     unsafe_allow_html=True
                 )
-            st.markdown(
-                "<div style='margin-top:10px;padding-top:8px;border-top:1px solid #3a3a2a;"
-                "font-size:0.72rem;color:#888;line-height:1.5;'>"
-                "60% Population Growth<br>+ 40% Business Migration Index</div></div>",
-                unsafe_allow_html=True
-            )
+                for color, label, desc in [
+                    ("#1b5e20", "High Growth", "70 – 100"),
+                    ("#2e7d32", "Growing",     "55 – 70"),
+                    ("#d4c5a9", "Stable",      "45 – 55"),
+                    ("#c62828", "Declining",   "25 – 45"),
+                    ("#7f0000", "High Outflow","< 25"),
+                ]:
+                    st.markdown(
+                        f"<div style='display:flex;align-items:center;margin:5px 0;font-size:0.80rem;'>"
+                        f"<div style='width:14px;height:14px;background:{color};border-radius:2px;"
+                        f"margin-right:9px;flex-shrink:0;border:1px solid #555;'></div>"
+                        f"<span style='color:#e8dfc4;font-weight:600;'>{label}</span>"
+                        f"<span style='color:#888;font-size:0.74rem;margin-left:6px;'>{desc}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+                st.markdown(
+                    "<div style='margin-top:10px;padding-top:8px;border-top:1px solid #3a3a2a;"
+                    "font-size:0.72rem;color:#888;line-height:1.5;'>"
+                    "60% Population Growth<br>+ 40% Business Migration Index</div></div>",
+                    unsafe_allow_html=True
+                )
 
         # ── Top 10 States ──────────────────────────────────────────────────────
         section(" Top 10 States for CRE Investment (Migration Score)")
