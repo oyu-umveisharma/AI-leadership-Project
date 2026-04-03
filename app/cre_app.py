@@ -1022,8 +1022,169 @@ with main_tab_re:
         _map_state = _map_intent.get("state")
         _map_abbr = _map_intent.get("state_abbr")
 
-        # City coordinate lookup for zoom
-        _CITY_COORDS = {
+        # Auto-select map level based on user intent
+        _default_level = 0  # National
+        if _map_city:
+            _default_level = 2  # Metro
+        elif _map_abbr:
+            _default_level = 1  # State
+
+        _map_level = st.radio(
+            "Map Resolution",
+            ["National", "State (Counties)", "Metro (Neighborhoods)"],
+            index=_default_level,
+            horizontal=True,
+            key="migration_map_level",
+        )
+
+        _show_national_map = (_map_level == "National")
+        _show_county_map = (_map_level == "State (Counties)")
+        _show_metro_map = (_map_level == "Metro (Neighborhoods)")
+
+        # ── COUNTY-LEVEL MAP ──────────────────────────────────────────────────
+        if _show_county_map:
+            from src.county_migration import get_county_data, COUNTY_GEOJSON_URL
+
+            @st.cache_data(ttl=86400, show_spinner="Loading county boundaries...")
+            def _load_county_geojson():
+                import urllib.request, json as _json
+                with urllib.request.urlopen(COUNTY_GEOJSON_URL) as resp:
+                    return _json.loads(resp.read().decode())
+
+            _sel_state_abbr = _map_abbr
+            _all_abbrs = sorted(mig_df["state_abbr"].tolist())
+            _default_idx = _all_abbrs.index(_sel_state_abbr) if _sel_state_abbr and _sel_state_abbr in _all_abbrs else 0
+            _sel_state_abbr = st.selectbox("Select State", _all_abbrs, index=_default_idx,
+                                           format_func=lambda a: f"{a} — {_US_STATES.get(a, a)}", key="county_state_sel")
+
+            county_df = get_county_data(_sel_state_abbr)
+            if county_df.empty:
+                st.info(f"No county data available for {_sel_state_abbr}.")
+            else:
+                counties_geojson = _load_county_geojson()
+                section(f"County Migration — {_US_STATES.get(_sel_state_abbr, _sel_state_abbr)}")
+
+                fig_county = go.Figure(go.Choropleth(
+                    geojson=counties_geojson,
+                    locations=county_df["fips"],
+                    z=county_df["migration_score"],
+                    colorscale=[
+                        [0.0, "#7f0000"], [0.25, "#c62828"], [0.45, "#d4c5a9"],
+                        [0.55, "#a5d6a7"], [0.75, "#2e7d32"], [1.0, "#1b5e20"],
+                    ],
+                    zmin=0, zmax=100,
+                    marker_line_width=0.5, marker_line_color="#333",
+                    colorbar=dict(title=dict(text="Score", font=dict(size=10, color="#e8e9ed")),
+                                  tickfont=dict(size=9, color="#e8e9ed"), thickness=12, len=0.6,
+                                  bgcolor="#1c1c1c", bordercolor="#2a2a2a"),
+                    text=county_df.apply(
+                        lambda r: f"<b>{r['name']}</b><br>"
+                                  f"Score: {r['migration_score']}<br>"
+                                  f"Pop Growth: {r['pop_growth_pct']:+.1f}%<br>"
+                                  f"Pop: {r['population']:,}<br>"
+                                  f"{r['top_driver']}", axis=1),
+                    hovertemplate="%{text}<extra></extra>",
+                ))
+                fig_county.update_geos(fitbounds="locations", visible=False)
+                fig_county.update_layout(
+                    paper_bgcolor="#111111",
+                    margin=dict(t=10, b=10, l=0, r=0),
+                    height=500,
+                    font=dict(family="DM Sans", color="#e8e9ed"),
+                )
+                st.plotly_chart(fig_county, use_container_width=True, config={"displayModeBar": False})
+
+                # County table
+                section(f"County Rankings — {_US_STATES.get(_sel_state_abbr, _sel_state_abbr)}")
+                _cdisp = county_df.sort_values("migration_score", ascending=False)[
+                    ["name", "population", "pop_growth_pct", "migration_score", "top_driver"]
+                ].copy()
+                _cdisp.columns = ["County", "Population", "Pop Growth %", "Migration Score", "Key Driver"]
+                _cdisp["Population"] = _cdisp["Population"].apply(lambda x: f"{x:,}")
+                _cdisp["Pop Growth %"] = _cdisp["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
+                st.dataframe(_cdisp, use_container_width=True, hide_index=True)
+
+        # ── METRO / NEIGHBORHOOD MAP ──────────────────────────────────────────
+        elif _show_metro_map:
+            from src.zip_migration import get_zip_data, get_available_metros, get_metro_center
+
+            _available = get_available_metros()
+            _default_metro = None
+            if _map_city:
+                # Match city to available metro
+                for m in _available:
+                    if _map_city.lower() in m.lower() or m.lower() in _map_city.lower():
+                        _default_metro = m
+                        break
+            _metro_idx = _available.index(_default_metro) if _default_metro and _default_metro in _available else 0
+            _sel_metro = st.selectbox("Select Metro", _available, index=_metro_idx, key="metro_sel")
+
+            zip_df = get_zip_data(_sel_metro)
+            center = get_metro_center(_sel_metro)
+            if zip_df.empty or not center:
+                st.info(f"No neighborhood data available for {_sel_metro}.")
+            else:
+                section(f"Neighborhood Migration — {_sel_metro}")
+
+                # Color by score
+                _type_shapes = {"Urban Core": "circle", "Suburban": "diamond", "Exurban": "square"}
+                fig_metro = go.Figure(go.Scattermapbox(
+                    lat=zip_df["lat"], lon=zip_df["lon"],
+                    mode="markers+text",
+                    marker=dict(
+                        size=zip_df["migration_score"].clip(10, 95) / 5,
+                        color=zip_df["migration_score"],
+                        colorscale=[
+                            [0.0, "#7f0000"], [0.3, "#c62828"], [0.5, "#d4c5a9"],
+                            [0.7, "#2e7d32"], [1.0, "#1b5e20"],
+                        ],
+                        cmin=0, cmax=100,
+                        showscale=True,
+                        colorbar=dict(title="Score", thickness=10, len=0.5,
+                                      tickfont=dict(color="#e8e9ed"), titlefont=dict(color="#e8e9ed")),
+                    ),
+                    text=zip_df["name"],
+                    textposition="top center",
+                    textfont=dict(size=9, color="#e8e9ed"),
+                    customdata=zip_df[["name", "migration_score", "pop_growth_pct", "median_rent_growth_pct", "neighborhood_type"]].values,
+                    hovertemplate=(
+                        "<b>%{customdata[0]}</b><br>"
+                        "Score: %{customdata[1]}<br>"
+                        "Pop Growth: %{customdata[2]:+.1f}%<br>"
+                        "Rent Growth: %{customdata[3]:+.1f}%<br>"
+                        "Type: %{customdata[4]}<extra></extra>"
+                    ),
+                ))
+                fig_metro.update_layout(
+                    mapbox=dict(
+                        style="carto-darkmatter",
+                        center=dict(lat=center[0], lon=center[1]),
+                        zoom=10.5,
+                    ),
+                    paper_bgcolor="#111111",
+                    margin=dict(t=10, b=10, l=0, r=0),
+                    height=520,
+                    font=dict(family="DM Sans", color="#e8e9ed"),
+                )
+                st.plotly_chart(fig_metro, use_container_width=True, config={"displayModeBar": False})
+
+                # Neighborhood table
+                section(f"Neighborhood Rankings — {_sel_metro}")
+                _zdisp = zip_df.sort_values("migration_score", ascending=False)[
+                    ["name", "neighborhood_type", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]
+                ].copy()
+                _zdisp.columns = ["Neighborhood", "Type", "Migration Score", "Pop Growth %", "Rent Growth %"]
+                _zdisp["Pop Growth %"] = _zdisp["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
+                _zdisp["Rent Growth %"] = _zdisp["Rent Growth %"].apply(lambda x: f"{x:+.1f}%")
+                st.dataframe(_zdisp, use_container_width=True, hide_index=True)
+
+        # ── NATIONAL MAP (default) ────────────────────────────────────────────
+        else:
+            pass  # fall through to existing national map code below
+
+        if _show_national_map:
+            # City coordinate lookup for zoom
+            _CITY_COORDS = {
             "los angeles": (34.05, -118.24), "new york": (40.71, -74.01), "chicago": (41.88, -87.63),
             "houston": (29.76, -95.37), "phoenix": (33.45, -112.07), "philadelphia": (39.95, -75.17),
             "san antonio": (29.42, -98.49), "san diego": (32.72, -117.16), "dallas": (32.78, -96.80),
