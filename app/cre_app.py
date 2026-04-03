@@ -78,11 +78,23 @@ _US_STATES = {
 _STATE_NAME_TO_ABBR = {v.lower(): k for k, v in _US_STATES.items()}
 
 
+# Common city abbreviations → proper display name
+_CITY_ALIASES = {
+    "nyc": "New York City", "la": "Los Angeles", "sf": "San Francisco",
+    "dc": "Washington DC", "philly": "Philadelphia", "nola": "New Orleans",
+    "lv": "Las Vegas", "slc": "Salt Lake City", "atl": "Atlanta",
+    "chi": "Chicago", "det": "Detroit", "stl": "St. Louis",
+}
+
+
 def _normalize_input(text: str) -> str:
     """Normalize user input to proper title case with special handling."""
     if not text:
         return text
     text = text.strip()
+    # Check city aliases first (e.g., "la" → "Los Angeles")
+    if text.lower() in _CITY_ALIASES:
+        return _CITY_ALIASES[text.lower()]
     # Check if it's a state abbreviation (1-2 uppercase letters)
     upper = text.upper().strip().rstrip(".")
     if upper in _US_STATES:
@@ -100,35 +112,96 @@ def _normalize_input(text: str) -> str:
 
 
 _CITY_TO_STATE = {
-    "los angeles": "CA", "san francisco": "CA", "san diego": "CA", "san jose": "CA",
-    "sacramento": "CA", "irvine": "CA", "oakland": "CA", "long beach": "CA",
-    "new york": "NY", "brooklyn": "NY", "queens": "NY", "bronx": "NY", "buffalo": "NY",
-    "chicago": "IL", "aurora": "IL", "naperville": "IL",
-    "houston": "TX", "dallas": "TX", "austin": "TX", "san antonio": "TX", "fort worth": "TX", "el paso": "TX",
-    "miami": "FL", "tampa": "FL", "orlando": "FL", "jacksonville": "FL", "fort lauderdale": "FL", "st. petersburg": "FL",
-    "phoenix": "AZ", "tucson": "AZ", "mesa": "AZ", "scottsdale": "AZ",
-    "seattle": "WA", "tacoma": "WA", "spokane": "WA", "bellevue": "WA",
-    "denver": "CO", "colorado springs": "CO",
-    "atlanta": "GA", "savannah": "GA", "augusta": "GA",
-    "boston": "MA", "cambridge": "MA", "worcester": "MA",
-    "portland": "OR", "salem": "OR", "eugene": "OR",
+    # California
+    "los angeles": "CA", "la": "CA", "san francisco": "CA", "sf": "CA", "san diego": "CA",
+    "san jose": "CA", "sacramento": "CA", "irvine": "CA", "oakland": "CA", "long beach": "CA",
+    "fresno": "CA", "anaheim": "CA", "santa monica": "CA", "pasadena": "CA", "riverside": "CA",
+    # New York
+    "new york": "NY", "new york city": "NY", "nyc": "NY", "manhattan": "NY",
+    "brooklyn": "NY", "queens": "NY", "bronx": "NY", "buffalo": "NY",
+    "white plains": "NY", "yonkers": "NY", "albany": "NY", "rochester": "NY", "syracuse": "NY",
+    # Texas
+    "houston": "TX", "dallas": "TX", "austin": "TX", "san antonio": "TX",
+    "fort worth": "TX", "el paso": "TX", "plano": "TX", "arlington": "TX",
+    # Florida
+    "miami": "FL", "tampa": "FL", "orlando": "FL", "jacksonville": "FL",
+    "fort lauderdale": "FL", "st. petersburg": "FL", "st petersburg": "FL",
+    "west palm beach": "FL", "naples": "FL", "sarasota": "FL",
+    # Illinois
+    "chicago": "IL", "aurora": "IL", "naperville": "IL", "schaumburg": "IL",
+    # Arizona
+    "phoenix": "AZ", "tucson": "AZ", "mesa": "AZ", "scottsdale": "AZ", "tempe": "AZ", "chandler": "AZ",
+    # Washington
+    "seattle": "WA", "tacoma": "WA", "spokane": "WA", "bellevue": "WA", "redmond": "WA",
+    # Colorado
+    "denver": "CO", "colorado springs": "CO", "boulder": "CO", "aurora": "CO",
+    # Georgia
+    "atlanta": "GA", "savannah": "GA", "augusta": "GA", "athens": "GA",
+    # Massachusetts
+    "boston": "MA", "cambridge": "MA", "worcester": "MA", "springfield": "MA",
+    # Oregon
+    "portland": "OR", "salem": "OR", "eugene": "OR", "beaverton": "OR",
+    # Nevada
     "las vegas": "NV", "reno": "NV", "henderson": "NV",
+    # Tennessee
     "nashville": "TN", "memphis": "TN", "knoxville": "TN", "chattanooga": "TN",
-    "charlotte": "NC", "raleigh": "NC", "durham": "NC",
-    "salt lake city": "UT", "provo": "UT",
-    "minneapolis": "MN", "st. paul": "MN",
-    "indianapolis": "IN", "fort wayne": "IN",
-    "columbus": "OH", "cleveland": "OH", "cincinnati": "OH",
-    "detroit": "MI", "grand rapids": "MI", "ann arbor": "MI",
-    "philadelphia": "PA", "pittsburgh": "PA",
-    "kansas city": "MO", "st. louis": "MO",
-    "richmond": "VA", "virginia beach": "VA", "arlington": "VA",
-    "baltimore": "MD", "columbia": "MD",
-    "charleston": "SC", "greenville": "SC",
+    # North Carolina
+    "charlotte": "NC", "raleigh": "NC", "durham": "NC", "greensboro": "NC",
+    "winston-salem": "NC", "fayetteville": "NC", "research triangle": "NC",
+    # Utah
+    "salt lake city": "UT", "provo": "UT", "ogden": "UT",
+    # Minnesota
+    "minneapolis": "MN", "st. paul": "MN", "st paul": "MN", "bloomington": "MN",
+    # Indiana
+    "indianapolis": "IN", "fort wayne": "IN", "carmel": "IN",
+    # Ohio
+    "columbus": "OH", "cleveland": "OH", "cincinnati": "OH", "dayton": "OH", "akron": "OH",
+    # Michigan
+    "detroit": "MI", "grand rapids": "MI", "ann arbor": "MI", "lansing": "MI",
+    # Pennsylvania
+    "philadelphia": "PA", "pittsburgh": "PA", "allentown": "PA",
+    # Missouri
+    "kansas city": "MO", "st. louis": "MO", "st louis": "MO",
+    # Virginia
+    "richmond": "VA", "virginia beach": "VA", "arlington": "VA", "norfolk": "VA", "alexandria": "VA",
+    # Maryland
+    "baltimore": "MD", "columbia": "MD", "bethesda": "MD", "silver spring": "MD",
+    # South Carolina
+    "charleston": "SC", "greenville": "SC", "columbia": "SC",
+    # South Dakota
     "sioux falls": "SD", "rapid city": "SD", "aberdeen": "SD",
+    # North Dakota
     "fargo": "ND", "bismarck": "ND",
+    # Nebraska
     "omaha": "NE", "lincoln": "NE",
+    # Idaho
     "boise": "ID", "meridian": "ID",
+    # Wisconsin
+    "milwaukee": "WI", "madison": "WI",
+    # Iowa
+    "des moines": "IA", "cedar rapids": "IA",
+    # Connecticut
+    "hartford": "CT", "new haven": "CT", "stamford": "CT",
+    # New Jersey
+    "newark": "NJ", "jersey city": "NJ", "hoboken": "NJ",
+    # Louisiana
+    "new orleans": "LA", "baton rouge": "LA",
+    # Alabama
+    "birmingham": "AL", "huntsville": "AL", "montgomery": "AL",
+    # Oklahoma
+    "oklahoma city": "OK", "tulsa": "OK",
+    # Kentucky
+    "louisville": "KY", "lexington": "KY",
+    # DC
+    "washington dc": "DC", "washington d.c.": "DC", "dc": "DC",
+    # Hawaii
+    "honolulu": "HI",
+    # New Mexico
+    "albuquerque": "NM", "santa fe": "NM",
+    # Kansas
+    "wichita": "KS", "overland park": "KS",
+    # Arkansas
+    "little rock": "AR",
 }
 
 
@@ -139,13 +212,20 @@ def _get_location_scope(location_str: str) -> dict:
 
     loc = location_str.strip()
 
-    # "City, ST" pattern
+    # "City, ST" or "City, State Name" pattern
     if "," in loc:
         parts = [p.strip() for p in loc.split(",", 1)]
         city = parts[0]
-        st_part = parts[1].upper().rstrip(".") if len(parts) > 1 else ""
-        state_name = _US_STATES.get(st_part, st_part.title())
-        return {"city": city, "state": state_name, "state_abbr": st_part if st_part in _US_STATES else None, "scope": "city"}
+        st_part = parts[1].strip().rstrip(".")
+        # Check abbreviation
+        if st_part.upper() in _US_STATES:
+            return {"city": city, "state": _US_STATES[st_part.upper()], "state_abbr": st_part.upper(), "scope": "city"}
+        # Check full state name
+        if st_part.lower() in _STATE_NAME_TO_ABBR:
+            abbr = _STATE_NAME_TO_ABBR[st_part.lower()]
+            return {"city": city, "state": _US_STATES[abbr], "state_abbr": abbr, "scope": "city"}
+        # Unknown state portion
+        return {"city": city, "state": st_part.title(), "state_abbr": None, "scope": "city"}
 
     # Check if it's a full state name
     if loc.lower() in _STATE_NAME_TO_ABBR:
@@ -156,8 +236,9 @@ def _get_location_scope(location_str: str) -> dict:
     if loc.upper() in _US_STATES:
         return {"city": None, "state": _US_STATES[loc.upper()], "state_abbr": loc.upper(), "scope": "state"}
 
-    # City-to-state lookup for bare city names
-    abbr = _CITY_TO_STATE.get(loc.lower())
+    # City-to-state lookup for bare city names (try exact, then progressively shorter)
+    loc_lower = loc.lower()
+    abbr = _CITY_TO_STATE.get(loc_lower)
     if abbr:
         return {"city": loc, "state": _US_STATES[abbr], "state_abbr": abbr, "scope": "city"}
 
@@ -165,15 +246,25 @@ def _get_location_scope(location_str: str) -> dict:
     return {"city": loc, "state": None, "state_abbr": None, "scope": "city"}
 
 
-# Synonyms that map to canonical property types
+# Synonyms that map to canonical property types (longest first to avoid partial matches)
 _PT_SYNONYMS = {
+    "car wash": "Retail", "gas station": "Retail", "convenience store": "Retail",
+    "shopping center": "Retail", "strip mall": "Retail",
+    "data center": "Data Center", "data centres": "Data Center",
+    "self-storage": "Self-Storage", "self storage": "Self-Storage", "storage unit": "Self-Storage",
     "warehouse": "Industrial", "logistics": "Industrial", "distribution": "Industrial",
     "fulfillment": "Industrial", "manufacturing": "Industrial", "factory": "Industrial",
+    "storage": "Industrial", "flex space": "Industrial",
     "apartment": "Multifamily", "apartments": "Multifamily", "residential": "Multifamily",
-    "shop": "Retail", "shopping": "Retail", "mall": "Retail", "store": "Retail",
+    "condo": "Multifamily", "condos": "Multifamily", "townhome": "Multifamily",
+    "restaurant": "Retail", "shop": "Retail", "shopping": "Retail", "mall": "Retail",
+    "store": "Retail", "grocery": "Retail", "pharmacy": "Retail",
     "medical": "Healthcare", "hospital": "Healthcare", "clinic": "Healthcare",
-    "hotel": "Hospitality", "motel": "Hospitality",
-    "storage": "Self-Storage", "self-storage": "Self-Storage",
+    "urgent care": "Healthcare", "dental": "Healthcare",
+    "hotel": "Hospitality", "motel": "Hospitality", "resort": "Hospitality",
+    "senior living": "Healthcare", "assisted living": "Healthcare", "nursing": "Healthcare",
+    "parking": "Other", "parking garage": "Other", "parking lot": "Other",
+    "mixed-use": "Mixed-Use", "mixed use": "Mixed-Use", "live-work": "Mixed-Use",
 }
 
 # Region keywords → list of state abbreviations
@@ -192,11 +283,17 @@ _REGION_STATES = {
 }
 
 
+_FILLER_WORDS = {"potential", "places", "properties", "property", "investment",
+                  "investments", "opportunities", "opportunity", "spaces", "space",
+                  "buildings", "building", "for", "a", "an", "the", "some", "best",
+                  "top", "good", "great", "cheap", "cheapest", "expensive", "near", "around"}
+
+
 def _parse_intent(raw: str) -> dict:
     """Parse free-text input into property_type and location."""
     raw_lower = raw.lower().strip()
 
-    # Detect property type — check synonyms first, then canonical names
+    # Detect property type — check multi-word synonyms first (longest match wins)
     prop_type = None
     for syn, canonical in _PT_SYNONYMS.items():
         if syn in raw_lower:
@@ -205,7 +302,7 @@ def _parse_intent(raw: str) -> dict:
     if not prop_type:
         for pt in ["industrial", "multifamily", "office", "retail", "data center", "healthcare", "hospitality"]:
             if pt in raw_lower:
-                prop_type = _normalize_input(pt)
+                prop_type = pt.title()
                 break
 
     # Detect region keywords
@@ -217,16 +314,41 @@ def _parse_intent(raw: str) -> dict:
             region_states = rstates
             break
 
-    # Heuristic: everything after "in " or "on the " is the location
+    # Extract location — everything after "in " or "on the "
     location = None
     for prep in [" in the ", " in ", " on the ", " on "]:
         if prep in raw_lower:
             location = raw[raw_lower.index(prep) + len(prep):].strip().rstrip(".")
             break
+
+    # Handle "City, State Name" (e.g., "raleigh, north carolina")
     if not location and "," in raw:
-        parts = raw.rsplit(",", 1)
-        if len(parts) == 2 and len(parts[1].strip()) <= 3:
+        parts = [p.strip() for p in raw.rsplit(",", 1)]
+        after_comma = parts[1].lower().rstrip(".")
+        # Check if after comma is a state abbreviation (2 letters)
+        if len(after_comma) <= 3 and after_comma.upper().rstrip(".") in _US_STATES:
             location = raw.strip()
+        # Check if after comma is a full state name
+        elif after_comma in _STATE_NAME_TO_ABBR:
+            abbr = _STATE_NAME_TO_ABBR[after_comma]
+            # Reconstruct as "City, ST" for downstream parsing
+            city_part = parts[0]
+            # Strip filler/property words from city part
+            city_words = [w for w in city_part.split() if w.lower() not in _FILLER_WORDS
+                          and w.lower() not in _PT_SYNONYMS
+                          and w.lower() not in ["industrial", "multifamily", "office", "retail",
+                                                 "data", "center", "healthcare", "hospitality"]]
+            if city_words:
+                location = " ".join(city_words) + ", " + abbr
+            else:
+                location = _US_STATES[abbr]
+
+    # Strip filler words from location
+    if location:
+        loc_words = location.split()
+        cleaned = [w for w in loc_words if w.lower() not in _FILLER_WORDS]
+        if cleaned:
+            location = " ".join(cleaned)
 
     # If we detected a region, don't treat it as a city/state location
     if region and not location:
@@ -237,6 +359,10 @@ def _parse_intent(raw: str) -> dict:
     # Normalize
     location = _normalize_input(location) if location else None
     loc_scope = _get_location_scope(location)
+
+    print(f"[Intent Parser] Parsed: type={prop_type}, location={location}, "
+          f"city={loc_scope.get('city')}, state={loc_scope.get('state')}, "
+          f"state_abbr={loc_scope.get('state_abbr')}")
 
     return {
         "property_type": prop_type,
