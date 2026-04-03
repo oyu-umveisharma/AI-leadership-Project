@@ -1075,6 +1075,8 @@ with main_tab_re:
             _sel_state_abbr = _map_abbr
             _all_abbrs = sorted(mig_df["state_abbr"].tolist())
             _default_idx = _all_abbrs.index(_sel_state_abbr) if _sel_state_abbr and _sel_state_abbr in _all_abbrs else 0
+            if _sel_state_abbr and st.session_state.get("county_state_sel") != _sel_state_abbr:
+                st.session_state["county_state_sel"] = _sel_state_abbr
             _sel_state_abbr = st.selectbox("Select State", _all_abbrs, index=_default_idx,
                                            format_func=lambda a: f"{a} — {_US_STATES.get(a, a)}", key="county_state_sel")
 
@@ -1127,25 +1129,77 @@ with main_tab_re:
 
         # ── METRO / NEIGHBORHOOD MAP ──────────────────────────────────────────
         elif _show_metro_map:
-            from src.zip_migration import get_zip_data, get_available_metros, get_metro_center
+            from src.zip_migration import (
+                get_zip_data, get_available_metros, get_metro_center,
+                generate_simple_metro_data, _STATE_CENTERS, _CITY_COORDS_FALLBACK,
+            )
 
             _available = get_available_metros()
             _default_metro = None
+            _use_fallback = False
+
             if _map_city:
-                # Match city to available metro
+                # Try matching to a detailed metro
                 for m in _available:
                     if _map_city.lower() in m.lower() or m.lower() in _map_city.lower():
                         _default_metro = m
                         break
-            _metro_idx = _available.index(_default_metro) if _default_metro and _default_metro in _available else 0
-            _sel_metro = st.selectbox("Select Metro", _available, index=_metro_idx, key="metro_sel")
 
-            zip_df = get_zip_data(_sel_metro)
-            center = get_metro_center(_sel_metro)
-            if zip_df.empty or not center:
-                st.info(f"No neighborhood data available for {_sel_metro}.")
+            if _default_metro:
+                # Has detailed metro data — use selectbox
+                if st.session_state.get("metro_sel") != _default_metro:
+                    st.session_state["metro_sel"] = _default_metro
+                _metro_idx = _available.index(_default_metro)
+                _sel_metro = st.selectbox("Select Metro", _available, index=_metro_idx, key="metro_sel")
+                zip_df = get_zip_data(_sel_metro)
+                center = get_metro_center(_sel_metro)
             else:
-                section(f"Neighborhood Migration — {_sel_metro}")
+                # No detailed data — use fallback generation
+                _use_fallback = True
+                _fb_city = _map_city
+                _fb_abbr = _map_abbr
+                _fb_center = None
+
+                # Try city coords fallback
+                if _fb_city and _fb_city.lower() in _CITY_COORDS_FALLBACK:
+                    lat, lon, st_code = _CITY_COORDS_FALLBACK[_fb_city.lower()]
+                    _fb_center = (lat, lon)
+                    _fb_abbr = _fb_abbr or st_code
+                # Try state centers
+                elif _fb_abbr and _fb_abbr in _STATE_CENTERS:
+                    _fb_city_name, lat, lon = _STATE_CENTERS[_fb_abbr]
+                    _fb_center = (lat, lon)
+                    _fb_city = _fb_city or _fb_city_name
+
+                if _fb_center and _fb_city and _fb_abbr:
+                    # Also show selectbox with detailed metros as option
+                    _all_options = [f"{_fb_city} (generated)"] + _available
+                    _sel = st.selectbox("Select Metro", _all_options, index=0, key="metro_sel_fb")
+                    if _sel != _all_options[0]:
+                        # User switched to a detailed metro
+                        zip_df = get_zip_data(_sel)
+                        center = get_metro_center(_sel)
+                        _use_fallback = False
+                        _sel_metro = _sel
+                    else:
+                        zip_df = generate_simple_metro_data(_fb_city, _fb_abbr, _fb_center[0], _fb_center[1])
+                        center = _fb_center
+                        _sel_metro = _fb_city
+                else:
+                    # Total fallback — show selectbox of available metros
+                    _sel_metro = st.selectbox("Select Metro", _available, index=0, key="metro_sel")
+                    zip_df = get_zip_data(_sel_metro)
+                    center = get_metro_center(_sel_metro)
+
+            print(f"[Migration Map] city={_map_city}, state={_map_abbr}, metro={_default_metro or 'fallback'}, fallback={_use_fallback}")
+
+            if zip_df.empty or not center:
+                st.info(f"No neighborhood data available.")
+            else:
+                _section_label = f"Neighborhood Migration — {_sel_metro}"
+                if _use_fallback:
+                    _section_label = f"Area Migration — {_sel_metro} (estimated)"
+                section(_section_label)
 
                 # Color by score
                 _type_shapes = {"Urban Core": "circle", "Suburban": "diamond", "Exurban": "square"}
@@ -1161,8 +1215,9 @@ with main_tab_re:
                         ],
                         cmin=0, cmax=100,
                         showscale=True,
-                        colorbar=dict(title="Score", thickness=10, len=0.5,
-                                      tickfont=dict(color="#e8e9ed"), titlefont=dict(color="#e8e9ed")),
+                        colorbar=dict(title=dict(text="Score", font=dict(color="#e8e9ed")),
+                                      thickness=10, len=0.5,
+                                      tickfont=dict(color="#e8e9ed")),
                     ),
                     text=zip_df["name"],
                     textposition="top center",
@@ -1176,11 +1231,12 @@ with main_tab_re:
                         "Type: %{customdata[4]}<extra></extra>"
                     ),
                 ))
+                _map_zoom = 9.5 if _use_fallback else 10.5
                 fig_metro.update_layout(
                     mapbox=dict(
                         style="carto-darkmatter",
                         center=dict(lat=center[0], lon=center[1]),
-                        zoom=10.5,
+                        zoom=_map_zoom,
                     ),
                     paper_bgcolor="#111111",
                     margin=dict(t=10, b=10, l=0, r=0),

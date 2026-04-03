@@ -304,6 +304,108 @@ _METRO_DATA = {
 }
 
 
+# State → (major city name, lat, lon) for fallback centering
+_STATE_CENTERS = {
+    "AL": ("Birmingham", 33.5207, -86.8025), "AK": ("Anchorage", 61.2181, -149.9003),
+    "AZ": ("Phoenix", 33.4484, -112.0740), "AR": ("Little Rock", 34.7465, -92.2896),
+    "CA": ("Los Angeles", 34.0522, -118.2437), "CO": ("Denver", 39.7392, -104.9903),
+    "CT": ("Hartford", 41.7658, -72.6734), "DE": ("Wilmington", 39.7391, -75.5398),
+    "DC": ("Washington", 38.9072, -77.0369), "FL": ("Miami", 25.7617, -80.1918),
+    "GA": ("Atlanta", 33.7490, -84.3880), "HI": ("Honolulu", 21.3069, -157.8583),
+    "ID": ("Boise", 43.6150, -116.2023), "IL": ("Chicago", 41.8781, -87.6298),
+    "IN": ("Indianapolis", 39.7684, -86.1581), "IA": ("Des Moines", 41.5868, -93.6250),
+    "KS": ("Wichita", 37.6872, -97.3301), "KY": ("Louisville", 38.2527, -85.7585),
+    "LA": ("New Orleans", 29.9511, -90.0715), "ME": ("Portland", 43.6591, -70.2568),
+    "MD": ("Baltimore", 39.2904, -76.6122), "MA": ("Boston", 42.3601, -71.0589),
+    "MI": ("Detroit", 42.3314, -83.0458), "MN": ("Minneapolis", 44.9778, -93.2650),
+    "MS": ("Jackson", 32.2988, -90.1848), "MO": ("Kansas City", 39.0997, -94.5786),
+    "MT": ("Billings", 45.7833, -108.5007), "NE": ("Omaha", 41.2565, -95.9345),
+    "NV": ("Las Vegas", 36.1699, -115.1398), "NH": ("Manchester", 42.9956, -71.4548),
+    "NJ": ("Newark", 40.7357, -74.1724), "NM": ("Albuquerque", 35.0844, -106.6504),
+    "NY": ("New York City", 40.7128, -74.0060), "NC": ("Charlotte", 35.2271, -80.8431),
+    "ND": ("Fargo", 46.8772, -96.7898), "OH": ("Columbus", 39.9612, -82.9988),
+    "OK": ("Oklahoma City", 35.4676, -97.5164), "OR": ("Portland", 45.5152, -122.6784),
+    "PA": ("Philadelphia", 39.9526, -75.1652), "RI": ("Providence", 41.8240, -71.4128),
+    "SC": ("Charleston", 32.7765, -79.9311), "SD": ("Sioux Falls", 43.5446, -96.7311),
+    "TN": ("Nashville", 36.1627, -86.7816), "TX": ("Houston", 29.7604, -95.3698),
+    "UT": ("Salt Lake City", 40.7608, -111.8910), "VT": ("Burlington", 44.4759, -73.2121),
+    "VA": ("Richmond", 37.5407, -77.4360), "WA": ("Seattle", 47.6062, -122.3321),
+    "WV": ("Charleston", 38.3498, -81.6326), "WI": ("Milwaukee", 43.0389, -87.9065),
+    "WY": ("Cheyenne", 41.1400, -104.8202),
+}
+
+# City coordinates for on-the-fly generation (beyond the 17 detailed metros)
+_CITY_COORDS_FALLBACK = {
+    "honolulu": (21.3069, -157.8583, "HI"), "anchorage": (61.2181, -149.9003, "AK"),
+    "sioux falls": (43.5446, -96.7311, "SD"), "rapid city": (44.0805, -103.2310, "SD"),
+    "fargo": (46.8772, -96.7898, "ND"), "bismarck": (46.8083, -100.7837, "ND"),
+    "billings": (45.7833, -108.5007, "MT"), "missoula": (46.8721, -113.9940, "MT"),
+    "boise": (43.6150, -116.2023, "ID"), "cheyenne": (41.1400, -104.8202, "WY"),
+    "burlington": (44.4759, -73.2121, "VT"), "portland me": (43.6591, -70.2568, "ME"),
+    "manchester": (42.9956, -71.4548, "NH"), "providence": (41.8240, -71.4128, "RI"),
+    "hartford": (41.7658, -72.6734, "CT"), "wilmington": (39.7391, -75.5398, "DE"),
+    "jackson": (32.2988, -90.1848, "MS"), "little rock": (34.7465, -92.2896, "AR"),
+    "louisville": (38.2527, -85.7585, "KY"), "birmingham": (33.5207, -86.8025, "AL"),
+    "huntsville": (34.7304, -86.5861, "AL"), "montgomery": (32.3792, -86.3077, "AL"),
+    "new orleans": (29.9511, -90.0715, "LA"), "baton rouge": (30.4515, -91.1871, "LA"),
+    "oklahoma city": (35.4676, -97.5164, "OK"), "tulsa": (36.1540, -95.9928, "OK"),
+    "wichita": (37.6872, -97.3301, "KS"), "omaha": (41.2565, -95.9345, "NE"),
+    "des moines": (41.5868, -93.6250, "IA"), "milwaukee": (43.0389, -87.9065, "WI"),
+    "madison": (43.0731, -89.4012, "WI"), "indianapolis": (39.7684, -86.1581, "IN"),
+    "columbus": (39.9612, -82.9988, "OH"), "cleveland": (41.4993, -81.6944, "OH"),
+    "cincinnati": (39.1031, -84.5120, "OH"), "pittsburgh": (40.4406, -79.9959, "PA"),
+    "albuquerque": (35.0844, -106.6504, "NM"), "santa fe": (35.6870, -105.9378, "NM"),
+    "salt lake city": (40.7608, -111.8910, "UT"), "richmond": (37.5407, -77.4360, "VA"),
+    "charleston sc": (32.7765, -79.9311, "SC"), "charleston wv": (38.3498, -81.6326, "WV"),
+    "columbia": (34.0007, -81.0348, "SC"), "greenville": (34.8526, -82.3940, "SC"),
+    "myrtle beach": (33.6891, -78.8867, "SC"),
+}
+
+
+def generate_simple_metro_data(city: str, state_abbr: str, center_lat: float, center_lon: float) -> pd.DataFrame:
+    """Generate simple neighborhood dots for any city without detailed metro data."""
+    rng = np.random.RandomState(hash(f"{city}{state_abbr}") % 2**31)
+
+    # Generate surrounding areas
+    directions = [
+        ("Downtown", 0, 0, "Urban Core"),
+        ("North Side", 0.015, -0.002, "Urban Core"),
+        ("South Side", -0.015, 0.003, "Urban Core"),
+        ("East Side", 0.003, 0.015, "Urban Core"),
+        ("West Side", -0.002, -0.015, "Urban Core"),
+        ("NW Suburbs", 0.025, -0.025, "Suburban"),
+        ("NE Suburbs", 0.025, 0.025, "Suburban"),
+        ("SW Suburbs", -0.025, -0.025, "Suburban"),
+        ("SE Suburbs", -0.025, 0.025, "Suburban"),
+        ("Outer Ring", 0.045, 0.010, "Exurban"),
+    ]
+
+    rows = []
+    for name, lat_off, lon_off, zone_type in directions:
+        display_name = f"{city} {name}" if name != "Downtown" else f"Downtown {city}"
+        lat = center_lat + lat_off + rng.normal(0, 0.003)
+        lon = center_lon + lon_off + rng.normal(0, 0.003)
+        base_score = rng.randint(30, 80)
+        score = max(5, min(98, base_score))
+        growth = round((score - 50) / 18 + rng.normal(0, 0.3), 1)
+        rent_growth = round(growth * 1.2 + rng.normal(0, 0.5), 1)
+
+        rows.append({
+            "zip": f"{rng.randint(10000, 99999)}",
+            "name": display_name,
+            "metro": city,
+            "state": state_abbr,
+            "lat": round(lat, 4),
+            "lon": round(lon, 4),
+            "pop_growth_pct": growth,
+            "migration_score": score,
+            "median_rent_growth_pct": rent_growth,
+            "neighborhood_type": zone_type,
+        })
+
+    return pd.DataFrame(rows)
+
+
 def get_available_metros() -> list[str]:
     """Returns sorted list of metro names that have zip-level data."""
     return sorted(_METRO_DATA.keys())
