@@ -10,6 +10,8 @@
 
 Most CRE research tools require manual data pulls, static spreadsheets, and hours of synthesis. This platform replaces that workflow with a live dashboard backed by eight background agents that update continuously — surfacing which markets to watch, which property types are most profitable, and which companies are building new facilities.
 
+The app opens with an AI-powered chatbox that asks what you are looking for. Type a query like "industrial in Los Angeles" or "office in Chicago" and the entire dashboard personalizes to that search — tab titles rewrite, maps zoom to your metro, listings filter to your city, and AI-generated insights appear for your specific property type and location. Over 200 US cities are recognized with accurate metro-level neighborhood maps.
+
 The agents run on a scheduler. Open the dashboard and the data is already there.
 
 ---
@@ -30,6 +32,49 @@ Eight specialized agents operate independently on fixed schedules, writing to a 
 | Sustainability Analyst | Clean energy ETFs, green REIT performance vs. S&P 500 | Every 6 hours |
 
 All agents start automatically when the app launches. No manual triggers needed.
+
+---
+
+## AI Chatbox and Personalization
+
+When the app launches, a welcome screen asks: "What are you looking to invest in today?" Users can type a natural-language query or pick a quick-select category.
+
+**What the parser understands:**
+
+- Property types: Industrial, Office, Retail, Multifamily, Data Center, Healthcare, Hospitality, Self-Storage, Mixed-Use
+- Synonyms: "warehouse" and "logistics" map to Industrial, "car wash" and "restaurant" map to Retail, "apartment" maps to Multifamily
+- Locations: 200+ US cities with state resolution (typing "Chicago" resolves to IL, "LA" resolves to CA)
+- Full state names: "north carolina" resolves to NC
+- Regions: "west coast", "midwest", "sun belt", "northeast" filter to the relevant state group
+- Filler word stripping: "potential warehouse investment opportunities in Austin" parses to Industrial in Austin, TX
+
+**How personalization works across tabs:**
+
+| Tab | What Changes |
+|-----|-------------|
+| Migration Intelligence | Map zooms to your state or metro. County-level and neighborhood-level drill-down maps available via radio selector. Matching state/metro stats highlighted at top. |
+| Pricing and Profit | Your property type highlighted in the profit margin chart. Rate-adjusted cap rate table highlights the matching row. |
+| Company Predictions | Facility announcements sorted by relevance to your property type and location. |
+| Cheapest Buildings | Listings filtered to your city and property type. On-demand generation for states not in the default top-3 migration set. |
+| Rate Environment | Cap rate adjustment table highlights your property type row. |
+| Energy and Construction | Contextual insight for how commodity costs affect your target investment. |
+| Sustainability and ESG | Maps your property type to the most relevant green REIT (Industrial to Prologis, Data Center to Equinix). |
+
+A persistent chat bar at the top of the dashboard allows changing the query at any time without returning to the welcome screen. AI-generated insights powered by Groq appear at the top of each tab when a focus is set.
+
+---
+
+## Migration Map Drill-Down
+
+The Migration Intelligence tab supports three levels of geographic resolution:
+
+| Level | View | Data |
+|-------|------|------|
+| National | US choropleth by state | 51 states/territories colored by composite migration score |
+| State (Counties) | County choropleth with FIPS codes | 8-18 counties per state with population, growth rate, key economic drivers |
+| Metro (Neighborhoods) | Scattermapbox with dark tiles | 10-18 neighborhoods per metro with lat/lon, migration score, rent growth, zone type |
+
+The map auto-selects the appropriate level based on the user's query. Typing "Texas" zooms to the state view with counties. Typing "Chicago" zooms to the metro view with neighborhood dots. 17 major metros are supported with accurate coordinates.
 
 ---
 
@@ -119,10 +164,12 @@ AI-leadership-Project/
 │   ├── cre_population.py       # Census API — migration scores, metro data
 │   ├── cre_pricing.py          # REIT universe, cap rates, profit matrix
 │   ├── cre_news.py             # RSS feed scraper, facility keyword filter
-│   ├── cre_listings.py         # Commercial property listings by state
+│   ├── cre_listings.py         # Commercial property listings by state (28 states, 200+ cities)
 │   ├── rate_agent.py           # FRED API — interest rates, yield curve
 │   ├── energy_analyst.py       # Commodity prices, construction cost signal
-│   └── sustainability_analyst.py # Clean energy ETFs, green REIT tracking
+│   ├── sustainability_analyst.py # Clean energy ETFs, green REIT tracking
+│   ├── county_migration.py    # County-level migration data (FIPS codes, 12 states seeded)
+│   └── zip_migration.py       # Neighborhood-level data (17 metros, real lat/lon)
 ├── chief-of-staff/             # CLI tool for project coordination
 ├── .pipeline/                  # Auto-sync agent for team machines
 ├── cache/                      # Runtime JSON cache (gitignored)
