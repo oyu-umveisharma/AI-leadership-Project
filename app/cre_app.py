@@ -1297,8 +1297,7 @@ with main_tab_re:
             _map_title_suffix = "Where America is Moving"
             _focus_abbr = _map_abbr  # state to highlight
 
-            if _map_city:
-                coords = _CITY_COORDS.get(_map_city.lower())
+            coords = _CITY_COORDS.get(_map_city.lower()) if _map_city else None
             if coords:
                 _zoom_coords = coords
                 _zoom_scale = 3.5
