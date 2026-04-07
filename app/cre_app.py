@@ -2083,16 +2083,20 @@ with main_tab_re:
                 st.caption(f"Showing {len(group)} listings sorted by asking price")
 
                 for listing in group:
-                    price_fmt  = f"${listing.get('price', 0):,}"
-                    sqft_fmt   = f"{listing.get('sqft', 0):,} sqft"
-                    ppsf_fmt   = f"${listing.get('price_per_sqft', 0):.0f}/sqft"
-                    cap_fmt    = f"{listing.get('cap_rate', 0):.2f}% cap rate"
-                    noi_fmt    = f"${listing.get('noi_annual', 0):,}/yr NOI"
-                    dom_fmt    = f"{listing.get('days_on_market', 0)}d on market"
-                    built_fmt  = f"Built {listing.get('year_built', 'N/A')}"
-                    pt_fmt     = listing.get("property_type", "")
-                    addr_fmt   = f"{listing.get('address', '')}, {listing.get('city', '')}, {listing.get('state', '')}"
-                    highlights = listing.get("highlights", "")
+                    from src.cre_listings import estimate_property_tax
+                    tax          = estimate_property_tax(listing)
+                    price_fmt    = f"${listing.get('price', 0):,}"
+                    sqft_fmt     = f"{listing.get('sqft', 0):,} sqft"
+                    ppsf_fmt     = f"${listing.get('price_per_sqft', 0):.0f}/sqft"
+                    cap_fmt      = f"{listing.get('cap_rate', 0):.2f}% cap rate"
+                    noi_fmt      = f"${listing.get('noi_annual', 0):,}/yr NOI"
+                    dom_fmt      = f"{listing.get('days_on_market', 0)}d on market"
+                    built_fmt    = f"Built {listing.get('year_built', 'N/A')}"
+                    pt_fmt       = listing.get("property_type", "")
+                    addr_fmt     = f"{listing.get('address', '')}, {listing.get('city', '')}, {listing.get('state', '')}"
+                    highlights   = listing.get("highlights", "")
+                    tax_fmt      = f"${tax['annual_tax']:,}/yr est. tax ({tax['tax_rate_pct']}% rate · ${tax['tax_per_sqft']}/sqft)"
+                    tax_noi_note = f" · {tax['tax_as_pct_noi']}% of NOI" if tax['tax_as_pct_noi'] else ""
 
                     # Highlight if city matches
                     _is_city_match = _user_city4 and _user_city4.lower() in (listing.get("city", "") or "").lower()
@@ -2108,6 +2112,9 @@ with main_tab_re:
                         <span class="l-tag">{dom_fmt}</span>
                       </div>
                       <div class="l-detail">{sqft_fmt} · {ppsf_fmt} · {noi_fmt} · {built_fmt}</div>
+                      <div class="l-detail" style="color:#c8a96e;margin-top:4px;">
+                        Property Tax: {tax_fmt}{tax_noi_note}
+                      </div>
                       {"<div class='l-detail' style='color:#555;margin-top:4px;font-style:italic;'> " + highlights + "</div>" if highlights else ""}
                     </div>
                     """, unsafe_allow_html=True)

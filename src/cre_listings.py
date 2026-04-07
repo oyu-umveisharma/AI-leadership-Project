@@ -8,6 +8,47 @@ market-informed listings based on current cap rates and price-per-sqft benchmark
 import random
 from datetime import datetime, timedelta
 
+# ── Commercial property tax effective rates by state (2024-2025 estimates) ────
+# Source: Lincoln Institute of Land Policy, state revenue departments.
+# These are effective combined rates (county + school + municipal) applied to
+# assessed value. Most states assess commercial at 100% of market value.
+COMMERCIAL_TAX_RATES = {
+    "TX": 0.0245, "FL": 0.0110, "AZ": 0.0100, "NC": 0.0085, "TN": 0.0075,
+    "GA": 0.0100, "CO": 0.0055, "NV": 0.0080, "UT": 0.0065, "SC": 0.0055,
+    "CA": 0.0110, "NY": 0.0170, "IL": 0.0230, "WA": 0.0100, "MA": 0.0150,
+    "PA": 0.0150, "OH": 0.0150, "MI": 0.0180, "OR": 0.0100, "MN": 0.0150,
+    "IN": 0.0100, "MO": 0.0110, "VA": 0.0090, "MD": 0.0110, "SD": 0.0050,
+    "ND": 0.0090, "NE": 0.0150, "ID": 0.0070,
+}
+DEFAULT_TAX_RATE = 0.0110  # national commercial average fallback
+
+
+def estimate_property_tax(listing: dict) -> dict:
+    """
+    Return property tax estimates for a listing dict.
+    Uses state-level effective commercial tax rates.
+    Returns a dict with: annual_tax, monthly_tax, tax_per_sqft,
+                         tax_rate_pct, tax_as_pct_noi.
+    """
+    state   = (listing.get("state") or "").upper()
+    price   = listing.get("price", 0) or 0
+    sqft    = listing.get("sqft", 0) or 0
+    noi     = listing.get("noi_annual", 0) or 0
+
+    rate         = COMMERCIAL_TAX_RATES.get(state, DEFAULT_TAX_RATE)
+    annual_tax   = price * rate
+    monthly_tax  = annual_tax / 12
+    tax_per_sqft = (annual_tax / sqft) if sqft else 0
+    tax_as_pct_noi = (annual_tax / noi * 100) if noi else 0
+
+    return {
+        "annual_tax":      int(annual_tax),
+        "monthly_tax":     int(monthly_tax),
+        "tax_per_sqft":    round(tax_per_sqft, 2),
+        "tax_rate_pct":    round(rate * 100, 2),
+        "tax_as_pct_noi":  round(tax_as_pct_noi, 1),
+    }
+
 # Price per sqft benchmarks by property type and market tier (2024-2025 data)
 PRICE_PER_SQFT = {
     "TX": {"Industrial": (45, 95),  "Retail": (80, 180),  "Office": (90, 200),  "Multifamily": (100, 180), "Mixed-Use": (110, 220)},
