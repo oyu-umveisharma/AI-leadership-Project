@@ -130,10 +130,10 @@ pip install -r requirements.txt
 export GROQ_API_KEY=your_key_here
 export FRED_API_KEY=your_key_here
 
-# 4. Run
-streamlit run app/cre_app.py
+# 4. Run (use python3 -m streamlit to ensure the correct Python environment)
+python3 -m streamlit run app/cre_app.py
 # or on a specific port:
-streamlit run app/cre_app.py --server.port 8503
+python3 -m streamlit run app/cre_app.py --server.port 8503
 ```
 
 The app opens at `http://localhost:8501` by default. All twelve agents start in the background immediately. Data populates within 30–60 seconds.
