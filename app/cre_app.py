@@ -1069,8 +1069,11 @@ with main_tab_re:
 
             @st.cache_data(ttl=86400, show_spinner="Loading county boundaries...")
             def _load_county_geojson():
-                import urllib.request, json as _json
-                with urllib.request.urlopen(COUNTY_GEOJSON_URL) as resp:
+                import urllib.request, json as _json, ssl
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                with urllib.request.urlopen(COUNTY_GEOJSON_URL, context=ctx) as resp:
                     return _json.loads(resp.read().decode())
 
             _sel_state_abbr = _map_abbr
