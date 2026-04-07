@@ -41,6 +41,7 @@ st.set_page_config(
 from src.cre_agents import (
     start_scheduler, read_cache, cache_age_label, get_status,
 )
+from src.cre_listings import get_cheapest_buildings, format_listing_card, estimate_property_tax
 
 @st.cache_resource
 def _init_scheduler():
@@ -1977,7 +1978,6 @@ with main_tab_re:
         _user_abbr_b = st.session_state.user_intent.get("state_abbr")
         if _user_abbr_b and _user_abbr_b not in listings:
             try:
-                from src.cre_listings import get_cheapest_buildings
                 listings[_user_abbr_b] = get_cheapest_buildings(_user_abbr_b, n=10)
                 if _user_abbr_b not in top3_abbr:
                     top3_abbr = [_user_abbr_b] + list(top3_abbr)
@@ -1987,7 +1987,6 @@ with main_tab_re:
         if not listings:
             st.info("Listings will appear after the first scheduled agent run (every 24 hours).")
         else:
-            from src.cre_listings import format_listing_card
 
             _intent4 = st.session_state.user_intent
             _user_loc4 = _intent4.get("location")
@@ -2082,7 +2081,6 @@ with main_tab_re:
                 st.caption(f"Showing {len(group)} listings sorted by asking price")
 
                 for listing in group:
-                    from src.cre_listings import estimate_property_tax
                     tax          = estimate_property_tax(listing)
                     price_fmt    = f"${listing.get('price', 0):,}"
                     sqft_fmt     = f"{listing.get('sqft', 0):,} sqft"
