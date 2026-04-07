@@ -942,13 +942,14 @@ def agent_last_updated(agent_name: str):
 main_tab_re, main_tab_energy, main_tab_macro = st.tabs(["Real Estate", "Energy", "Macro Environment"])
 
 with main_tab_re:
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy = st.tabs([
         "Migration Intelligence",
         "Pricing & Profit",
         "Company Predictions",
         "Cheapest Buildings",
         "Industry Announcements",
         "System Monitor",
+        "Vacancy Monitor",
     ])
 
 
@@ -2340,6 +2341,142 @@ with main_tab_re:
             "Requires GROQ_API_KEY in .env for Agent 3 predictions."
         )
 
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB 7 — VACANCY RATE MONITOR
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_vacancy:
+        from src.vacancy_agent import NATIONAL_VACANCY, MARKET_VACANCY, TREND_ARROW, TREND_COLOR
+
+        vac_cache = read_cache("vacancy")
+        vac_data  = vac_cache["data"]
+
+        if not vac_data:
+            # Use module-level data directly if cache not yet populated
+            from src.vacancy_agent import run_vacancy_agent as _run_vac
+            vac_data = _run_vac()
+
+        national  = vac_data.get("national", NATIONAL_VACANCY)
+        mkt_rows  = vac_data.get("market_rows", [])
+        as_of     = vac_data.get("data_as_of", "Q1 2025")
+
+        st.markdown(
+            f"Commercial vacancy rates by property type and market. "
+            f"Data as of **{as_of}**. Sources: CBRE, JLL, CoStar market reports."
+        )
+
+        # ── National Snapshot ────────────────────────────────────────────────
+        section(" National Vacancy by Property Type")
+        nat_cols = st.columns(len(national))
+        for col, (ptype, info) in zip(nat_cols, national.items()):
+            trend   = info["trend"]
+            arrow   = TREND_ARROW[trend]
+            color   = TREND_COLOR[trend]
+            delta   = info["rate"] - info["prior_year"]
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{ptype}</div>
+              <div class="value">{info['rate']}%</div>
+              <div class="sub" style="color:{color};">{arrow} {trend.title()} ({delta:+.1f}pp YoY)</div>
+              <div style="font-size:0.72rem;color:#888;margin-top:6px;">{info['note']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.caption(
+            "Office vacancy is at historic highs driven by remote/hybrid work. "
+            "Industrial remains tight despite new supply. Retail is recovering in "
+            "experience-oriented and grocery-anchored formats. Multifamily softening "
+            "in Sunbelt markets from record 2024-2025 deliveries."
+        )
+
+        # ── Market Heatmap ───────────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Vacancy Rate by Market and Property Type")
+
+        if mkt_rows:
+            vac_df = pd.DataFrame(mkt_rows)
+
+            # Pivot for heatmap
+            pivot = vac_df.pivot_table(
+                index="market", columns="property_type", values="vacancy_rate"
+            ).round(1)
+
+            fig_heat = go.Figure(go.Heatmap(
+                z=pivot.values,
+                x=pivot.columns.tolist(),
+                y=pivot.index.tolist(),
+                colorscale=[
+                    [0.0,  "#1b5e20"],
+                    [0.3,  "#66bb6a"],
+                    [0.55, "#fff9c4"],
+                    [0.75, "#ef5350"],
+                    [1.0,  "#7f0000"],
+                ],
+                zmin=0, zmax=28,
+                text=[[f"{v:.1f}%" for v in row] for row in pivot.values],
+                texttemplate="%{text}",
+                textfont=dict(size=11, color="#0f0f0c"),
+                hoverongaps=False,
+                hovertemplate="<b>%{y}</b><br>%{x}: %{z:.1f}%<extra></extra>",
+                colorbar=dict(
+                    title=dict(text="Vacancy %", font=dict(color="#e8dfc4", size=11)),
+                    tickfont=dict(color="#e8dfc4", size=10),
+                    thickness=14,
+                    bgcolor="#16160f",
+                    bordercolor="#3a3a2a",
+                ),
+            ))
+            fig_heat.update_layout(
+                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                margin=dict(t=20, b=20, l=180, r=20),
+                height=620,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                xaxis=dict(side="top", tickfont=dict(color="#e8dfc4", size=12)),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=11)),
+            )
+            st.plotly_chart(fig_heat, use_container_width=True,
+                            config={"displayModeBar": False})
+            st.caption(
+                "Green = tight market (low vacancy, strong demand). "
+                "Red = soft market (high vacancy, excess supply). "
+                "Office and Multifamily face the most pressure heading into 2025."
+            )
+
+        # ── Market Detail Table ──────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Market Detail — Vacancy vs. National Average")
+
+        if mkt_rows:
+            detail_df = pd.DataFrame(mkt_rows)
+            detail_df["trend_label"] = detail_df["trend"].map(
+                lambda t: f"{TREND_ARROW[t]} {t.title()}"
+            )
+            detail_df["vs_national_fmt"] = detail_df["vs_national"].apply(
+                lambda x: f"{x:+.1f}pp"
+            )
+            detail_df = detail_df.rename(columns={
+                "market": "Market", "property_type": "Property Type",
+                "vacancy_rate": "Vacancy %", "trend_label": "Trend",
+                "vs_national_fmt": "vs. National",
+            })[["Market", "Property Type", "Vacancy %", "Trend", "vs. National"]]
+
+            def _color_vs(val):
+                try:
+                    v = float(val.replace("pp", "").replace("+", ""))
+                    if v < -2:   return "color: #66bb6a"
+                    elif v > 2:  return "color: #ef5350"
+                    else:        return "color: #CFB991"
+                except Exception:
+                    return ""
+
+            st.dataframe(
+                detail_df.style.applymap(_color_vs, subset=["vs. National"]),
+                use_container_width=True, hide_index=True,
+            )
+            st.caption(
+                "vs. National = difference in percentage points from the national average "
+                "for that property type. Negative (green) = tighter than average. "
+                "Positive (red) = looser than average."
+            )
 
 
 with main_tab_energy:

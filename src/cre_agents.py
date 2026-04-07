@@ -561,6 +561,17 @@ def run_credit_markets_agent():
         _set_status("credit", "error", str(e))
 
 
+def run_vacancy_agent():
+    _set_status("vacancy", "running")
+    try:
+        from src.vacancy_agent import run_vacancy_agent as _run
+        result = _run()
+        write_cache("vacancy", result)
+        _set_status("vacancy", "ok")
+    except Exception as e:
+        _set_status("vacancy", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -587,13 +598,15 @@ def start_scheduler():
         _scheduler.add_job(run_gdp_agent,            IntervalTrigger(hours=6),      id="gdp",             replace_existing=True)
         _scheduler.add_job(run_inflation_agent,      IntervalTrigger(hours=6),      id="inflation",       replace_existing=True)
         _scheduler.add_job(run_credit_markets_agent, IntervalTrigger(hours=6),      id="credit",          replace_existing=True)
+        _scheduler.add_job(run_vacancy_agent,         IntervalTrigger(hours=12),     id="vacancy",         replace_existing=True)
 
         _scheduler.start()
 
         # Run all agents immediately on first start (in background threads)
         for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent,
                    run_news_agent, run_rate_agent, run_energy_agent, run_sustainability_agent,
-                   run_labor_market_agent, run_gdp_agent, run_inflation_agent, run_credit_markets_agent]:
+                   run_labor_market_agent, run_gdp_agent, run_inflation_agent, run_credit_markets_agent,
+                   run_vacancy_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -613,6 +626,7 @@ def force_run(agent_name: str):
         "gdp":           run_gdp_agent,
         "inflation":     run_inflation_agent,
         "credit":        run_credit_markets_agent,
+        "vacancy":       run_vacancy_agent,
     }
     fn = agents.get(agent_name)
     if fn:
