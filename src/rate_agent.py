@@ -28,6 +28,12 @@ import urllib.parse
 from datetime import datetime, timedelta
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent.parent / ".env", override=True)
+except ImportError:
+    pass
+
 import yfinance as yf
 import pandas as pd
 import numpy as np
