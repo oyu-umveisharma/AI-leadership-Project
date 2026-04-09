@@ -3964,22 +3964,79 @@ with main_tab_macro:
         cr_series = crdata.get("series", {})
         cr_signal = crdata.get("signal", {})
 
-        # ── Signal Banner ───────────────────────────────────────────────────────
-        cr_label = cr_signal.get("label", "UNKNOWN")
-        cr_score = cr_signal.get("score", 50)
-        cr_clr = {"LOOSE": "#1b5e20", "NEUTRAL": "#e65100", "TIGHT": "#b71c1c"}.get(cr_label, "#555")
-        cr_bg  = {"LOOSE": "#e8f5e9", "NEUTRAL": "#fff3e0", "TIGHT": "#ffebee"}.get(cr_label, "#f5f5f5")
-        cr_icon = ""
+        # ── Signal Banner — Segmented Gauge Card ────────────────────────────────
+        cr_label      = cr_signal.get("label", "UNKNOWN")
+        cr_score      = cr_signal.get("score", 50)
+        cr_confidence = cr_signal.get("confidence", "High")
+        _age_cr       = cache_age_label("credit_data")
+
+        # For credit: 0 = very tight (bad for CRE), 100 = very loose (good for CRE)
+        # Color: low score = red (tight), mid = gold (neutral), high = green (loose)
+        _cr_total_blocks = 20
+        _cr_filled       = round(cr_score / 100 * _cr_total_blocks)
+
+        def _cr_block_color(i, score):
+            if score >= 65:   active = "#2e7d32"
+            elif score >= 40: active = "#CFB991"
+            else:             active = "#b71c1c"
+            return active if i < _cr_filled else "#2a2a1e"
+
+        _cr_blocks_html = "".join(
+            f"<div style='width:20px;height:20px;background:{_cr_block_color(i, cr_score)};"
+            f"border-radius:2px;margin:0 2px;flex-shrink:0;'></div>"
+            for i in range(_cr_total_blocks)
+        )
+
+        _cr_label_color = {"LOOSE": "#66bb6a", "NEUTRAL": "#CFB991", "TIGHT": "#ef5350"}.get(cr_label, "#e8dfc4")
+        _cr_summary     = cr_signal.get("summary", "")
+        _cr_bullets     = cr_signal.get("bullets", [])
+        _cr_bullets_html = " ".join(
+            f"<span style='margin-right:12px;'>· {b}</span>"
+            for b in _cr_bullets[:2]
+        ) if _cr_bullets else ""
+
         st.markdown(f"""
-        <div style="background:{cr_bg};border-left:6px solid {cr_clr};
-                    padding:18px 24px;border-radius:6px;margin-bottom:20px;">
-          <div style="font-size:1.4rem;font-weight:700;color:{cr_clr};">
-            {cr_icon} Credit Conditions: {cr_label} &nbsp;·&nbsp; Score {cr_score}/100
+        <div style="background:linear-gradient(135deg,#1a1a12 0%,#141410 100%);
+                    border:1px solid #3a3a2a;border-radius:10px;
+                    padding:28px 32px 22px 32px;margin-bottom:24px;max-width:680px;">
+          <div style="text-align:center;letter-spacing:0.18em;font-size:0.78rem;
+                      color:#a09070;font-family:'Source Sans Pro',sans-serif;
+                      margin-bottom:6px;">CREDIT CONDITIONS</div>
+          <div style="text-align:center;font-size:2.2rem;font-weight:800;
+                      color:{_cr_label_color};letter-spacing:0.06em;
+                      font-family:'Source Sans Pro',sans-serif;
+                      margin-bottom:18px;">{cr_label}</div>
+          <div style="text-align:right;font-size:0.78rem;color:#a09070;
+                      letter-spacing:0.08em;margin-bottom:6px;">
+            SCORE: <span style="color:#e8dfc4;font-weight:700;">{cr_score} / 100</span>
           </div>
-          <div style="color:#555;margin-top:6px;font-size:0.92rem;">{cr_signal.get("summary", "")}</div>
-          <ul style="margin-top:10px;color:#444;font-size:0.88rem;">
-            {"".join(f"<li>{b}</li>" for b in cr_signal.get("bullets", []))}
-          </ul>
+          <div style="position:relative;">
+            <div style="display:flex;align-items:center;justify-content:center;
+                        gap:0;margin-bottom:4px;">
+              {_cr_blocks_html}
+            </div>
+            <div style="position:relative;height:14px;margin:0 4px;">
+              <div style="position:absolute;left:calc({cr_score}% - 6px);top:0;
+                          width:0;height:0;
+                          border-left:6px solid transparent;
+                          border-right:6px solid transparent;
+                          border-top:10px solid #e8dfc4;">
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;
+                        font-size:0.72rem;color:#666;margin:0 2px;">
+              <span>TIGHT</span><span>25</span><span>NEUTRAL</span><span>75</span><span>LOOSE</span>
+            </div>
+          </div>
+          <div style="margin-top:16px;font-size:0.85rem;color:#c8bfa8;line-height:1.6;">
+            {_cr_summary}
+            {"<div style='margin-top:6px;font-size:0.82rem;color:#9a9080;'>" + _cr_bullets_html + "</div>" if _cr_bullets_html else ""}
+          </div>
+          <div style="margin-top:14px;padding-top:10px;border-top:1px solid #2a2a1e;
+                      font-size:0.72rem;color:#666;letter-spacing:0.04em;">
+            A12 &nbsp;Agent 12 &nbsp;|&nbsp; Confidence: <span style="color:#CFB991;">{cr_confidence}</span>
+            &nbsp;|&nbsp; Last Updated: {_age_cr}
+          </div>
         </div>""", unsafe_allow_html=True)
 
         # ── KPI Strip ──────────────────────────────────────────────────────────
