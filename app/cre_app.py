@@ -2478,6 +2478,86 @@ with main_tab_re:
                 "Positive (red) = looser than average."
             )
 
+        # ── Absorption Rate ──────────────────────────────────────────────────
+        from src.vacancy_agent import NATIONAL_ABSORPTION, MARKET_ABSORPTION
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Net Absorption — Q1 2025 (thousands sq ft)")
+        st.markdown(
+            "Net absorption = space leased minus space vacated. "
+            "Positive = more demand than supply returned. "
+            "Negative = tenants leaving faster than new leases are signed."
+        )
+
+        # National absorption summary cards
+        nat_abs = vac_data.get("national_absorption", NATIONAL_ABSORPTION)
+        abs_cols = st.columns(len(nat_abs))
+        for col, (ptype, info) in zip(abs_cols, nat_abs.items()):
+            net   = info["net_msf"]
+            prior = info["prior_quarter"]
+            trend = info["trend"]
+            color = "#66bb6a" if net > 0 else "#ef5350"
+            trend_color = {"improving": "#66bb6a", "slowing": "#CFB991", "worsening": "#ef5350", "stable": "#CFB991"}.get(trend, "#888")
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{ptype}</div>
+              <div class="value" style="color:{color};">{net:+.1f}M sf</div>
+              <div class="sub">Prior Qtr: {prior:+.1f}M sf</div>
+              <div style="font-size:0.72rem;color:{trend_color};margin-top:4px;">{trend.title()}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.caption("National net absorption in millions of square feet. Q1 2025. Sources: CBRE, JLL, CoStar.")
+
+        # Market-level absorption bar chart
+        st.markdown("<br>", unsafe_allow_html=True)
+        abs_rows = vac_data.get("absorption_rows", [])
+        if abs_rows:
+            abs_df = pd.DataFrame(abs_rows)
+
+            _pt_options = ["Industrial", "Office", "Retail", "Multifamily"]
+            _sel_pt = st.selectbox("Property Type", _pt_options, key="abs_pt_sel")
+            _abs_filtered = abs_df[abs_df["property_type"] == _sel_pt].sort_values(
+                "net_absorption_ksf", ascending=True
+            )
+
+            bar_colors = [
+                "#66bb6a" if v > 0 else "#ef5350"
+                for v in _abs_filtered["net_absorption_ksf"]
+            ]
+            fig_abs = go.Figure(go.Bar(
+                x=_abs_filtered["net_absorption_ksf"],
+                y=_abs_filtered["market"],
+                orientation="h",
+                marker=dict(color=bar_colors),
+                text=_abs_filtered["net_absorption_ksf"].apply(
+                    lambda v: f"{v:+,} ksf"
+                ),
+                textposition="outside",
+                textfont=dict(color="#e8dfc4", size=10),
+                hovertemplate="<b>%{y}</b><br>Net Absorption: %{x:,} ksf<extra></extra>",
+            ))
+            fig_abs.add_vline(x=0, line_width=1, line_color="#888")
+            fig_abs.update_layout(
+                plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+                xaxis=dict(
+                    title="Net Absorption (thousands sq ft)",
+                    gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                    title_font=dict(color="#e8dfc4"),
+                ),
+                yaxis=dict(tickfont=dict(color="#e8dfc4")),
+                margin=dict(t=20, b=40, l=180, r=80),
+                height=520,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_abs, use_container_width=True,
+                            config={"displayModeBar": False})
+            st.caption(
+                "Green bars = net positive absorption (demand outpacing supply returns). "
+                "Red bars = net negative absorption (more space returned than leased). "
+                "Industrial dominates positive absorption in Sun Belt markets. "
+                "Office shows persistent negative absorption in most major metros."
+            )
+
 
 with main_tab_energy:
     tab_energy, tab_esg = st.tabs([

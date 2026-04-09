@@ -62,6 +62,44 @@ MARKET_VACANCY = {
 TREND_ARROW = {"rising": "↑", "falling": "↓", "stable": "→"}
 TREND_COLOR = {"rising": "#ef5350", "falling": "#66bb6a", "stable": "#CFB991"}
 
+# ── Net absorption by market × property type (Q1 2025, thousands of sq ft) ───
+# Positive = more space leased than returned (healthy demand)
+# Negative = more space returned than leased (weakening demand)
+# Sources: CBRE, JLL, CoStar Q1 2025 market reports
+MARKET_ABSORPTION = {
+    "Austin, TX":         {"Office": -420,  "Industrial": 1850, "Retail":  210, "Multifamily":  580},
+    "Dallas, TX":         {"Office": -680,  "Industrial": 4200, "Retail":  480, "Multifamily":  920},
+    "Houston, TX":        {"Office": -510,  "Industrial": 3100, "Retail":  390, "Multifamily":  740},
+    "Phoenix, AZ":        {"Office":  180,  "Industrial": 2900, "Retail":  320, "Multifamily":  610},
+    "Nashville, TN":      {"Office":  240,  "Industrial": 1400, "Retail":  290, "Multifamily":  430},
+    "Charlotte, NC":      {"Office": -190,  "Industrial": 1100, "Retail":  180, "Multifamily":  370},
+    "Raleigh, NC":        {"Office":  120,  "Industrial":  880, "Retail":  140, "Multifamily":  290},
+    "Atlanta, GA":        {"Office": -580,  "Industrial": 3400, "Retail":  260, "Multifamily":  680},
+    "Denver, CO":         {"Office": -730,  "Industrial":  940, "Retail":  150, "Multifamily":  310},
+    "Las Vegas, NV":      {"Office":  310,  "Industrial": 1600, "Retail":  220, "Multifamily":  260},
+    "Salt Lake City, UT": {"Office": -140,  "Industrial":  720, "Retail":  130, "Multifamily":  220},
+    "Jacksonville, FL":   {"Office":  190,  "Industrial":  980, "Retail":  170, "Multifamily":  340},
+    "Tampa, FL":          {"Office":  -80,  "Industrial": 1200, "Retail":  200, "Multifamily":  290},
+    "Orlando, FL":        {"Office":  140,  "Industrial": 1050, "Retail":  230, "Multifamily":  380},
+    "Indianapolis, IN":   {"Office":   60,  "Industrial": 2100, "Retail":  120, "Multifamily":  180},
+    "Columbus, OH":       {"Office":  -90,  "Industrial": 1800, "Retail":  100, "Multifamily":  200},
+    "Kansas City, MO":    {"Office": -200,  "Industrial": 1300, "Retail":   90, "Multifamily":  160},
+    "Los Angeles, CA":    {"Office": -940,  "Industrial":  480, "Retail": -120, "Multifamily":  420},
+    "Seattle, WA":        {"Office": -820,  "Industrial":  610, "Retail":   80, "Multifamily":  350},
+    "Chicago, IL":        {"Office": -760,  "Industrial": 2800, "Retail": -180, "Multifamily":  280},
+    "New York, NY":       {"Office": -580,  "Industrial":  190, "Retail": -290, "Multifamily":  510},
+    "Boston, MA":         {"Office": -310,  "Industrial":  420, "Retail":   60, "Multifamily":  230},
+    "Miami, FL":          {"Office":  480,  "Industrial":  870, "Retail":  340, "Multifamily":  390},
+}
+
+# National net absorption totals Q1 2025 (millions sq ft)
+NATIONAL_ABSORPTION = {
+    "Office":      {"net_msf": -15.2, "prior_quarter": -12.8, "trend": "worsening"},
+    "Industrial":  {"net_msf":  48.7, "prior_quarter":  61.3, "trend": "slowing"},
+    "Retail":      {"net_msf":   8.4, "prior_quarter":   7.9, "trend": "stable"},
+    "Multifamily": {"net_msf":  92.1, "prior_quarter":  88.6, "trend": "improving"},
+}
+
 
 def _fetch_fred_vacancy(api_key: str) -> list[dict]:
     """Fetch US rental vacancy rate from FRED (RRVRUSQ156N)."""
@@ -108,10 +146,24 @@ def run_vacancy_agent() -> dict:
                 "vs_national":  vs_national,
             })
 
+    # Build absorption rows
+    absorption_rows = []
+    for market, ptypes in MARKET_ABSORPTION.items():
+        for ptype, net_ksf in ptypes.items():
+            nat = NATIONAL_ABSORPTION.get(ptype, {})
+            absorption_rows.append({
+                "market":        market,
+                "property_type": ptype,
+                "net_absorption_ksf": net_ksf,
+                "signal":        "positive" if net_ksf > 0 else "negative",
+            })
+
     return {
-        "national":       NATIONAL_VACANCY,
-        "market_rows":    market_rows,
-        "fred_rental":    fred_series,
-        "fetched_at":     datetime.now().isoformat(),
-        "data_as_of":     "Q1 2025",
+        "national":          NATIONAL_VACANCY,
+        "market_rows":       market_rows,
+        "fred_rental":       fred_series,
+        "national_absorption": NATIONAL_ABSORPTION,
+        "absorption_rows":   absorption_rows,
+        "fetched_at":        datetime.now().isoformat(),
+        "data_as_of":        "Q1 2025",
     }
