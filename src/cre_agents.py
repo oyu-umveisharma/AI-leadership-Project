@@ -123,6 +123,7 @@ _agent_status = {
     "gdp":            {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "inflation":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "credit":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "land_market":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
 def get_status() -> dict:
@@ -573,6 +574,19 @@ def run_vacancy_agent():
         _set_status("vacancy", "error", str(e))
 
 
+# ── Agent 13 · Land Market ────────────────────────────────────────────────────
+
+def run_land_market_agent():
+    _set_status("land_market", "running")
+    try:
+        from src.land_market_agent import run_land_market_agent as _run
+        result = _run()
+        write_cache("land_market", result)
+        _set_status("land_market", "ok")
+    except Exception as e:
+        _set_status("land_market", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -600,6 +614,7 @@ def start_scheduler():
         _scheduler.add_job(run_inflation_agent,      IntervalTrigger(hours=6),      id="inflation",       replace_existing=True)
         _scheduler.add_job(run_credit_markets_agent, IntervalTrigger(hours=6),      id="credit",          replace_existing=True)
         _scheduler.add_job(run_vacancy_agent,         IntervalTrigger(hours=12),     id="vacancy",         replace_existing=True)
+        _scheduler.add_job(run_land_market_agent,     IntervalTrigger(hours=12),     id="land_market",     replace_existing=True)
 
         _scheduler.start()
 
@@ -607,7 +622,7 @@ def start_scheduler():
         for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent,
                    run_news_agent, run_rate_agent, run_energy_agent, run_sustainability_agent,
                    run_labor_market_agent, run_gdp_agent, run_inflation_agent, run_credit_markets_agent,
-                   run_vacancy_agent]:
+                   run_vacancy_agent, run_land_market_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -628,6 +643,7 @@ def force_run(agent_name: str):
         "inflation":     run_inflation_agent,
         "credit":        run_credit_markets_agent,
         "vacancy":       run_vacancy_agent,
+        "land_market":   run_land_market_agent,
     }
     fn = agents.get(agent_name)
     if fn:

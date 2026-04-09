@@ -2771,11 +2771,142 @@ with main_tab_re:
     with tab_land:
         st.markdown("#### Land & Development Sites")
         st.markdown(
-            "Browse empty land parcels across top CRE markets. Listings are calibrated to "
-            "Q1 2025 CoStar Land and state assessor benchmarks. Filter by state, zoning type, "
-            "or entitlement status to find shovel-ready parcels matching your development thesis."
+            "Browse empty land parcels across top CRE markets. Agent 13 tracks entitlement "
+            "pipeline activity, notable transactions, price trends, and demand signals — "
+            "calibrated to CoStar Land / LoopNet Q1 2025 benchmarks. Updates every 12 hours."
         )
-        agent_last_updated("predictions")
+        agent_last_updated("land_market")
+
+        # Load land market agent cache
+        _lm_cache = read_cache("land_market")
+        _lm_data  = _lm_cache.get("data") or {}
+        _lm_intel = _lm_data.get("market_intelligence", {})
+        _lm_signals = _lm_data.get("demand_signals", {})
+        _lm_txns    = _lm_data.get("notable_transactions", [])
+        _lm_ents    = _lm_data.get("new_entitlements", [])
+        _lm_prices  = _lm_data.get("price_trends", {})
+
+        # ── AI Market Intelligence Brief ──────────────────────────────────
+        if _lm_intel.get("summary"):
+            section(" Agent 13 — Land Market Intelligence")
+            st.markdown(f"""
+            <div class="agent-card">
+              <div class="agent-label">Agent 13 &nbsp;·&nbsp; Land Market Agent &nbsp;·&nbsp; {datetime.today().strftime('%b %d, %Y')}</div>
+              <div class="agent-text">{_lm_intel['summary']}</div>
+              {"<div style='margin-top:12px;padding:8px 12px;background:#1c1c14;border-radius:6px;border-left:3px solid #66bb6a;'><span style='color:#66bb6a;font-weight:700;'>Best Opportunity:</span> <span style='color:#c8bfa8;'>" + _lm_intel.get('top_opportunity','') + "</span></div>" if _lm_intel.get('top_opportunity') else ""}
+              {"<div style='margin-top:8px;padding:8px 12px;background:#1c1c14;border-radius:6px;border-left:3px solid #ef5350;'><span style='color:#ef5350;font-weight:700;'>Key Risk:</span> <span style='color:#c8bfa8;'>" + _lm_intel.get('top_risk','') + "</span></div>" if _lm_intel.get('top_risk') else ""}
+            </div>""", unsafe_allow_html=True)
+
+        # ── Demand Signals ────────────────────────────────────────────────
+        if _lm_signals:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Land Demand by Use Type")
+            _sig_cols = st.columns(len(_lm_signals))
+            for col, (use, sig) in zip(_sig_cols, _lm_signals.items()):
+                _sc = "#66bb6a" if sig["score"] >= 70 else ("#CFB991" if sig["score"] >= 45 else "#ef5350")
+                _arr = TREND_ARROW.get(sig["trend"], "→")
+                _short = use.replace("_land_demand", "").replace("_", " ").title()
+                col.markdown(f"""
+                <div class="metric-card">
+                  <div class="label">{_short}</div>
+                  <div class="value" style="color:{_sc};">{sig['score']}</div>
+                  <div class="sub" style="color:{_sc};">{_arr} {sig['trend'].title()}</div>
+                  <div style="font-size:0.72rem;color:#7a7a6a;margin-top:6px;line-height:1.4;">{sig['note']}</div>
+                </div>""", unsafe_allow_html=True)
+            st.caption("Demand score 0-100: higher = stronger institutional land buying activity for that use type.")
+
+        # ── Price Trends ──────────────────────────────────────────────────
+        if _lm_prices:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Land Price Trends — $/Acre YoY")
+            _pt_df = pd.DataFrame([
+                {
+                    "Market":          mkt,
+                    "Current $/Acre":  pt["current_ppa"],
+                    "Prior Year":      pt["prior_year_ppa"],
+                    "YoY %":           pt["yoy_pct"],
+                    "Trend":           TREND_ARROW.get(pt["trend"], "→") + " " + pt["trend"].title(),
+                }
+                for mkt, pt in _lm_prices.items()
+            ]).sort_values("YoY %", ascending=False)
+
+            fig_pt = go.Figure()
+            _pt_colors = [
+                "#66bb6a" if v > 5 else ("#ef5350" if v < 0 else "#CFB991")
+                for v in _pt_df["YoY %"]
+            ]
+            fig_pt.add_trace(go.Bar(
+                y=_pt_df["Market"],
+                x=_pt_df["YoY %"],
+                orientation="h",
+                marker=dict(color=_pt_colors, opacity=0.85),
+                text=_pt_df["YoY %"].apply(lambda v: f"{v:+.1f}%"),
+                textposition="outside",
+                textfont=dict(color="#e8dfc4", size=10),
+                customdata=_pt_df[["Current $/Acre", "Prior Year"]].values,
+                hovertemplate=(
+                    "<b>%{y}</b><br>"
+                    "YoY Change: %{x:+.1f}%<br>"
+                    "Current: $%{customdata[0]:,}/ac<br>"
+                    "Prior Year: $%{customdata[1]:,}/ac<extra></extra>"
+                ),
+            ))
+            fig_pt.add_vline(x=0, line_width=1, line_color="#888")
+            fig_pt.update_layout(
+                plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+                xaxis=dict(title="YoY % Change", gridcolor="#2d2d22",
+                           tickfont=dict(color="#e8dfc4"), title_font=dict(color="#e8dfc4")),
+                yaxis=dict(tickfont=dict(color="#e8dfc4")),
+                margin=dict(t=20, b=40, l=180, r=80),
+                height=480,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_pt, use_container_width=True, config={"displayModeBar": False})
+            st.caption(
+                "Green = land prices rising more than 5% YoY (strong demand). "
+                "Gold = moderate appreciation. Red = prices flat or declining (soft market)."
+            )
+
+        # ── Recent Entitlement Filings ────────────────────────────────────
+        if _lm_ents:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Recent Entitlement Filings — Q1 2025")
+            st.markdown(
+                "New entitlement applications submitted to planning departments across top markets. "
+                "Industrial and mixed-use dominate the pipeline — a leading indicator of where "
+                "developers expect demand to materialize 12-24 months from now."
+            )
+            _ent_df = pd.DataFrame(_lm_ents).rename(columns={
+                "market": "Market", "acres": "Acres",
+                "zoning": "Zoning", "applicant_type": "Applicant",
+                "est_months_to_shovel": "Est. Months to Shovel-Ready",
+                "filed": "Filed",
+            })
+            st.dataframe(_ent_df, use_container_width=True, hide_index=True)
+            st.caption(
+                "Months to shovel-ready = estimated time from filing to all permits in hand. "
+                "Corp. User = company buying land for its own facility. REIT = speculative development."
+            )
+
+        # ── Notable Transactions ──────────────────────────────────────────
+        if _lm_txns:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Notable Land Transactions — Q3 2024 – Q1 2025")
+            for txn in _lm_txns:
+                _total = txn["acres"] * txn["price_per_acre"]
+                st.markdown(f"""
+                <div class="listing-card" style="border-left-color:#42a5f5;">
+                  <div style="display:flex;justify-content:space-between;">
+                    <div>
+                      <div class="l-price">{txn['buyer']} — {txn['market']}</div>
+                      <div class="l-address">{txn['use']} &nbsp;·&nbsp; {txn['acres']:,} acres &nbsp;·&nbsp; {txn['quarter']}</div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div style="font-size:1.4rem;font-weight:700;color:#42a5f5;">${_total:,.0f}</div>
+                      <div style="font-size:0.8rem;color:#a09070;">${txn['price_per_acre']:,}/acre</div>
+                    </div>
+                  </div>
+                </div>""", unsafe_allow_html=True)
 
         _land_col_filter, _land_col_info = st.columns([2, 3])
 
