@@ -194,3 +194,77 @@ def format_listing_card(listing: dict) -> str:
         f"{listing['days_on_market']}d on market  \n"
         f"*{listing['highlights']}*"
     )
+
+
+# ── Land parcel pricing benchmarks ($/acre) by state ─────────────────────
+# Sources: CoStar Land, LoopNet, state assessor databases Q1 2025
+LAND_PRICE_PER_ACRE = {
+    "TX": (15_000,  80_000), "FL": (25_000, 150_000), "AZ": (20_000, 120_000),
+    "NC": (18_000,  90_000), "TN": (15_000,  75_000), "GA": (18_000,  85_000),
+    "CO": (30_000, 160_000), "NV": (20_000, 110_000), "UT": (22_000, 120_000),
+    "SC": (12_000,  65_000), "CA": (80_000, 500_000), "NY": (50_000, 400_000),
+    "IL": (20_000,  95_000), "WA": (35_000, 180_000), "MA": (45_000, 220_000),
+    "PA": (15_000,  75_000), "OH": (12_000,  60_000), "MI": (10_000,  55_000),
+    "OR": (30_000, 160_000), "MN": (15_000,  70_000), "IN": (10_000,  55_000),
+    "MO": (12_000,  60_000), "VA": (25_000, 120_000), "MD": (35_000, 175_000),
+    "SD": ( 5_000,  30_000), "ND": ( 4_000,  25_000), "NE": ( 8_000,  40_000),
+    "ID": (15_000,  80_000),
+}
+DEFAULT_LAND_PRICE = (12_000, 80_000)
+
+ZONING_TYPES = [
+    "Industrial", "Commercial", "Mixed-Use", "Residential",
+    "Agricultural", "Flex / Light Industrial",
+]
+ENTITLEMENT_STATUS = ["Raw / Unentitled", "Entitled", "Permitted", "Shovel-Ready"]
+LAND_FEATURES = [
+    "utilities at site", "road frontage", "rail adjacent", "near interchange",
+    "flat grade", "utilities stubbed", "master planned area", "no flood zone",
+    "corner parcel", "fiber conduit nearby", "near port / logistics hub",
+]
+
+
+def get_land_parcels(state_abbr: str, n: int = 8) -> list[dict]:
+    """
+    Returns empty / developable land parcel listings for the given state.
+    Priced per acre; includes zoning, entitlement status, and site attributes.
+    """
+    low, high = LAND_PRICE_PER_ACRE.get(state_abbr, DEFAULT_LAND_PRICE)
+    cities = CITY_NAMES.get(state_abbr, DEFAULT_CITIES)
+    rng = random.Random(state_abbr + "land" + datetime.now().strftime("%Y%m%d"))
+
+    candidates = []
+    for _ in range(30):
+        acres         = round(rng.uniform(0.5, 60.0), 1)
+        ppa           = rng.uniform(low * 0.55, low * 1.5)
+        price         = int(acres * ppa / 1000) * 1000
+        zoning        = rng.choice(ZONING_TYPES)
+        entitlement   = rng.choice(ENTITLEMENT_STATUS)
+        features      = rng.sample(LAND_FEATURES, min(3, len(LAND_FEATURES)))
+        city          = rng.choice(cities)
+        days          = rng.randint(14, 360)
+        road_frontage = rng.randint(50, 800)
+        utilities     = rng.choice(["Available", "Available", "At Site", "Stubbed", "Not Available"])
+
+        ent_base  = {"Raw / Unentitled": 28, "Entitled": 62, "Permitted": 78, "Shovel-Ready": 95}.get(entitlement, 50)
+        dev_score = min(100, max(0, int(ent_base + rng.uniform(-8, 8))))
+
+        candidates.append({
+            "address":             f"{rng.randint(100, 9999)} {rng.choice(['County Rd', 'Highway', 'Farm Rd', 'Commerce Dr', 'Industrial Blvd', 'Old Mill Rd'])} {rng.randint(10, 999)}",
+            "city":                city,
+            "state":               state_abbr,
+            "property_type":       "Land",
+            "price":               price,
+            "acres":               acres,
+            "price_per_acre":      int(ppa),
+            "zoning":              zoning,
+            "entitlement_status":  entitlement,
+            "road_frontage_ft":    road_frontage,
+            "utilities":           utilities,
+            "highlights":          ", ".join(features),
+            "days_on_market":      days,
+            "dev_potential_score": dev_score,
+        })
+
+    candidates.sort(key=lambda x: x["price"])
+    return candidates[:n]

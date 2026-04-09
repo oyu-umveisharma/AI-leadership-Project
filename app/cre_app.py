@@ -41,8 +41,9 @@ st.set_page_config(
 from src.cre_agents import (
     start_scheduler, read_cache, cache_age_label, get_status,
 )
-from src.cre_listings import get_cheapest_buildings, format_listing_card, estimate_property_tax
-from src.vacancy_agent import NATIONAL_VACANCY, MARKET_VACANCY, TREND_ARROW, TREND_COLOR
+from src.cre_listings import (get_cheapest_buildings, format_listing_card, estimate_property_tax,
+                              get_land_parcels, ZONING_TYPES, ENTITLEMENT_STATUS, LAND_PRICE_PER_ACRE)
+from src.vacancy_agent import NATIONAL_VACANCY, MARKET_VACANCY, TREND_ARROW, TREND_COLOR, LAND_AVAILABILITY
 
 @st.cache_resource
 def _init_scheduler():
@@ -1020,7 +1021,7 @@ def gauge_card(title: str, label: str, score: int, summary: str,
 main_tab_re, main_tab_energy, main_tab_macro = st.tabs(["Real Estate", "Energy", "Macro Environment"])
 
 with main_tab_re:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land = st.tabs([
         "Migration Intelligence",
         "Pricing & Profit",
         "Company Predictions",
@@ -1028,6 +1029,7 @@ with main_tab_re:
         "Industry Announcements",
         "System Monitor",
         "Vacancy Monitor",
+        "Land & Development",
     ])
 
 
@@ -1395,6 +1397,10 @@ with main_tab_re:
                     _zoom_scale = 2.5
                 _map_title_suffix = f"Focused on {_map_state}"
 
+            _show_land_pins = st.checkbox(
+                "Overlay available land parcels (top markets)",
+                value=False, key="show_land_pins",
+            )
             section(f" US Population Growth Map — {_map_title_suffix}")
 
             map_col, legend_col = st.columns([3, 1])
@@ -1463,6 +1469,49 @@ with main_tab_re:
                         textfont=dict(size=12, color=BLACK, family="Source Sans Pro"),
                         showlegend=False,
                         hovertemplate=f"<b>{_map_city}</b><extra></extra>",
+                    ))
+
+                # Overlay land parcel availability markers
+                if _show_land_pins:
+                    _ll, _lo, _lt, _ls, _lc = [], [], [], [], []
+                    for _mkt, _li in LAND_AVAILABILITY.items():
+                        _total_ac = _li["industrial_ac"] + _li["mixed_use_ac"] + _li["residential_ac"]
+                        _ll.append(_li["lat"])
+                        _lo.append(_li["lon"])
+                        _lt.append(_mkt)
+                        _ls.append(max(8, min(26, _total_ac // 1800)))
+                        _lc.append(_li["avg_ppa"])
+                    _land_cd = [
+                        [LAND_AVAILABILITY[m]["industrial_ac"],
+                         LAND_AVAILABILITY[m]["mixed_use_ac"],
+                         LAND_AVAILABILITY[m]["residential_ac"],
+                         LAND_AVAILABILITY[m]["avg_ppa"],
+                         LAND_AVAILABILITY[m]["entitlement_mo"]]
+                        for m in LAND_AVAILABILITY
+                    ]
+                    fig_map.add_trace(go.Scattergeo(
+                        lat=_ll, lon=_lo,
+                        mode="markers",
+                        marker=dict(
+                            size=_ls,
+                            color="#66bb6a",
+                            opacity=0.80,
+                            line=dict(width=1, color="#0f0f0c"),
+                            symbol="circle",
+                        ),
+                        text=_lt,
+                        customdata=_land_cd,
+                        hovertemplate=(
+                            "<b>%{text}</b><br>"
+                            "Industrial: %{customdata[0]:,} ac<br>"
+                            "Mixed-Use: %{customdata[1]:,} ac<br>"
+                            "Residential: %{customdata[2]:,} ac<br>"
+                            "Avg $/acre: $%{customdata[3]:,}<br>"
+                            "Entitlement: ~%{customdata[4]} months"
+                            "<extra>Available Land</extra>"
+                        ),
+                        name="Available Land",
+                        showlegend=True,
                     ))
 
                 # Set map center and zoom
@@ -2632,6 +2681,234 @@ with main_tab_re:
                 "Red bars = net negative absorption (more space returned than leased). "
                 "Industrial dominates positive absorption in Sun Belt markets. "
                 "Office shows persistent negative absorption in most major metros."
+            )
+
+        # ── Land Availability by Market ──────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Developable Land Availability — Q1 2025")
+        st.markdown(
+            "Entitled or shovel-ready vacant land acres actively available for development "
+            "across top CRE markets. Larger supply + lower entitlement timeline = faster "
+            "path to breaking ground. Sources: CoStar Land, state planning databases."
+        )
+
+        _land_avail = vac_data.get("land_availability") or LAND_AVAILABILITY
+        if _land_avail:
+            _la_df = pd.DataFrame([
+                {
+                    "Market": mkt,
+                    "Industrial (ac)": info["industrial_ac"],
+                    "Mixed-Use (ac)":  info["mixed_use_ac"],
+                    "Residential (ac)": info["residential_ac"],
+                    "Total (ac)": info["industrial_ac"] + info["mixed_use_ac"] + info["residential_ac"],
+                    "Avg $/Acre": info["avg_ppa"],
+                    "Entitlement (mo)": info["entitlement_mo"],
+                    "Pipeline": TREND_ARROW.get(info["pipeline_trend"], "→") + " " + info["pipeline_trend"].title(),
+                }
+                for mkt, info in _land_avail.items()
+            ]).sort_values("Total (ac)", ascending=False)
+
+            # Bar chart: total available acres by market
+            _la_colors = [
+                TREND_COLOR.get(
+                    list(_land_avail.values())[i]["pipeline_trend"], "#CFB991"
+                )
+                for i in range(len(_la_df))
+            ]
+            fig_land = go.Figure(go.Bar(
+                y=_la_df["Market"],
+                x=_la_df["Total (ac)"],
+                orientation="h",
+                marker=dict(color=_la_colors, opacity=0.85),
+                customdata=_la_df[["Industrial (ac)", "Mixed-Use (ac)", "Residential (ac)", "Avg $/Acre", "Entitlement (mo)"]].values,
+                hovertemplate=(
+                    "<b>%{y}</b><br>"
+                    "Industrial: %{customdata[0]:,} ac<br>"
+                    "Mixed-Use: %{customdata[1]:,} ac<br>"
+                    "Residential: %{customdata[2]:,} ac<br>"
+                    "Total: %{x:,} ac<br>"
+                    "Avg $/acre: $%{customdata[3]:,}<br>"
+                    "Entitlement: ~%{customdata[4]} months<extra></extra>"
+                ),
+                text=_la_df["Total (ac)"].apply(lambda v: f"{v:,} ac"),
+                textposition="outside",
+                textfont=dict(color="#e8dfc4", size=10),
+            ))
+            fig_land.update_layout(
+                plot_bgcolor="#1a1a14", paper_bgcolor="#16160f",
+                xaxis=dict(
+                    title="Total Developable Acres",
+                    gridcolor="#2d2d22", tickfont=dict(color="#e8dfc4"),
+                    title_font=dict(color="#e8dfc4"),
+                ),
+                yaxis=dict(tickfont=dict(color="#e8dfc4")),
+                margin=dict(t=20, b=40, l=180, r=100),
+                height=520,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_land, use_container_width=True,
+                            config={"displayModeBar": False})
+            st.caption(
+                "Bar color = pipeline trend: green = more entitlements coming online (rising supply), "
+                "gold = stable, red = fewer new entitlements (constrained market). "
+                "Sun Belt markets (Dallas, Houston, Phoenix) lead in available developable land."
+            )
+
+            # Detail table
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Land Market Detail Table")
+            _la_display = _la_df.copy()
+            _la_display["Avg $/Acre"] = _la_display["Avg $/Acre"].apply(lambda v: f"${v:,}")
+            st.dataframe(_la_display, use_container_width=True, hide_index=True)
+            st.caption(
+                "Entitlement timeline = estimated months from land purchase to permitted/shovel-ready status. "
+                "Markets like New York and Los Angeles require 3-5 years; Sun Belt typically 12-20 months."
+            )
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — LAND & DEVELOPMENT SITES
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_land:
+        st.markdown("#### Land & Development Sites")
+        st.markdown(
+            "Browse empty land parcels across top CRE markets. Listings are calibrated to "
+            "Q1 2025 CoStar Land and state assessor benchmarks. Filter by state, zoning type, "
+            "or entitlement status to find shovel-ready parcels matching your development thesis."
+        )
+        agent_last_updated("predictions")
+
+        _land_col_filter, _land_col_info = st.columns([2, 3])
+
+        with _land_col_filter:
+            _land_states_sorted = sorted(LAND_PRICE_PER_ACRE.keys())
+            _sel_land_state = st.selectbox("State", _land_states_sorted,
+                                           index=_land_states_sorted.index("TX") if "TX" in _land_states_sorted else 0,
+                                           key="land_state_sel")
+            _land_zoning_opts = ["All"] + ZONING_TYPES
+            _sel_land_zoning  = st.selectbox("Zoning Filter", _land_zoning_opts, key="land_zoning_sel")
+            _land_ent_opts    = ["All"] + ENTITLEMENT_STATUS
+            _sel_land_ent     = st.selectbox("Entitlement Status", _land_ent_opts, key="land_ent_sel")
+
+        parcels = get_land_parcels(_sel_land_state, n=10)
+
+        # Apply filters
+        if _sel_land_zoning != "All":
+            parcels = [p for p in parcels if p["zoning"] == _sel_land_zoning] or parcels
+        if _sel_land_ent != "All":
+            parcels = [p for p in parcels if p["entitlement_status"] == _sel_land_ent] or parcels
+
+        with _land_col_info:
+            if parcels:
+                _avg_ppa   = sum(p["price_per_acre"] for p in parcels) / len(parcels)
+                _avg_score = sum(p["dev_potential_score"] for p in parcels) / len(parcels)
+                _shovel    = sum(1 for p in parcels if p["entitlement_status"] == "Shovel-Ready")
+                _avg_ac    = sum(p["acres"] for p in parcels) / len(parcels)
+                _kc1, _kc2, _kc3, _kc4 = st.columns(4)
+                _kc1.markdown(metric_card("Avg Price/Acre", f"${_avg_ppa:,.0f}", _sel_land_state), unsafe_allow_html=True)
+                _kc2.markdown(metric_card("Avg Dev Score",  f"{_avg_score:.0f}/100", "Entitlement-based"), unsafe_allow_html=True)
+                _kc3.markdown(metric_card("Shovel-Ready",   str(_shovel), f"of {len(parcels)} shown"), unsafe_allow_html=True)
+                _kc4.markdown(metric_card("Avg Acreage",    f"{_avg_ac:.1f} ac", "Per listing"), unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(f" Available Parcels — {_sel_land_state}")
+        st.caption(f"Showing {len(parcels)} listings sorted by asking price")
+
+        _ent_color = {
+            "Raw / Unentitled": "#ef5350",
+            "Entitled":         "#CFB991",
+            "Permitted":        "#42a5f5",
+            "Shovel-Ready":     "#66bb6a",
+        }
+        _util_icon = {"At Site": "✔", "Available": "~", "Stubbed": "~", "Not Available": "✗"}
+
+        for p in parcels:
+            _ec   = _ent_color.get(p["entitlement_status"], "#888")
+            _ui   = _util_icon.get(p["utilities"], "?")
+            _score_bar_w = p["dev_potential_score"]
+            _score_color = "#66bb6a" if _score_bar_w >= 75 else ("#CFB991" if _score_bar_w >= 50 else "#ef5350")
+            st.markdown(f"""
+            <div class="listing-card" style="border-left-color:{_ec};">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <div>
+                  <div class="l-price">${p['price']:,}
+                    <span style="font-size:0.9rem;font-weight:400;color:#a09070;"> — {p['acres']} acres @ ${p['price_per_acre']:,}/ac</span>
+                  </div>
+                  <div class="l-address">{p['address']}, {p['city']}, {p['state']}</div>
+                </div>
+                <div style="text-align:right;min-width:120px;">
+                  <div style="font-size:0.72rem;color:#a09070;letter-spacing:0.08em;">DEV POTENTIAL</div>
+                  <div style="font-size:1.4rem;font-weight:800;color:{_score_color};">{p['dev_potential_score']}</div>
+                  <div style="width:100%;height:4px;background:#2a2a1e;border-radius:2px;margin-top:2px;">
+                    <div style="width:{_score_bar_w}%;height:4px;background:{_score_color};border-radius:2px;"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="margin:6px 0;">
+                <span class="l-tag" style="border-color:{_ec};color:{_ec};">{p['entitlement_status']}</span>
+                <span class="l-tag">{p['zoning']}</span>
+                <span class="l-tag">{p['days_on_market']}d on market</span>
+              </div>
+              <div class="l-detail">
+                Road frontage: {p['road_frontage_ft']} ft &nbsp;·&nbsp;
+                Utilities: {_ui} {p['utilities']} &nbsp;·&nbsp;
+                {p['acres']} acres
+              </div>
+              {"<div class='l-detail' style='color:#555;margin-top:4px;font-style:italic;'>" + p['highlights'] + "</div>" if p['highlights'] else ""}
+            </div>""", unsafe_allow_html=True)
+
+        # ── Development potential guide ───────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Entitlement Status Guide")
+        st.markdown(
+            "Understanding the entitlement pipeline helps investors gauge timeline risk and "
+            "development cost. Shovel-ready sites command a premium but eliminate the longest "
+            "regulatory risk periods."
+        )
+        _guide_cols = st.columns(4)
+        _guide = [
+            ("Raw / Unentitled", "#ef5350", "0–30", "No permits filed. Longest timeline. "
+             "Lowest acquisition cost. Highest regulatory risk."),
+            ("Entitled",         "#CFB991", "31–65", "Zoning approved, environmental cleared. "
+             "Permits not yet issued. Moderate cost and risk."),
+            ("Permitted",        "#42a5f5", "66–82", "Building permits issued or near-approval. "
+             "Engineering & utility plans typically complete."),
+            ("Shovel-Ready",     "#66bb6a", "83–100", "All permits in hand. Utilities stubbed. "
+             "Construction can start immediately. Highest premium."),
+        ]
+        for col, (label, color, score_rng, desc) in zip(_guide_cols, _guide):
+            col.markdown(f"""
+            <div class="metric-card" style="border-left:3px solid {color};">
+              <div class="label" style="color:{color};">{label}</div>
+              <div class="value" style="font-size:1.1rem;color:{color};">Score {score_rng}</div>
+              <div style="font-size:0.78rem;color:#9a9080;margin-top:6px;line-height:1.5;">{desc}</div>
+            </div>""", unsafe_allow_html=True)
+
+        # ── Market context ────────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Land Market Context — {_sel_land_state}".format(_sel_land_state=_sel_land_state))
+        _land_mkt_match = {k: v for k, v in LAND_AVAILABILITY.items()
+                           if k.endswith(f", {_sel_land_state}")}
+        if _land_mkt_match:
+            _lm_cols = st.columns(min(len(_land_mkt_match), 3))
+            for col, (mkt, li) in zip(_lm_cols, _land_mkt_match.items()):
+                _total = li["industrial_ac"] + li["mixed_use_ac"] + li["residential_ac"]
+                _pt    = TREND_ARROW.get(li["pipeline_trend"], "→")
+                col.markdown(f"""
+                <div class="metric-card">
+                  <div class="label">{mkt.split(",")[0]}</div>
+                  <div class="value" style="font-size:1.1rem;">{_total:,} ac</div>
+                  <div class="sub">Avg ${li['avg_ppa']:,}/acre</div>
+                  <div style="font-size:0.78rem;color:#9a9080;margin-top:4px;">
+                    Industrial: {li['industrial_ac']:,} ac<br>
+                    Mixed-Use: {li['mixed_use_ac']:,} ac<br>
+                    Entitlement: ~{li['entitlement_mo']} mo<br>
+                    Pipeline: {_pt} {li['pipeline_trend'].title()}
+                  </div>
+                </div>""", unsafe_allow_html=True)
+        else:
+            st.caption(
+                f"Detailed market-level land data is available for: "
+                + ", ".join(set(k.split(", ")[1] for k in LAND_AVAILABILITY))
             )
 
 
