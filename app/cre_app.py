@@ -42,7 +42,7 @@ from src.cre_agents import (
     start_scheduler, read_cache, cache_age_label, get_status,
 )
 from src.cre_listings import get_cheapest_buildings, format_listing_card, estimate_property_tax
-from src.vacancy_agent import NATIONAL_VACANCY, MARKET_VACANCY, TREND_ARROW, TREND_COLOR, NATIONAL_ABSORPTION, MARKET_ABSORPTION
+from src.vacancy_agent import NATIONAL_VACANCY, MARKET_VACANCY, TREND_ARROW, TREND_COLOR
 
 @st.cache_resource
 def _init_scheduler():
@@ -2487,7 +2487,7 @@ with main_tab_re:
         )
 
         # National absorption summary cards
-        nat_abs = vac_data.get("national_absorption", NATIONAL_ABSORPTION)
+        nat_abs = vac_data.get("national_absorption", {})
         abs_cols = st.columns(len(nat_abs))
         for col, (ptype, info) in zip(abs_cols, nat_abs.items()):
             net   = info["net_msf"]
