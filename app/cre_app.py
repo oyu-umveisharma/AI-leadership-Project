@@ -42,6 +42,7 @@ from src.cre_agents import (
     start_scheduler, read_cache, cache_age_label, get_status,
 )
 from src.cre_listings import get_cheapest_buildings, format_listing_card, estimate_property_tax
+from src.vacancy_agent import NATIONAL_VACANCY, MARKET_VACANCY, TREND_ARROW, TREND_COLOR, NATIONAL_ABSORPTION, MARKET_ABSORPTION
 
 @st.cache_resource
 def _init_scheduler():
@@ -2345,8 +2346,6 @@ with main_tab_re:
     #  TAB 7 — VACANCY RATE MONITOR
     # ═══════════════════════════════════════════════════════════════════════════════
     with tab_vacancy:
-        from src.vacancy_agent import NATIONAL_VACANCY, MARKET_VACANCY, TREND_ARROW, TREND_COLOR
-
         vac_cache = read_cache("vacancy")
         vac_data  = vac_cache["data"]
 
@@ -2479,8 +2478,6 @@ with main_tab_re:
             )
 
         # ── Absorption Rate ──────────────────────────────────────────────────
-        from src.vacancy_agent import NATIONAL_ABSORPTION, MARKET_ABSORPTION
-
         st.markdown("<br>", unsafe_allow_html=True)
         section(" Net Absorption — Q1 2025 (thousands sq ft)")
         st.markdown(
