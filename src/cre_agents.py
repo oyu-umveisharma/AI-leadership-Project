@@ -27,7 +27,8 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    from pathlib import Path as _P
+    load_dotenv(_P(__file__).parent.parent / ".env", override=True)
 except ImportError:
     pass
 

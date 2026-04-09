@@ -35,7 +35,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+from pathlib import Path as _P; load_dotenv(_P(__file__).parent.parent / ".env", override=True)
 
 CACHE_DIR    = Path(__file__).parent.parent / "cache"
 CACHE_DIR.mkdir(exist_ok=True)
