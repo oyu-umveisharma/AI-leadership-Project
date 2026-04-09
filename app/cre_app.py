@@ -3620,22 +3620,91 @@ with main_tab_macro:
         inf_series = idata.get("series", {})
         inf_signal = idata.get("signal", {})
 
-        # ── Signal Banner ───────────────────────────────────────────────────────
-        inf_label = inf_signal.get("label", "UNKNOWN")
-        inf_score = inf_signal.get("score", 50)
-        inf_clr = {"HOT": "#b71c1c", "MODERATE": "#e65100", "COOLING": "#1b5e20"}.get(inf_label, "#555")
-        inf_bg  = {"HOT": "#ffebee", "MODERATE": "#fff3e0", "COOLING": "#e8f5e9"}.get(inf_label, "#f5f5f5")
-        inf_icon = ""
+        # ── Signal Banner — Segmented Gauge Card ────────────────────────────────
+        inf_label    = inf_signal.get("label", "UNKNOWN")
+        inf_score    = inf_signal.get("score", 50)
+        inf_confidence = inf_signal.get("confidence", "High")
+        _age_inf     = cache_age_label("inflation_data")
+
+        # Build segmented progress bar (20 blocks, each = 5 pts)
+        _total_blocks = 20
+        _filled       = round(inf_score / 100 * _total_blocks)
+        _marker_pos   = _filled  # block index where marker sits
+
+        # Color per block: cool=green, moderate=gold, hot=red
+        def _block_color(i, score):
+            if score >= 75:   active = "#b71c1c"
+            elif score >= 45: active = "#CFB991"
+            else:             active = "#2e7d32"
+            return active if i < _filled else "#2a2a1e"
+
+        _blocks_html = "".join(
+            f"<div style='width:20px;height:20px;background:{_block_color(i, inf_score)};"
+            f"border-radius:2px;margin:0 2px;flex-shrink:0;'></div>"
+            for i in range(_total_blocks)
+        )
+
+        # Marker triangle position (percentage across bar)
+        _marker_pct = inf_score  # 0-100
+
+        _label_color = {"HOT": "#ef5350", "MODERATE": "#CFB991", "COOLING": "#66bb6a"}.get(inf_label, "#e8dfc4")
+        _summary     = inf_signal.get("summary", "")
+        _bullets     = inf_signal.get("bullets", [])
+        _bullets_html = " ".join(
+            f"<span style='margin-right:12px;'>{'🏠' if 'shelter' in b.lower() else '🏭' if 'input' in b.lower() or 'construct' in b.lower() else '·'} {b}</span>"
+            for b in _bullets[:2]
+        ) if _bullets else ""
+
         st.markdown(f"""
-        <div style="background:{inf_bg};border-left:6px solid {inf_clr};
-                    padding:18px 24px;border-radius:6px;margin-bottom:20px;">
-          <div style="font-size:1.4rem;font-weight:700;color:{inf_clr};">
-            {inf_icon} Inflation Regime: {inf_label} &nbsp;·&nbsp; Score {inf_score}/100
+        <div style="background:linear-gradient(135deg,#1a1a12 0%,#141410 100%);
+                    border:1px solid #3a3a2a;border-radius:10px;
+                    padding:28px 32px 22px 32px;margin-bottom:24px;max-width:680px;">
+          <!-- Header -->
+          <div style="text-align:center;letter-spacing:0.18em;font-size:0.78rem;
+                      color:#a09070;font-family:'Source Sans Pro',sans-serif;
+                      margin-bottom:6px;">INFLATION REGIME</div>
+          <!-- Label -->
+          <div style="text-align:center;font-size:2.2rem;font-weight:800;
+                      color:{_label_color};letter-spacing:0.06em;
+                      font-family:'Source Sans Pro',sans-serif;
+                      margin-bottom:18px;">{inf_label}</div>
+          <!-- Score label -->
+          <div style="text-align:right;font-size:0.78rem;color:#a09070;
+                      letter-spacing:0.08em;margin-bottom:6px;">
+            SCORE: <span style="color:#e8dfc4;font-weight:700;">{inf_score} / 100</span>
           </div>
-          <div style="color:#555;margin-top:6px;font-size:0.92rem;">{inf_signal.get("summary", "")}</div>
-          <ul style="margin-top:10px;color:#444;font-size:0.88rem;">
-            {"".join(f"<li>{b}</li>" for b in inf_signal.get("bullets", []))}
-          </ul>
+          <!-- Segmented bar -->
+          <div style="position:relative;">
+            <div style="display:flex;align-items:center;justify-content:center;
+                        gap:0;margin-bottom:4px;">
+              {_blocks_html}
+            </div>
+            <!-- Marker triangle -->
+            <div style="position:relative;height:14px;margin:0 4px;">
+              <div style="position:absolute;left:calc({_marker_pct}% - 6px);top:0;
+                          width:0;height:0;
+                          border-left:6px solid transparent;
+                          border-right:6px solid transparent;
+                          border-top:10px solid #e8dfc4;">
+              </div>
+            </div>
+            <!-- Scale labels -->
+            <div style="display:flex;justify-content:space-between;
+                        font-size:0.72rem;color:#666;margin:0 2px;">
+              <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+            </div>
+          </div>
+          <!-- Summary -->
+          <div style="margin-top:16px;font-size:0.85rem;color:#c8bfa8;line-height:1.6;">
+            {_summary}
+            {"<div style='margin-top:6px;font-size:0.82rem;color:#9a9080;'>" + _bullets_html + "</div>" if _bullets_html else ""}
+          </div>
+          <!-- Footer -->
+          <div style="margin-top:14px;padding-top:10px;border-top:1px solid #2a2a1e;
+                      font-size:0.72rem;color:#666;letter-spacing:0.04em;">
+            A11 &nbsp;Agent 11 &nbsp;|&nbsp; Confidence: <span style="color:#CFB991;">{inf_confidence}</span>
+            &nbsp;|&nbsp; Last Updated: {_age_inf}
+          </div>
         </div>""", unsafe_allow_html=True)
 
         # ── KPI Strip ──────────────────────────────────────────────────────────
