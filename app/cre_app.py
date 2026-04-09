@@ -2487,8 +2487,10 @@ with main_tab_re:
         )
 
         # National absorption summary cards
-        nat_abs = vac_data.get("national_absorption", {})
-        abs_cols = st.columns(len(nat_abs))
+        nat_abs = vac_data.get("national_absorption") or {}
+        if not nat_abs:
+            st.info("Absorption data loading — refresh in ~30 seconds.")
+        abs_cols = st.columns(max(len(nat_abs), 1))
         for col, (ptype, info) in zip(abs_cols, nat_abs.items()):
             net   = info["net_msf"]
             prior = info["prior_quarter"]
