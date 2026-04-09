@@ -936,6 +936,83 @@ def agent_last_updated(agent_name: str):
     st.caption(f"Last updated: {cache_age_label(agent_name)}")
 
 
+def gauge_card(title: str, label: str, score: int, summary: str,
+               agent_num: str, age_label: str,
+               confidence: str = "High",
+               low_good: bool = False,
+               scale_labels: tuple = ("0", "25", "50", "75", "100")) -> str:
+    """
+    Returns HTML for a segmented gauge card matching the Inflation Regime design.
+    low_good=True  → low score = green (e.g. tight credit is bad, loose is good reversed)
+    low_good=False → high score = green (e.g. strong economy, loose credit)
+    """
+    total = 20
+    filled = round(score / 100 * total)
+
+    def _color(i):
+        pct = score
+        if low_good:
+            # Low = good (green), high = bad (red)  — used for Rate Environment (high rates = bearish)
+            if pct <= 35:   active = "#2e7d32"
+            elif pct <= 60: active = "#CFB991"
+            else:           active = "#b71c1c"
+        else:
+            if pct >= 65:   active = "#2e7d32"
+            elif pct >= 40: active = "#CFB991"
+            else:           active = "#b71c1c"
+        return active if i < filled else "#2a2a1e"
+
+    blocks = "".join(
+        f"<div style='width:26px;height:26px;background:{_color(i)};"
+        f"border-radius:3px;margin:0 3px;flex-shrink:0;'></div>"
+        for i in range(total)
+    )
+
+    # Label color based on the filled color logic
+    if low_good:
+        lc = "#66bb6a" if score <= 35 else ("#CFB991" if score <= 60 else "#ef5350")
+    else:
+        lc = "#66bb6a" if score >= 65 else ("#CFB991" if score >= 40 else "#ef5350")
+
+    s0, s25, s50, s75, s100 = scale_labels
+
+    return f"""
+    <div style="background:linear-gradient(135deg,#1a1a12 0%,#141410 100%);
+                border:1px solid #3a3a2a;border-radius:10px;
+                padding:28px 36px 22px 36px;margin-bottom:24px;">
+      <div style="text-align:center;letter-spacing:0.18em;font-size:0.78rem;
+                  color:#a09070;margin-bottom:6px;">{title}</div>
+      <div style="text-align:center;font-size:2.4rem;font-weight:800;
+                  color:{lc};letter-spacing:0.06em;margin-bottom:20px;">{label}</div>
+      <div style="text-align:right;font-size:0.8rem;color:#a09070;
+                  letter-spacing:0.08em;margin-bottom:8px;">
+        SCORE: <span style="color:#e8dfc4;font-weight:700;">{score} / 100</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;margin-bottom:6px;">
+        {blocks}
+      </div>
+      <div style="position:relative;height:16px;margin:0 6px 2px 6px;">
+        <div style="position:absolute;left:calc({score}% - 7px);top:0;
+                    width:0;height:0;
+                    border-left:7px solid transparent;
+                    border-right:7px solid transparent;
+                    border-top:12px solid #e8dfc4;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;
+                  font-size:0.74rem;color:#666;margin:0 4px 16px 4px;">
+        <span>{s0}</span><span>{s25}</span><span>{s50}</span><span>{s75}</span><span>{s100}</span>
+      </div>
+      <div style="font-size:0.88rem;color:#c8bfa8;line-height:1.65;margin-bottom:14px;">
+        {summary}
+      </div>
+      <div style="padding-top:10px;border-top:1px solid #2a2a1e;
+                  font-size:0.72rem;color:#666;letter-spacing:0.04em;">
+        {agent_num} &nbsp;|&nbsp; Confidence: <span style="color:#CFB991;">{confidence}</span>
+        &nbsp;|&nbsp; Last Updated: {age_label}
+      </div>
+    </div>"""
+
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  MAIN TABS
@@ -2833,21 +2910,21 @@ with main_tab_macro:
         cached_at   = rdata.get("cached_at", "")
 
         # ── Signal Banner ───────────────────────────────────────────────────────
-        signal  = env.get("signal", "CAUTIOUS")
-        sig_clr = {"BULLISH": "#1b5e20", "CAUTIOUS": "#e65100", "BEARISH": "#b71c1c"}.get(signal, "#333")
-        bg_clr  = {"BULLISH": "#e8f5e9", "CAUTIOUS": "#fff3e0", "BEARISH": "#ffebee"}.get(signal, "#f5f5f5")
-        st.markdown(f"""
-        <div style="background:{bg_clr};border-left:6px solid {sig_clr};
-                    padding:18px 24px;border-radius:6px;margin-bottom:20px;">
-          <div style="font-size:1.4rem;font-weight:700;color:{sig_clr};">
-            {env.get('icon','')} Rate Environment: {signal}
-          </div>
-          <div style="color:#333;margin-top:6px;font-size:0.95rem;">{env.get('summary','')}</div>
-          <ul style="margin-top:10px;color:#444;font-size:0.88rem;">
-            {"".join(f"<li>{b}</li>" for b in env.get('bullets', []))}
-          </ul>
-          <div style="font-size:0.75rem;color:#888;margin-top:8px;">Last updated: {cached_at[:19].replace('T',' ')}</div>
-        </div>""", unsafe_allow_html=True)
+        signal    = env.get("signal", "CAUTIOUS")
+        _re_score = env.get("score", 50)
+        _re_sum   = env.get("summary", "")
+        _re_conf  = env.get("confidence", "High")
+        st.markdown(gauge_card(
+            title       = "RATE ENVIRONMENT",
+            label       = signal,
+            score       = _re_score,
+            summary     = _re_sum,
+            agent_num   = "A6  Agent 6",
+            age_label   = cache_age_label("rates"),
+            confidence  = _re_conf,
+            low_good    = True,
+            scale_labels= ("BEARISH", "25", "CAUTIOUS", "75", "BULLISH"),
+        ), unsafe_allow_html=True)
 
         # ── Key Rate Cards ──────────────────────────────────────────────────────
         section(" Current Rates")
@@ -3199,19 +3276,16 @@ with main_tab_macro:
         # ── Demand Signal Banner ────────────────────────────────────────────────
         sig_label = demand_sig.get("label", "UNKNOWN")
         sig_score = demand_sig.get("score", 50)
-        sig_clr_lm = {"STRONG": "#1b5e20", "MODERATE": "#e65100", "SOFT": "#b71c1c"}.get(sig_label, "#555")
-        bg_clr_lm  = {"STRONG": "#e8f5e9", "MODERATE": "#fff3e0", "SOFT": "#ffebee"}.get(sig_label, "#f5f5f5")
-        st.markdown(f"""
-        <div style="background:{bg_clr_lm};border-left:6px solid {sig_clr_lm};
-                    padding:18px 24px;border-radius:6px;margin-bottom:20px;">
-          <div style="font-size:1.4rem;font-weight:700;color:{sig_clr_lm};">
-            Tenant Demand Signal: {sig_label}  &nbsp;·&nbsp; Score {sig_score}/100
-          </div>
-          <div style="color:#555;margin-top:6px;font-size:0.9rem;">
-            Synthesized from nonfarm payrolls, job openings, unemployment trend, and sector ETF momentum.
-            STRONG ≥ 65 · MODERATE 41–64 · SOFT ≤ 40
-          </div>
-        </div>""", unsafe_allow_html=True)
+        _td_sum   = "Synthesized from nonfarm payrolls, job openings, unemployment trend, and sector ETF momentum. STRONG >= 65 · MODERATE 41-64 · SOFT <= 40"
+        st.markdown(gauge_card(
+            title       = "TENANT DEMAND",
+            label       = sig_label,
+            score       = sig_score,
+            summary     = _td_sum,
+            agent_num   = "A9  Agent 9",
+            age_label   = cache_age_label("labor_market"),
+            scale_labels= ("SOFT", "25", "MODERATE", "75", "STRONG"),
+        ), unsafe_allow_html=True)
 
         # ── KPI Strip — National Labor ──────────────────────────────────────────
         section(" National Labor Market Snapshot")
@@ -3464,22 +3538,16 @@ with main_tab_macro:
         # ── Cycle Signal Banner ─────────────────────────────────────────────────
         cycle_label = g_cycle.get("label", "UNKNOWN")
         cycle_score = g_cycle.get("score", 50)
-        cycle_clr = {"EXPANSION": "#1b5e20", "SLOWDOWN": "#e65100", "CONTRACTION": "#b71c1c"}.get(cycle_label, "#555")
-        cycle_bg  = {"EXPANSION": "#e8f5e9", "SLOWDOWN": "#fff3e0", "CONTRACTION": "#ffebee"}.get(cycle_label, "#f5f5f5")
-        cycle_icon = ""
-        st.markdown(f"""
-        <div style="background:{cycle_bg};border-left:6px solid {cycle_clr};
-                    padding:18px 24px;border-radius:6px;margin-bottom:20px;">
-          <div style="font-size:1.4rem;font-weight:700;color:{cycle_clr};">
-            {cycle_icon} Economic Cycle: {cycle_label} &nbsp;·&nbsp; Score {cycle_score}/100
-          </div>
-          <div style="color:#555;margin-top:8px;font-size:0.92rem;font-style:italic;">
-            {g_cycle.get("cre_implication", "")}
-          </div>
-          <ul style="margin-top:10px;color:#444;font-size:0.88rem;">
-            {"".join(f"<li>{b}</li>" for b in g_cycle.get("bullets", []))}
-          </ul>
-        </div>""", unsafe_allow_html=True)
+        _ec_sum     = g_cycle.get("cre_implication", "") or g_cycle.get("summary", "")
+        st.markdown(gauge_card(
+            title       = "ECONOMIC CYCLE",
+            label       = cycle_label,
+            score       = cycle_score,
+            summary     = _ec_sum,
+            agent_num   = "A10  Agent 10",
+            age_label   = cache_age_label("gdp_data"),
+            scale_labels= ("CONTRACTION", "25", "SLOWDOWN", "75", "EXPANSION"),
+        ), unsafe_allow_html=True)
 
         # ── KPI Strip ──────────────────────────────────────────────────────────
         section(" Key Economic Indicators")
@@ -3705,86 +3773,17 @@ with main_tab_macro:
         inf_confidence = inf_signal.get("confidence", "High")
         _age_inf     = cache_age_label("inflation_data")
 
-        # Build segmented progress bar (20 blocks, each = 5 pts)
-        _total_blocks = 20
-        _filled       = round(inf_score / 100 * _total_blocks)
-        _marker_pos   = _filled  # block index where marker sits
-
-        # Color per block: cool=green, moderate=gold, hot=red
-        def _block_color(i, score):
-            if score >= 75:   active = "#b71c1c"
-            elif score >= 45: active = "#CFB991"
-            else:             active = "#2e7d32"
-            return active if i < _filled else "#2a2a1e"
-
-        _blocks_html = "".join(
-            f"<div style='width:20px;height:20px;background:{_block_color(i, inf_score)};"
-            f"border-radius:2px;margin:0 2px;flex-shrink:0;'></div>"
-            for i in range(_total_blocks)
-        )
-
-        # Marker triangle position (percentage across bar)
-        _marker_pct = inf_score  # 0-100
-
-        _label_color = {"HOT": "#ef5350", "MODERATE": "#CFB991", "COOLING": "#66bb6a"}.get(inf_label, "#e8dfc4")
-        _summary     = inf_signal.get("summary", "")
-        _bullets     = inf_signal.get("bullets", [])
-        _bullets_html = " ".join(
-            f"<span style='margin-right:12px;'>{'🏠' if 'shelter' in b.lower() else '🏭' if 'input' in b.lower() or 'construct' in b.lower() else '·'} {b}</span>"
-            for b in _bullets[:2]
-        ) if _bullets else ""
-
-        st.markdown(f"""
-        <div style="background:linear-gradient(135deg,#1a1a12 0%,#141410 100%);
-                    border:1px solid #3a3a2a;border-radius:10px;
-                    padding:28px 32px 22px 32px;margin-bottom:24px;max-width:680px;">
-          <!-- Header -->
-          <div style="text-align:center;letter-spacing:0.18em;font-size:0.78rem;
-                      color:#a09070;font-family:'Source Sans Pro',sans-serif;
-                      margin-bottom:6px;">INFLATION REGIME</div>
-          <!-- Label -->
-          <div style="text-align:center;font-size:2.2rem;font-weight:800;
-                      color:{_label_color};letter-spacing:0.06em;
-                      font-family:'Source Sans Pro',sans-serif;
-                      margin-bottom:18px;">{inf_label}</div>
-          <!-- Score label -->
-          <div style="text-align:right;font-size:0.78rem;color:#a09070;
-                      letter-spacing:0.08em;margin-bottom:6px;">
-            SCORE: <span style="color:#e8dfc4;font-weight:700;">{inf_score} / 100</span>
-          </div>
-          <!-- Segmented bar -->
-          <div style="position:relative;">
-            <div style="display:flex;align-items:center;justify-content:center;
-                        gap:0;margin-bottom:4px;">
-              {_blocks_html}
-            </div>
-            <!-- Marker triangle -->
-            <div style="position:relative;height:14px;margin:0 4px;">
-              <div style="position:absolute;left:calc({_marker_pct}% - 6px);top:0;
-                          width:0;height:0;
-                          border-left:6px solid transparent;
-                          border-right:6px solid transparent;
-                          border-top:10px solid #e8dfc4;">
-              </div>
-            </div>
-            <!-- Scale labels -->
-            <div style="display:flex;justify-content:space-between;
-                        font-size:0.72rem;color:#666;margin:0 2px;">
-              <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
-            </div>
-          </div>
-          <!-- Summary -->
-          <div style="margin-top:16px;font-size:0.85rem;color:#c8bfa8;line-height:1.6;">
-            {_summary}
-            {"<div style='margin-top:6px;font-size:0.82rem;color:#9a9080;'>" + _bullets_html + "</div>" if _bullets_html else ""}
-          </div>
-          <!-- Footer -->
-          <div style="margin-top:14px;padding-top:10px;border-top:1px solid #2a2a1e;
-                      font-size:0.72rem;color:#666;letter-spacing:0.04em;">
-            A11 &nbsp;Agent 11 &nbsp;|&nbsp; Confidence: <span style="color:#CFB991;">{inf_confidence}</span>
-            &nbsp;|&nbsp; Last Updated: {_age_inf}
-          </div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown(gauge_card(
+            title="INFLATION REGIME",
+            label=inf_label,
+            score=inf_score,
+            summary=inf_signal.get("summary", ""),
+            agent_num=11,
+            age_label=_age_inf,
+            confidence=inf_confidence,
+            low_good=True,
+            scale_labels=("COOLING", "25", "MODERATE", "75", "HOT"),
+        ), unsafe_allow_html=True)
 
         # ── KPI Strip ──────────────────────────────────────────────────────────
         section(" Inflation Dashboard")
@@ -3969,74 +3968,17 @@ with main_tab_macro:
         cr_confidence = cr_signal.get("confidence", "High")
         _age_cr       = cache_age_label("credit_data")
 
-        # For credit: 0 = very tight (bad for CRE), 100 = very loose (good for CRE)
-        # Color: low score = red (tight), mid = gold (neutral), high = green (loose)
-        _cr_total_blocks = 20
-        _cr_filled       = round(cr_score / 100 * _cr_total_blocks)
-
-        def _cr_block_color(i, score):
-            if score >= 65:   active = "#2e7d32"
-            elif score >= 40: active = "#CFB991"
-            else:             active = "#b71c1c"
-            return active if i < _cr_filled else "#2a2a1e"
-
-        _cr_blocks_html = "".join(
-            f"<div style='width:20px;height:20px;background:{_cr_block_color(i, cr_score)};"
-            f"border-radius:2px;margin:0 2px;flex-shrink:0;'></div>"
-            for i in range(_cr_total_blocks)
-        )
-
-        _cr_label_color = {"LOOSE": "#66bb6a", "NEUTRAL": "#CFB991", "TIGHT": "#ef5350"}.get(cr_label, "#e8dfc4")
-        _cr_summary     = cr_signal.get("summary", "")
-        _cr_bullets     = cr_signal.get("bullets", [])
-        _cr_bullets_html = " ".join(
-            f"<span style='margin-right:12px;'>· {b}</span>"
-            for b in _cr_bullets[:2]
-        ) if _cr_bullets else ""
-
-        st.markdown(f"""
-        <div style="background:linear-gradient(135deg,#1a1a12 0%,#141410 100%);
-                    border:1px solid #3a3a2a;border-radius:10px;
-                    padding:28px 32px 22px 32px;margin-bottom:24px;max-width:680px;">
-          <div style="text-align:center;letter-spacing:0.18em;font-size:0.78rem;
-                      color:#a09070;font-family:'Source Sans Pro',sans-serif;
-                      margin-bottom:6px;">CREDIT CONDITIONS</div>
-          <div style="text-align:center;font-size:2.2rem;font-weight:800;
-                      color:{_cr_label_color};letter-spacing:0.06em;
-                      font-family:'Source Sans Pro',sans-serif;
-                      margin-bottom:18px;">{cr_label}</div>
-          <div style="text-align:right;font-size:0.78rem;color:#a09070;
-                      letter-spacing:0.08em;margin-bottom:6px;">
-            SCORE: <span style="color:#e8dfc4;font-weight:700;">{cr_score} / 100</span>
-          </div>
-          <div style="position:relative;">
-            <div style="display:flex;align-items:center;justify-content:center;
-                        gap:0;margin-bottom:4px;">
-              {_cr_blocks_html}
-            </div>
-            <div style="position:relative;height:14px;margin:0 4px;">
-              <div style="position:absolute;left:calc({cr_score}% - 6px);top:0;
-                          width:0;height:0;
-                          border-left:6px solid transparent;
-                          border-right:6px solid transparent;
-                          border-top:10px solid #e8dfc4;">
-              </div>
-            </div>
-            <div style="display:flex;justify-content:space-between;
-                        font-size:0.72rem;color:#666;margin:0 2px;">
-              <span>TIGHT</span><span>25</span><span>NEUTRAL</span><span>75</span><span>LOOSE</span>
-            </div>
-          </div>
-          <div style="margin-top:16px;font-size:0.85rem;color:#c8bfa8;line-height:1.6;">
-            {_cr_summary}
-            {"<div style='margin-top:6px;font-size:0.82rem;color:#9a9080;'>" + _cr_bullets_html + "</div>" if _cr_bullets_html else ""}
-          </div>
-          <div style="margin-top:14px;padding-top:10px;border-top:1px solid #2a2a1e;
-                      font-size:0.72rem;color:#666;letter-spacing:0.04em;">
-            A12 &nbsp;Agent 12 &nbsp;|&nbsp; Confidence: <span style="color:#CFB991;">{cr_confidence}</span>
-            &nbsp;|&nbsp; Last Updated: {_age_cr}
-          </div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown(gauge_card(
+            title="CREDIT CONDITIONS",
+            label=cr_label,
+            score=cr_score,
+            summary=cr_signal.get("summary", ""),
+            agent_num=12,
+            age_label=_age_cr,
+            confidence=cr_confidence,
+            low_good=False,
+            scale_labels=("TIGHT", "25", "NEUTRAL", "75", "LOOSE"),
+        ), unsafe_allow_html=True)
 
         # ── KPI Strip ──────────────────────────────────────────────────────────
         section(" Credit Market Snapshot")
