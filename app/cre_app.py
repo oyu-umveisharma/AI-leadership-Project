@@ -41,8 +41,24 @@ st.set_page_config(
 from src.cre_agents import (
     start_scheduler, read_cache, cache_age_label, get_status,
 )
-from src.cre_listings import (get_cheapest_buildings, format_listing_card, estimate_property_tax,
-                              get_land_parcels, ZONING_TYPES, ENTITLEMENT_STATUS, LAND_PRICE_PER_ACRE)
+from src.cre_listings import get_cheapest_buildings, format_listing_card, estimate_property_tax
+
+# Land functions — added after initial release; guard against stale bytecode
+# on Python 3.9 installations that haven't re-compiled the module yet.
+try:
+    from src.cre_listings import get_land_parcels, ZONING_TYPES, ENTITLEMENT_STATUS, LAND_PRICE_PER_ACRE
+except ImportError:
+    import importlib.util as _ilu
+    from pathlib import Path as _Path
+    _cre_path = str(_Path(__file__).resolve().parent.parent / "src" / "cre_listings.py")
+    _spec = _ilu.spec_from_file_location("_cre_listings_fresh", _cre_path)
+    _m = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_m)
+    get_land_parcels    = _m.get_land_parcels
+    ZONING_TYPES        = _m.ZONING_TYPES
+    ENTITLEMENT_STATUS  = _m.ENTITLEMENT_STATUS
+    LAND_PRICE_PER_ACRE = _m.LAND_PRICE_PER_ACRE
+
 from src.vacancy_agent import NATIONAL_VACANCY, MARKET_VACANCY, TREND_ARROW, TREND_COLOR, LAND_AVAILABILITY
 
 @st.cache_resource
