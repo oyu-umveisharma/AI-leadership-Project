@@ -59,7 +59,20 @@ except ImportError:
     ENTITLEMENT_STATUS  = _m.ENTITLEMENT_STATUS
     LAND_PRICE_PER_ACRE = _m.LAND_PRICE_PER_ACRE
 
-from src.vacancy_agent import NATIONAL_VACANCY, MARKET_VACANCY, TREND_ARROW, TREND_COLOR, LAND_AVAILABILITY
+try:
+    from src.vacancy_agent import NATIONAL_VACANCY, MARKET_VACANCY, TREND_ARROW, TREND_COLOR, LAND_AVAILABILITY
+except ImportError:
+    import importlib.util as _ilu2
+    from pathlib import Path as _Path2
+    _vac_path = str(_Path2(__file__).resolve().parent.parent / "src" / "vacancy_agent.py")
+    _spec2 = _ilu2.spec_from_file_location("_vacancy_agent_fresh", _vac_path)
+    _m2 = _ilu2.module_from_spec(_spec2)
+    _spec2.loader.exec_module(_m2)
+    NATIONAL_VACANCY = _m2.NATIONAL_VACANCY
+    MARKET_VACANCY   = _m2.MARKET_VACANCY
+    TREND_ARROW      = _m2.TREND_ARROW
+    TREND_COLOR      = _m2.TREND_COLOR
+    LAND_AVAILABILITY = _m2.LAND_AVAILABILITY
 
 @st.cache_resource
 def _init_scheduler():
