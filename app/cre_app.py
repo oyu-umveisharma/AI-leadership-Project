@@ -1758,7 +1758,7 @@ with main_tab_re:
         cache_r2 = read_cache("rates")
         rdata2   = cache_r2.get("data") or {}
         cap_adj2 = rdata2.get("cap_rate_adjustments", [])
-        cur_10y2 = rdata2.get("current_10y")
+        cur_10y2 = rdata2.get("current_10y") or 0.0
 
         if cap_adj2 and cur_10y2:
             st.markdown("<br>", unsafe_allow_html=True)
@@ -2749,8 +2749,8 @@ with main_tab_macro:
         cap_adj     = rdata.get("cap_rate_adjustments", [])
         debt_risk   = rdata.get("reit_debt_risk", [])
         yc          = rdata.get("yield_curve", {})
-        current_10y = rdata.get("current_10y")
-        baseline    = rdata.get("baseline_10y", 4.0)
+        current_10y = rdata.get("current_10y") or 0.0
+        baseline    = rdata.get("baseline_10y") or 4.0
         cached_at   = rdata.get("cached_at", "")
 
         # ── Signal Banner ───────────────────────────────────────────────────────
