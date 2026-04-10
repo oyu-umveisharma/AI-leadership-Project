@@ -1426,10 +1426,6 @@ with main_tab_re:
                     _zoom_scale = 2.5
                 _map_title_suffix = f"Focused on {_map_state}"
 
-            _show_land_pins = st.checkbox(
-                "Overlay available land parcels (top markets)",
-                value=False, key="show_land_pins",
-            )
             section(f" US Population Growth Map — {_map_title_suffix}")
 
             map_col, legend_col = st.columns([3, 1])
@@ -1500,48 +1496,6 @@ with main_tab_re:
                         hovertemplate=f"<b>{_map_city}</b><extra></extra>",
                     ))
 
-                # Overlay land parcel availability markers
-                if _show_land_pins:
-                    _ll, _lo, _lt, _ls, _lc = [], [], [], [], []
-                    for _mkt, _li in LAND_AVAILABILITY.items():
-                        _total_ac = _li["industrial_ac"] + _li["mixed_use_ac"] + _li["residential_ac"]
-                        _ll.append(_li["lat"])
-                        _lo.append(_li["lon"])
-                        _lt.append(_mkt)
-                        _ls.append(max(8, min(26, _total_ac // 1800)))
-                        _lc.append(_li["avg_ppa"])
-                    _land_cd = [
-                        [LAND_AVAILABILITY[m]["industrial_ac"],
-                         LAND_AVAILABILITY[m]["mixed_use_ac"],
-                         LAND_AVAILABILITY[m]["residential_ac"],
-                         LAND_AVAILABILITY[m]["avg_ppa"],
-                         LAND_AVAILABILITY[m]["entitlement_mo"]]
-                        for m in LAND_AVAILABILITY
-                    ]
-                    fig_map.add_trace(go.Scattergeo(
-                        lat=_ll, lon=_lo,
-                        mode="markers",
-                        marker=dict(
-                            size=_ls,
-                            color="#66bb6a",
-                            opacity=0.80,
-                            line=dict(width=1, color="#0f0f0c"),
-                            symbol="circle",
-                        ),
-                        text=_lt,
-                        customdata=_land_cd,
-                        hovertemplate=(
-                            "<b>%{text}</b><br>"
-                            "Industrial: %{customdata[0]:,} ac<br>"
-                            "Mixed-Use: %{customdata[1]:,} ac<br>"
-                            "Residential: %{customdata[2]:,} ac<br>"
-                            "Avg $/acre: $%{customdata[3]:,}<br>"
-                            "Entitlement: ~%{customdata[4]} months"
-                            "<extra>Available Land</extra>"
-                        ),
-                        name="Available Land",
-                        showlegend=True,
-                    ))
 
                 # Set map center and zoom
                 _geo_base = dict(
