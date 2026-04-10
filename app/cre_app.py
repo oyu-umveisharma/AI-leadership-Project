@@ -1050,8 +1050,7 @@ def gauge_card(title: str, label: str, score: int, summary: str,
 main_tab_re, main_tab_energy, main_tab_macro = st.tabs(["Real Estate", "Energy", "Macro Environment"])
 
 with main_tab_re:
-    tab_score, tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz = st.tabs([
-        "Market Score",
+    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score = st.tabs([
         "Migration Intelligence",
         "Pricing & Profit",
         "Company Predictions",
@@ -1063,6 +1062,7 @@ with main_tab_re:
         "Cap Rate Monitor",
         "Rent Growth",
         "Opportunity Zones",
+        "Market Score",
     ])
 
 
