@@ -1050,7 +1050,8 @@ def gauge_card(title: str, label: str, score: int, summary: str,
 main_tab_re, main_tab_energy, main_tab_macro = st.tabs(["Real Estate", "Energy", "Macro Environment"])
 
 with main_tab_re:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land = st.tabs([
+    tab_score, tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz = st.tabs([
+        "Market Score",
         "Migration Intelligence",
         "Pricing & Profit",
         "Company Predictions",
@@ -1059,6 +1060,9 @@ with main_tab_re:
         "System Monitor",
         "Vacancy Monitor",
         "Land & Development",
+        "Cap Rate Monitor",
+        "Rent Growth",
+        "Opportunity Zones",
     ])
 
 
@@ -3025,6 +3029,438 @@ with main_tab_re:
                 + ", ".join(set(k.split(", ")[1] for k in LAND_AVAILABILITY))
             )
 
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — MARKET OPPORTUNITY SCORE
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_score:
+        st.markdown("#### Which CRE markets offer the best composite opportunity today?")
+        st.markdown(
+            "Agent 18 synthesizes migration, vacancy, rent growth, cap rate attractiveness, "
+            "land availability, and macro conditions into a single 0–100 composite score "
+            "per market. Updates every 6 hours."
+        )
+        agent_last_updated("market_score")
+
+        _ms_cache = read_cache("market_score")
+        _ms_data  = _ms_cache.get("data") or {}
+
+        if not _ms_data:
+            st.info(" Market Score agent is running its first computation — refresh in ~30 seconds.")
+        else:
+            _ms_rankings  = _ms_data.get("rankings", [])
+            _ms_top3      = _ms_data.get("top3_markets", [])
+            _ms_avoid     = _ms_data.get("avoid_markets", [])
+            _ms_avg       = _ms_data.get("avg_score", 0)
+            _ms_fw        = _ms_data.get("factor_weights", {})
+
+            # ── Summary cards ─────────────────────────────────────────────────
+            section(" Composite Market Rankings")
+            _ms_c1, _ms_c2, _ms_c3 = st.columns(3)
+            _ms_c1.markdown(metric_card("Avg Market Score", f"{_ms_avg}/100", "19 tracked markets"), unsafe_allow_html=True)
+            _ms_c2.markdown(metric_card("Top Markets", " · ".join(_ms_top3[:2]) if _ms_top3 else "—", "Highest composite scores"), unsafe_allow_html=True)
+            _ms_c3.markdown(metric_card("Avoid", " · ".join(_ms_avoid[:2]) if _ms_avoid else "—", "Lowest composite scores"), unsafe_allow_html=True)
+
+            # ── Rankings bar chart ────────────────────────────────────────────
+            if _ms_rankings:
+                _ms_df = pd.DataFrame(_ms_rankings)
+                _ms_df["color"] = _ms_df["composite"].apply(
+                    lambda s: "#66bb6a" if s >= 70 else ("#CFB991" if s >= 50 else "#ef5350")
+                )
+                fig_ms = go.Figure(go.Bar(
+                    x=_ms_df["composite"],
+                    y=_ms_df["market"],
+                    orientation="h",
+                    marker_color=_ms_df["color"].tolist(),
+                    text=[f"{r['grade']}  {r['composite']}" for _, r in _ms_df.iterrows()],
+                    textposition="outside",
+                    hovertemplate="<b>%{y}</b><br>Score: %{x}<extra></extra>",
+                ))
+                fig_ms.update_layout(
+                    xaxis=dict(range=[0, 105], title="Composite Score (0–100)",
+                               gridcolor="#2a2a2a", color="#a09880"),
+                    yaxis=dict(categoryorder="total ascending", color="#a09880"),
+                    plot_bgcolor="#0e0e0a", paper_bgcolor="#0e0e0a",
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                    margin=dict(l=160, r=80, t=20, b=40), height=580,
+                )
+                st.plotly_chart(fig_ms, use_container_width=True)
+
+            # ── Factor weight legend ──────────────────────────────────────────
+            section(" Factor Weights")
+            _ms_fw_labels = {
+                "migration": "Migration / Population (+ Labor proxy)",
+                "vacancy":   "Vacancy & Absorption",
+                "rent":      "Rent Growth Momentum",
+                "cap_rate":  "Cap Rate Attractiveness",
+                "land":      "Land Availability",
+                "macro":     "Macro Environment",
+            }
+            _ms_fw_cols = st.columns(len(_ms_fw_labels))
+            for _ms_col, (_ms_k, _ms_lbl) in zip(_ms_fw_cols, _ms_fw_labels.items()):
+                _ms_pct = int(_ms_fw.get(_ms_k, 0) * 100)
+                _ms_extra = " (+15% labor)" if _ms_k == "migration" else ""
+                _ms_col.markdown(metric_card(_ms_lbl, f"{_ms_pct}%{_ms_extra}", "weight"), unsafe_allow_html=True)
+
+            # ── Top 10 factor breakdown table ─────────────────────────────────
+            section(" Market Factor Breakdown — Top 10")
+            _ms_table = []
+            for r in _ms_rankings[:10]:
+                f = r["factors"]
+                _ms_table.append({
+                    "Rank": r["rank"], "Market": r["market"],
+                    "Score": r["composite"], "Grade": r["grade"],
+                    "Migration": round(f.get("migration", 0)),
+                    "Vacancy":   round(f.get("vacancy", 0)),
+                    "Rent":      round(f.get("rent", 0)),
+                    "Cap Rate":  round(f.get("cap_rate", 0)),
+                    "Land":      round(f.get("land", 0)),
+                    "Macro":     round(f.get("macro", 0)),
+                })
+            st.dataframe(
+                pd.DataFrame(_ms_table).set_index("Rank"),
+                use_container_width=True,
+                height=380,
+            )
+            st.caption(
+                "Composite = weighted sum across 7 factors (0–100 each). "
+                "Grade: A ≥ 80, B+ ≥ 70, B ≥ 60, C+ ≥ 50, C ≥ 40, D < 40. "
+                "Agent 18 aggregates live caches from all other agents. Q1 2025 benchmarks. Not financial advice."
+            )
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — CAP RATE MONITOR
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_caprate:
+        st.markdown("#### Are cap rates offering attractive spreads over the risk-free rate?")
+        st.markdown(
+            "Agent 14 pulls live commercial mortgage rates and 10-year treasury yields from FRED, "
+            "then computes cap rate spreads by property type — signaling where valuations are "
+            "attractive, fair, or compressed. Updates every 6 hours."
+        )
+        agent_last_updated("cap_rate")
+
+        _cap_cache = read_cache("cap_rate")
+        _cap_data  = _cap_cache.get("data") or {}
+
+        if not _cap_data:
+            st.info(" Cap Rate agent is fetching data — refresh in ~30 seconds.")
+        else:
+            _cap_national = _cap_data.get("national", {})
+            _cap_mktcaps  = _cap_data.get("market_cap_rates", {})
+            _cap_t10y     = _cap_data.get("treasury_10y")
+            _cap_cmr      = _cap_data.get("commercial_mortgage_rate")
+            _cap_spreads  = _cap_data.get("spreads", {})
+            _cap_err      = _cap_data.get("error")
+
+            _cap_ta = {"rising": "↑", "falling": "↓", "stable": "→"}
+            _cap_tc = {"rising": "#ef5350", "falling": "#66bb6a", "stable": "#CFB991"}
+
+            # ── Rate context ──────────────────────────────────────────────────
+            _cap_rc1, _cap_rc2, _cap_rc3 = st.columns(3)
+            _t10y_str = f"{_cap_t10y:.2f}%" if _cap_t10y else "Set FRED_API_KEY"
+            _cmr_str  = f"{_cap_cmr:.2f}%" if _cap_cmr else "Set FRED_API_KEY"
+            _cap_rc1.markdown(metric_card("10Y Treasury", _t10y_str, "DGS10 · FRED live"), unsafe_allow_html=True)
+            _cap_rc2.markdown(metric_card("Comm. Mortgage Rate", _cmr_str, "RIFLPBCIANM · FRED live"), unsafe_allow_html=True)
+            _cap_rc3.markdown(metric_card("Benchmarks", _cap_data.get("data_as_of", "Q1 2025"), "CoStar / CBRE"), unsafe_allow_html=True)
+            if _cap_err and not _cap_t10y:
+                st.info(f" {_cap_err}")
+
+            # ── National cap rates ────────────────────────────────────────────
+            section(" National Cap Rates by Property Type")
+            _cap_ncols = st.columns(len(_cap_national))
+            for _cap_col, (_ptype, _pd) in zip(_cap_ncols, _cap_national.items()):
+                _sp_info = _cap_spreads.get(_ptype, {})
+                _sig     = _sp_info.get("signal", "")
+                _sig_c   = {"attractive": "#66bb6a", "fair": "#CFB991", "compressed": "#ef5350"}.get(_sig, "#a09880")
+                _cap_col.markdown(metric_card(
+                    _ptype,
+                    f"{_pd['rate']}%",
+                    f"{_cap_ta.get(_pd['trend'],'')} vs {_pd['prior_year']}% prior year",
+                ), unsafe_allow_html=True)
+                if _sig:
+                    _cap_col.markdown(
+                        f"<div style='text-align:center;font-size:0.77rem;color:{_sig_c};"
+                        f"margin-top:-6px;margin-bottom:8px;font-weight:700;'>{_sig.upper()}</div>",
+                        unsafe_allow_html=True,
+                    )
+
+            # ── Spread table ──────────────────────────────────────────────────
+            if _cap_spreads:
+                section(" Treasury Spread Analysis")
+                _sp_rows = []
+                for _pt, _sp in _cap_spreads.items():
+                    _sp_rows.append({
+                        "Property Type": _pt,
+                        "Cap Rate":      f"{_sp['cap_rate']:.1f}%",
+                        "10Y Spread":    f"{_sp['treasury_spread']:+.2f}pp",
+                        "Signal":        _sp["signal"].upper(),
+                    })
+                st.dataframe(pd.DataFrame(_sp_rows).set_index("Property Type"), use_container_width=True, height=220)
+                st.caption("Spread > 2.5pp = Attractive · 1.5–2.5pp = Fair · < 1.5pp = Compressed vs. current 10Y Treasury.")
+
+            # ── Market cap rate heatmap ───────────────────────────────────────
+            section(" Market Cap Rate Heatmap (All Markets × Property Types)")
+            if _cap_mktcaps:
+                _hm_markets = list(_cap_mktcaps.keys())
+                _hm_ptypes  = ["Office", "Industrial", "Retail", "Multifamily"]
+                _hm_matrix  = [[_cap_mktcaps[m].get(p, 0) for p in _hm_ptypes] for m in _hm_markets]
+                fig_cap = go.Figure(go.Heatmap(
+                    z=_hm_matrix, x=_hm_ptypes, y=_hm_markets,
+                    colorscale=[[0, "#1b4332"], [0.5, "#CFB991"], [1, "#7f1d1d"]],
+                    text=[[f"{v:.1f}%" for v in row] for row in _hm_matrix],
+                    texttemplate="%{text}",
+                    showscale=True,
+                    hovertemplate="<b>%{y}</b> · %{x}<br>Cap Rate: %{z:.1f}%<extra></extra>",
+                ))
+                fig_cap.update_layout(
+                    plot_bgcolor="#0e0e0a", paper_bgcolor="#0e0e0a",
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                    margin=dict(l=160, r=40, t=20, b=40), height=560,
+                    xaxis=dict(color="#a09880"), yaxis=dict(color="#a09880"),
+                )
+                st.plotly_chart(fig_cap, use_container_width=True)
+                st.caption(
+                    "Green = lower cap rate (more expensive / compressed yield). "
+                    "Red = higher cap rate (cheaper entry / better yield). "
+                    "Source: CoStar / CBRE Q1 2025. Not financial advice."
+                )
+
+            # ── Property-type analyst notes ───────────────────────────────────
+            section(" Analyst Notes")
+            for _ptype, _pd in _cap_national.items():
+                _t_c = _cap_tc.get(_pd["trend"], "#CFB991")
+                _t_a = _cap_ta.get(_pd["trend"], "")
+                st.markdown(
+                    f"<div style='background:#161610;border-left:3px solid {_t_c};"
+                    f"padding:8px 16px;border-radius:4px;margin-bottom:8px;'>"
+                    f"<b style='color:#e8dfc4;'>{_ptype}</b> "
+                    f"<span style='color:{_t_c};font-size:0.85rem;'>{_t_a} {_pd['trend']} — {_pd['rate']}% cap rate</span>"
+                    f" &nbsp;·&nbsp; <span style='color:#a09880;font-size:0.83rem;'>{_pd['note']}</span></div>",
+                    unsafe_allow_html=True,
+                )
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — RENT GROWTH TRACKER
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_rent:
+        st.markdown("#### Where is rent growth accelerating — and where is it declining?")
+        st.markdown(
+            "Agent 15 tracks YoY rent growth across multifamily, industrial, office, and retail "
+            "at national and market levels. Combines FRED CPI shelter indices with "
+            "Zillow / CoStar Q1 2025 benchmarks. Updates every 6 hours."
+        )
+        agent_last_updated("rent_growth")
+
+        _rg_cache = read_cache("rent_growth")
+        _rg_data  = _rg_cache.get("data") or {}
+
+        if not _rg_data:
+            st.info(" Rent Growth agent is fetching data — refresh in ~30 seconds.")
+        else:
+            _rg_national = _rg_data.get("national", {})
+            _rg_market   = _rg_data.get("market_rent_growth", {})
+            _rg_top_mf   = _rg_data.get("top_markets_multifamily", [])
+            _rg_top_ind  = _rg_data.get("top_markets_industrial", [])
+            _rg_fred     = _rg_data.get("fred_rent_series", {})
+            _rg_err      = _rg_data.get("error")
+
+            _rg_ta = {"rising": "↑", "falling": "↓", "stable": "→"}
+            _rg_tc = {"rising": "#66bb6a", "falling": "#ef5350", "stable": "#CFB991"}
+
+            if _rg_err and not _rg_fred.get("cpi_rent"):
+                st.info(f" {_rg_err}")
+
+            # ── National overview ─────────────────────────────────────────────
+            section(" National Rent Growth by Property Type (YoY %)")
+            _rg_ncols = st.columns(len(_rg_national))
+            for _rg_col, (_rg_pt, _rg_d) in zip(_rg_ncols, _rg_national.items()):
+                _rg_yoy   = _rg_d["yoy_pct"]
+                _rg_color = "#66bb6a" if _rg_yoy > 1 else ("#ef5350" if _rg_yoy < 0 else "#CFB991")
+                _rg_col.markdown(metric_card(
+                    _rg_pt,
+                    f"<span style='color:{_rg_color}'>{_rg_yoy:+.1f}%</span>",
+                    f"{_rg_ta.get(_rg_d['trend'],'')} vs {_rg_d['prior_year']:+.1f}% prior year",
+                ), unsafe_allow_html=True)
+
+            # ── Top 5 — Multifamily ───────────────────────────────────────────
+            section(" Top 5 Markets — Multifamily Rent Growth (YoY %)")
+            if _rg_top_mf:
+                _rg_mf_cols = st.columns(5)
+                for _rg_c, _rg_e in zip(_rg_mf_cols, _rg_top_mf):
+                    _rg_y = _rg_e["yoy_pct"]
+                    _rg_c_ = "#66bb6a" if _rg_y > 1 else ("#ef5350" if _rg_y < 0 else "#CFB991")
+                    _rg_c.markdown(metric_card(_rg_e["market"], f"<span style='color:{_rg_c_}'>{_rg_y:+.1f}%</span>", "multifamily YoY"), unsafe_allow_html=True)
+
+            # ── Top 5 — Industrial ────────────────────────────────────────────
+            section(" Top 5 Markets — Industrial Rent Growth (PSF YoY %)")
+            if _rg_top_ind:
+                _rg_ind_cols = st.columns(5)
+                for _rg_c, _rg_e in zip(_rg_ind_cols, _rg_top_ind):
+                    _rg_y = _rg_e["yoy_pct"]
+                    _rg_c_ = "#66bb6a" if _rg_y > 3 else ("#CFB991" if _rg_y > 0 else "#ef5350")
+                    _rg_c.markdown(metric_card(_rg_e["market"], f"<span style='color:{_rg_c_}'>{_rg_y:+.1f}%</span>", "industrial PSF YoY"), unsafe_allow_html=True)
+
+            # ── All-market heatmap ────────────────────────────────────────────
+            section(" Rent Growth Heatmap — All Markets")
+            if _rg_market:
+                _rg_mkts   = list(_rg_market.keys())
+                _rg_ptypes = ["multifamily", "industrial_psf", "office_psf", "retail_psf"]
+                _rg_lbls   = ["Multifamily", "Industrial PSF", "Office PSF", "Retail PSF"]
+                _rg_matrix = [[_rg_market[m].get(p, 0) for p in _rg_ptypes] for m in _rg_mkts]
+                fig_rg = go.Figure(go.Heatmap(
+                    z=_rg_matrix, x=_rg_lbls, y=_rg_mkts,
+                    colorscale=[[0, "#7f1d1d"], [0.5, "#1a1a12"], [1, "#1b4332"]],
+                    zmid=0,
+                    text=[[f"{v:+.1f}%" for v in row] for row in _rg_matrix],
+                    texttemplate="%{text}",
+                    showscale=True,
+                    hovertemplate="<b>%{y}</b> · %{x}<br>YoY: %{z:+.1f}%<extra></extra>",
+                ))
+                fig_rg.update_layout(
+                    plot_bgcolor="#0e0e0a", paper_bgcolor="#0e0e0a",
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                    margin=dict(l=160, r=40, t=20, b=40), height=580,
+                    xaxis=dict(color="#a09880"), yaxis=dict(color="#a09880"),
+                )
+                st.plotly_chart(fig_rg, use_container_width=True)
+
+            # ── FRED CPI shelter series ───────────────────────────────────────
+            _rg_cpi = _rg_fred.get("cpi_rent", [])
+            _rg_oer = _rg_fred.get("oer", [])
+            if _rg_cpi or _rg_oer:
+                section(" FRED CPI Shelter Indices (Live)")
+                fig_cpi = go.Figure()
+                if _rg_cpi:
+                    fig_cpi.add_trace(go.Scatter(
+                        x=[o["date"] for o in _rg_cpi], y=[o["value"] for o in _rg_cpi],
+                        name="CPI Rent (CUSR0000SEHA)", line=dict(color=GOLD, width=2),
+                    ))
+                if _rg_oer:
+                    fig_cpi.add_trace(go.Scatter(
+                        x=[o["date"] for o in _rg_oer], y=[o["value"] for o in _rg_oer],
+                        name="Owners' Equiv. Rent (CUSR0000SEHA2)", line=dict(color="#66bb6a", width=2),
+                    ))
+                fig_cpi.update_layout(
+                    plot_bgcolor="#0e0e0a", paper_bgcolor="#0e0e0a",
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                    xaxis=dict(gridcolor="#2a2a2a", color="#a09880"),
+                    yaxis=dict(gridcolor="#2a2a2a", color="#a09880", title="Index Level"),
+                    legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#e8dfc4")),
+                    margin=dict(t=20, b=40), height=280,
+                )
+                st.plotly_chart(fig_cpi, use_container_width=True)
+                st.caption("U.S. Bureau of Labor Statistics via FRED. Live when FRED_API_KEY is set.")
+
+            # ── Analyst notes ─────────────────────────────────────────────────
+            section(" Analyst Notes")
+            for _rg_pt, _rg_d in _rg_national.items():
+                _rg_t_c = _rg_tc.get(_rg_d["trend"], "#CFB991")
+                _rg_t_a = _rg_ta.get(_rg_d["trend"], "")
+                st.markdown(
+                    f"<div style='background:#161610;border-left:3px solid {_rg_t_c};"
+                    f"padding:8px 16px;border-radius:4px;margin-bottom:8px;'>"
+                    f"<b style='color:#e8dfc4;'>{_rg_pt}</b> "
+                    f"<span style='color:{_rg_t_c};font-size:0.85rem;'>{_rg_t_a} {_rg_d['trend']}</span>"
+                    f" &nbsp;·&nbsp; <span style='color:#a09880;font-size:0.83rem;'>{_rg_d['note']}</span></div>",
+                    unsafe_allow_html=True,
+                )
+            st.caption("Benchmarks: Zillow Research / CoStar Q1 2025. Not financial advice.")
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — OPPORTUNITY ZONES & TAX INCENTIVES
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_oz:
+        st.markdown("#### Where can Opportunity Zone tax benefits enhance CRE returns?")
+        st.markdown(
+            "Agent 16 maps federal Opportunity Zone designations and state-level CRE tax incentive "
+            "programs to market opportunities. Covers 15 major OZ metros and 15 state programs. "
+            "Source: IRS Rev. Rul. 2018-29, HUD OZ designations, state economic development agencies."
+        )
+        agent_last_updated("opportunity_zone")
+
+        _oz_cache = read_cache("opportunity_zone")
+        _oz_data  = _oz_cache.get("data") or {}
+
+        if not _oz_data:
+            st.info(" Opportunity Zone agent is loading — refresh in ~30 seconds.")
+        else:
+            _oz_markets   = _oz_data.get("oz_markets", {})
+            _oz_state_inc = _oz_data.get("state_incentives", {})
+            _oz_fed_ben   = _oz_data.get("federal_benefits", [])
+            _oz_ranked    = _oz_data.get("top_markets_by_score", [])
+
+            # ── Federal OZ benefit cards ───────────────────────────────────────
+            section(" Federal Opportunity Zone Tax Benefits")
+            _oz_fed_cols = st.columns(len(_oz_fed_ben))
+            for _oz_fc, _oz_b in zip(_oz_fed_cols, _oz_fed_ben):
+                _oz_fc.markdown(metric_card(_oz_b["benefit"], "", _oz_b["detail"]), unsafe_allow_html=True)
+
+            # ── Top OZ markets bar chart ──────────────────────────────────────
+            section(" OZ Markets Ranked by Opportunity Score")
+            if _oz_ranked:
+                _oz_names   = [r[0] for r in _oz_ranked[:12]]
+                _oz_scores  = [r[1] for r in _oz_ranked[:12]]
+                _oz_colors  = ["#66bb6a" if s >= 80 else ("#CFB991" if s >= 70 else "#ef5350") for s in _oz_scores]
+                fig_oz = go.Figure(go.Bar(
+                    x=_oz_scores, y=_oz_names,
+                    orientation="h",
+                    marker_color=_oz_colors,
+                    text=[str(s) for s in _oz_scores],
+                    textposition="outside",
+                    hovertemplate="<b>%{y}</b><br>OZ Score: %{x}<extra></extra>",
+                ))
+                fig_oz.update_layout(
+                    xaxis=dict(range=[0, 105], title="Opportunity Score", gridcolor="#2a2a2a", color="#a09880"),
+                    yaxis=dict(categoryorder="total ascending", color="#a09880"),
+                    plot_bgcolor="#0e0e0a", paper_bgcolor="#0e0e0a",
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                    margin=dict(l=180, r=60, t=20, b=40), height=420,
+                )
+                st.plotly_chart(fig_oz, use_container_width=True)
+
+            # ── OZ market detail cards ────────────────────────────────────────
+            section(" OZ Market Details")
+            _oz_sorted = sorted(_oz_markets.items(), key=lambda x: x[1]["opportunity_score"], reverse=True)
+            for _oz_i in range(0, min(len(_oz_sorted), 12), 3):
+                _oz_row = st.columns(3)
+                for _oz_j, _oz_col in enumerate(_oz_row):
+                    if _oz_i + _oz_j >= len(_oz_sorted):
+                        break
+                    _oz_mkt, _oz_info = _oz_sorted[_oz_i + _oz_j]
+                    _oz_sc   = _oz_info["opportunity_score"]
+                    _oz_sc_c = "#66bb6a" if _oz_sc >= 80 else ("#CFB991" if _oz_sc >= 70 else "#ef5350")
+                    _oz_zones = " · ".join(_oz_info["key_zones"][:2])
+                    _oz_types = ", ".join(_oz_info["cre_types"])
+                    _oz_col.markdown(f"""
+                    <div style="background:#161610;border:1px solid #2a2a1e;border-top:2px solid {_oz_sc_c};
+                                border-radius:8px;padding:16px 20px;margin-bottom:12px;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="color:#e8dfc4;font-weight:700;font-size:0.9rem;">{_oz_mkt}</span>
+                        <span style="color:{_oz_sc_c};font-weight:800;font-size:1.1rem;">{_oz_sc}</span>
+                      </div>
+                      <div style="color:#a09880;font-size:0.77rem;margin-bottom:4px;">{_oz_info['tract_count']} OZ census tracts</div>
+                      <div style="color:#CFB991;font-size:0.77rem;margin-bottom:4px;">Zones: {_oz_zones}</div>
+                      <div style="color:#7a9870;font-size:0.75rem;">{_oz_types}</div>
+                    </div>""", unsafe_allow_html=True)
+
+            # ── State incentive programs table ────────────────────────────────
+            section(" State CRE Tax Incentive Programs")
+            _oz_si_rows = []
+            for _oz_st, _oz_si in _oz_state_inc.items():
+                _oz_si_rows.append({
+                    "State":    _oz_st,
+                    "Program":  _oz_si["program"],
+                    "Benefit":  _oz_si["benefit"],
+                    "CRE Types": ", ".join(_oz_si["cre_types"]),
+                    "Cap":      _oz_si["cap"],
+                })
+            if _oz_si_rows:
+                st.dataframe(pd.DataFrame(_oz_si_rows).set_index("State"), use_container_width=True, height=460)
+            st.caption(
+                "Source: IRS Revenue Ruling 2018-29, HUD Opportunity Zone designations, "
+                "state economic development agencies. Not financial or legal advice. Consult a tax advisor."
+            )
+
 
 with main_tab_energy:
     tab_energy, tab_esg = st.tabs([
@@ -3260,12 +3696,13 @@ with main_tab_energy:
 #  MAIN TAB — MACRO ENVIRONMENT
 # ═══════════════════════════════════════════════════════════════════════════════
 with main_tab_macro:
-    tab_rates, tab_labor, tab_gdp, tab_inflation, tab_credit = st.tabs([
+    tab_rates, tab_labor, tab_gdp, tab_inflation, tab_credit, tab_distressed = st.tabs([
         "Rate Environment",
         "Labor Market & Tenant Demand",
         "GDP & Economic Growth",
         "Inflation",
         "Credit & Capital Markets",
+        "CMBS & Distressed",
     ])
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -4516,6 +4953,183 @@ with main_tab_macro:
             "Negative = easing (more credit supply). CRE loan tightening directly restricts acquisition and development financing."
         )
         st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — CMBS & DISTRESSED ASSET MONITOR
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_distressed:
+        st.markdown("#### Where is CRE distress concentrated — and where are the opportunities?")
+        st.markdown(
+            "Agent 17 tracks CMBS delinquency rates by property type, the known distressed "
+            "asset pipeline, national distress signals, and live CRE loan conditions from FRED. "
+            "Powered by Groq AI analysis when API key is configured. Updates every 6 hours."
+        )
+        agent_last_updated("distressed")
+
+        _dst_cache = read_cache("distressed")
+        _dst_data  = _dst_cache.get("data") or {}
+
+        if not _dst_data:
+            st.info(" Distressed Asset agent is fetching data — refresh in ~30 seconds.")
+        else:
+            _dst_dlq    = _dst_data.get("cmbs_delinquency", {})
+            _dst_pipe   = _dst_data.get("distressed_pipeline", [])
+            _dst_sigs   = _dst_data.get("distress_signals", {})
+            _dst_intel  = _dst_data.get("market_intelligence", {})
+            _dst_fred   = _dst_data.get("fred_cre_delinquency", [])
+            _dst_bbb    = _dst_data.get("fred_bbb_spread", [])
+
+            _dst_ta = {"rising": "↑", "falling": "↓", "stable": "→"}
+            _dst_tc = {"rising": "#ef5350", "falling": "#66bb6a", "stable": "#CFB991"}
+            _dst_status_c = {
+                "REO":               "#ef5350",
+                "Maturity Default":  "#ef5350",
+                "Special Servicing": "#CFB991",
+                "Watchlist":         "#42a5f5",
+                "Modified":          "#66bb6a",
+            }
+
+            # ── AI Brief ──────────────────────────────────────────────────────
+            if _dst_intel.get("summary"):
+                section(" Agent 17 — CMBS & Distressed Intelligence")
+                _dst_groq_lbl = "Groq AI" if _dst_intel.get("groq_used") else "Static Brief"
+                st.markdown(f"""
+                <div class="agent-card">
+                  <div class="agent-label">Agent 17 &nbsp;·&nbsp; CMBS & Distressed Monitor &nbsp;·&nbsp; {_dst_groq_lbl}</div>
+                  <div class="agent-text">{_dst_intel['summary']}</div>
+                  {"<div style='margin-top:12px;padding:8px 12px;background:#1c1c14;border-radius:6px;border-left:3px solid #66bb6a;'><span style='color:#66bb6a;font-weight:700;'>Best Opportunity:</span> <span style='color:#c8bfa8;'>" + _dst_intel.get('top_opportunity','') + "</span></div>" if _dst_intel.get('top_opportunity') else ""}
+                  {"<div style='margin-top:8px;padding:8px 12px;background:#1c1c14;border-radius:6px;border-left:3px solid #ef5350;'><span style='color:#ef5350;font-weight:700;'>Key Risk:</span> <span style='color:#c8bfa8;'>" + _dst_intel.get('key_risk','') + "</span></div>" if _dst_intel.get('key_risk') else ""}
+                </div>""", unsafe_allow_html=True)
+
+            # ── National distress signals ──────────────────────────────────────
+            section(" National Distress Signals")
+            _dst_sig_cols = st.columns(min(len(_dst_sigs), 5))
+            for _dst_sc, (_dst_sk, _dst_sv) in zip(_dst_sig_cols, _dst_sigs.items()):
+                _dst_lbl   = _dst_sk.replace("_", " ").title()
+                _dst_val   = f"${_dst_sv['amount_bn']}B" if "amount_bn" in _dst_sv else f"{_dst_sv.get('rate_pct','—')}%"
+                _dst_trend = _dst_sv.get("trend", "stable")
+                _dst_ta_   = _dst_ta.get(_dst_trend, "")
+                _dst_tc_   = _dst_tc.get(_dst_trend, "#CFB991")
+                _dst_note  = _dst_sv.get("note", "")[:70]
+                _dst_sc.markdown(
+                    f"<div class='metric-card' style='border-top:2px solid {_dst_tc_};'>"
+                    f"<div class='label' style='font-size:0.72rem;'>{_dst_lbl}</div>"
+                    f"<div class='value' style='font-size:1.4rem;color:{_dst_tc_};'>{_dst_val}</div>"
+                    f"<div class='sub' style='color:{_dst_tc_};'>{_dst_ta_} {_dst_trend}</div>"
+                    f"<div style='color:#6a6a5a;font-size:0.71rem;margin-top:4px;'>{_dst_note}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+            # ── CMBS delinquency table & bar chart ────────────────────────────
+            section(" CMBS Delinquency Rates by Property Type")
+            _dst_col_table, _dst_col_chart = st.columns([1, 1])
+            with _dst_col_table:
+                _dst_dlq_rows = []
+                for _dst_pt, _dst_d in _dst_dlq.items():
+                    _dst_dlq_rows.append({
+                        "Property Type": _dst_pt,
+                        "Rate":          f"{_dst_d['rate_pct']}%",
+                        "Prior Year":    f"{_dst_d['prior_year']}%",
+                        "YoY":           f"{_dst_d['rate_pct'] - _dst_d['prior_year']:+.1f}pp",
+                        "Trend":         f"{_dst_ta.get(_dst_d['trend'],'')} {_dst_d['trend']}",
+                    })
+                if _dst_dlq_rows:
+                    st.dataframe(pd.DataFrame(_dst_dlq_rows).set_index("Property Type"), use_container_width=True, height=260)
+                for _dst_pt, _dst_d in _dst_dlq.items():
+                    _dst_t_c = _dst_tc.get(_dst_d["trend"], "#CFB991")
+                    _dst_t_a = _dst_ta.get(_dst_d["trend"], "")
+                    st.markdown(
+                        f"<div style='background:#161610;border-left:3px solid {_dst_t_c};"
+                        f"padding:6px 14px;border-radius:4px;margin-bottom:6px;font-size:0.8rem;'>"
+                        f"<b style='color:#e8dfc4;'>{_dst_pt}</b> "
+                        f"<span style='color:{_dst_t_c};'>{_dst_t_a} {_dst_d['rate_pct']}%</span>"
+                        f" &nbsp;·&nbsp; <span style='color:#a09880;'>{_dst_d['note']}</span></div>",
+                        unsafe_allow_html=True,
+                    )
+            with _dst_col_chart:
+                if _dst_dlq:
+                    _dst_bar_types  = list(_dst_dlq.keys())
+                    _dst_bar_rates  = [_dst_dlq[t]["rate_pct"] for t in _dst_bar_types]
+                    _dst_bar_colors = ["#ef5350" if r > 6 else ("#CFB991" if r > 3 else "#66bb6a") for r in _dst_bar_rates]
+                    fig_dlq = go.Figure(go.Bar(
+                        x=_dst_bar_types, y=_dst_bar_rates,
+                        marker_color=_dst_bar_colors,
+                        text=[f"{r}%" for r in _dst_bar_rates],
+                        textposition="outside",
+                        hovertemplate="<b>%{x}</b><br>Delinquency: %{y}%<extra></extra>",
+                    ))
+                    fig_dlq.update_layout(
+                        xaxis=dict(color="#a09880"),
+                        yaxis=dict(title="Delinquency Rate (%)", gridcolor="#2a2a2a", color="#a09880", range=[0, 12]),
+                        plot_bgcolor="#0e0e0a", paper_bgcolor="#0e0e0a",
+                        font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                        margin=dict(t=20, b=40), height=340,
+                    )
+                    st.plotly_chart(fig_dlq, use_container_width=True)
+
+            # ── Distressed pipeline ───────────────────────────────────────────
+            section(" Known Distressed Asset Pipeline")
+            if _dst_pipe:
+                _dst_pipe_rows = []
+                for _dst_a in _dst_pipe:
+                    _dst_status = _dst_a.get("status", "")
+                    _dst_s_c    = _dst_status_c.get(_dst_status, "#a09880")
+                    _dst_pipe_rows.append({
+                        "Asset":       _dst_a["asset"],
+                        "Type":        _dst_a["type"],
+                        "Loan":        f"${_dst_a['loan_amount'] / 1_000_000:.0f}M",
+                        "Status":      _dst_status,
+                        "Market":      _dst_a["market"],
+                        "Opportunity": _dst_a["opportunity"],
+                    })
+                st.dataframe(pd.DataFrame(_dst_pipe_rows).set_index("Asset"), use_container_width=True, height=380)
+
+            # ── FRED live credit indicators ───────────────────────────────────
+            if _dst_fred or _dst_bbb:
+                section(" FRED Live Credit Indicators")
+                _dst_fc1, _dst_fc2 = st.columns(2)
+                with _dst_fc1:
+                    if _dst_fred:
+                        fig_fd = go.Figure(go.Scatter(
+                            x=[o["date"] for o in _dst_fred],
+                            y=[o["value"] for o in _dst_fred],
+                            name="CRE Delinquency Rate",
+                            line=dict(color="#ef5350", width=2),
+                            fill="tozeroy", fillcolor="rgba(239,83,80,0.08)",
+                        ))
+                        fig_fd.update_layout(
+                            title="Bank CRE Loan Delinquency Rate (DRCRELEXBS)",
+                            plot_bgcolor="#0e0e0a", paper_bgcolor="#0e0e0a",
+                            font=dict(family="Source Sans Pro", color="#e8dfc4", size=11),
+                            xaxis=dict(gridcolor="#2a2a2a", color="#a09880"),
+                            yaxis=dict(gridcolor="#2a2a2a", color="#a09880", title="Rate %"),
+                            margin=dict(t=40, b=40), height=280,
+                        )
+                        st.plotly_chart(fig_fd, use_container_width=True)
+                with _dst_fc2:
+                    if _dst_bbb:
+                        fig_bbb = go.Figure(go.Scatter(
+                            x=[o["date"] for o in _dst_bbb],
+                            y=[o["value"] for o in _dst_bbb],
+                            name="BBB Corp Spread",
+                            line=dict(color=GOLD, width=2),
+                            fill="tozeroy", fillcolor="rgba(207,185,145,0.08)",
+                        ))
+                        fig_bbb.update_layout(
+                            title="BBB Corporate Spread — CMBS Proxy (BAMLC0A4CBBB)",
+                            plot_bgcolor="#0e0e0a", paper_bgcolor="#0e0e0a",
+                            font=dict(family="Source Sans Pro", color="#e8dfc4", size=11),
+                            xaxis=dict(gridcolor="#2a2a2a", color="#a09880"),
+                            yaxis=dict(gridcolor="#2a2a2a", color="#a09880", title="Spread (bps)"),
+                            margin=dict(t=40, b=40), height=280,
+                        )
+                        st.plotly_chart(fig_bbb, use_container_width=True)
+
+            st.caption(
+                "Source: Trepp, MSCI Real Capital Analytics Q1 2025, FRED (DRCRELEXBS, BAMLC0A4CBBB). "
+                "Not financial advice. Distressed assets listed are representative examples, not a complete universe."
+            )
 
     # ── Meet the Team ─────────────────────────────────────────────────────────
     st.markdown("<br><br>", unsafe_allow_html=True)

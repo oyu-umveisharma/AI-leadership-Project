@@ -124,6 +124,11 @@ _agent_status = {
     "inflation":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "credit":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "land_market":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "cap_rate":       {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "rent_growth":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "opportunity_zone":{"status": "idle",   "last_run": None, "last_error": None, "runs": 0},
+    "distressed":     {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "market_score":   {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
 def get_status() -> dict:
@@ -587,6 +592,71 @@ def run_land_market_agent():
         _set_status("land_market", "error", str(e))
 
 
+# ── Agent 14 · Cap Rate Monitor ───────────────────────────────────────────────
+
+def run_cap_rate_agent():
+    _set_status("cap_rate", "running")
+    try:
+        from src.cap_rate_agent import run_cap_rate_agent as _run
+        result = _run()
+        write_cache("cap_rate", result)
+        _set_status("cap_rate", "ok")
+    except Exception as e:
+        _set_status("cap_rate", "error", str(e))
+
+
+# ── Agent 15 · Rent Growth Tracker ───────────────────────────────────────────
+
+def run_rent_growth_agent():
+    _set_status("rent_growth", "running")
+    try:
+        from src.rent_growth_agent import run_rent_growth_agent as _run
+        result = _run()
+        write_cache("rent_growth", result)
+        _set_status("rent_growth", "ok")
+    except Exception as e:
+        _set_status("rent_growth", "error", str(e))
+
+
+# ── Agent 16 · Opportunity Zone & Incentives ─────────────────────────────────
+
+def run_opportunity_zone_agent():
+    _set_status("opportunity_zone", "running")
+    try:
+        from src.opportunity_zone_agent import run_opportunity_zone_agent as _run
+        result = _run()
+        write_cache("opportunity_zone", result)
+        _set_status("opportunity_zone", "ok")
+    except Exception as e:
+        _set_status("opportunity_zone", "error", str(e))
+
+
+# ── Agent 17 · CMBS & Distressed Assets ──────────────────────────────────────
+
+def run_distressed_agent():
+    _set_status("distressed", "running")
+    try:
+        from src.distressed_asset_agent import run_distressed_asset_agent as _run
+        result = _run()
+        write_cache("distressed", result)
+        _set_status("distressed", "ok")
+    except Exception as e:
+        _set_status("distressed", "error", str(e))
+
+
+# ── Agent 18 · Market Opportunity Score ──────────────────────────────────────
+
+def run_market_score_agent():
+    _set_status("market_score", "running")
+    try:
+        from src.market_score_agent import run_market_score_agent as _run
+        result = _run()
+        write_cache("market_score", result)
+        _set_status("market_score", "ok")
+    except Exception as e:
+        _set_status("market_score", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -614,7 +684,12 @@ def start_scheduler():
         _scheduler.add_job(run_inflation_agent,      IntervalTrigger(hours=6),      id="inflation",       replace_existing=True)
         _scheduler.add_job(run_credit_markets_agent, IntervalTrigger(hours=6),      id="credit",          replace_existing=True)
         _scheduler.add_job(run_vacancy_agent,         IntervalTrigger(hours=12),     id="vacancy",         replace_existing=True)
-        _scheduler.add_job(run_land_market_agent,     IntervalTrigger(hours=12),     id="land_market",     replace_existing=True)
+        _scheduler.add_job(run_land_market_agent,     IntervalTrigger(hours=12),     id="land_market",      replace_existing=True)
+        _scheduler.add_job(run_cap_rate_agent,        IntervalTrigger(hours=6),      id="cap_rate",         replace_existing=True)
+        _scheduler.add_job(run_rent_growth_agent,     IntervalTrigger(hours=6),      id="rent_growth",      replace_existing=True)
+        _scheduler.add_job(run_opportunity_zone_agent,IntervalTrigger(hours=24),     id="opportunity_zone", replace_existing=True)
+        _scheduler.add_job(run_distressed_agent,      IntervalTrigger(hours=6),      id="distressed",       replace_existing=True)
+        _scheduler.add_job(run_market_score_agent,    IntervalTrigger(hours=6),      id="market_score",     replace_existing=True)
 
         _scheduler.start()
 
@@ -622,7 +697,8 @@ def start_scheduler():
         for fn in [run_debugger_agent, run_migration_agent, run_pricing_agent, run_predictions_agent,
                    run_news_agent, run_rate_agent, run_energy_agent, run_sustainability_agent,
                    run_labor_market_agent, run_gdp_agent, run_inflation_agent, run_credit_markets_agent,
-                   run_vacancy_agent, run_land_market_agent]:
+                   run_vacancy_agent, run_land_market_agent, run_cap_rate_agent, run_rent_growth_agent,
+                   run_opportunity_zone_agent, run_distressed_agent, run_market_score_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -642,8 +718,13 @@ def force_run(agent_name: str):
         "gdp":           run_gdp_agent,
         "inflation":     run_inflation_agent,
         "credit":        run_credit_markets_agent,
-        "vacancy":       run_vacancy_agent,
-        "land_market":   run_land_market_agent,
+        "vacancy":          run_vacancy_agent,
+        "land_market":      run_land_market_agent,
+        "cap_rate":         run_cap_rate_agent,
+        "rent_growth":      run_rent_growth_agent,
+        "opportunity_zone": run_opportunity_zone_agent,
+        "distressed":       run_distressed_agent,
+        "market_score":     run_market_score_agent,
     }
     fn = agents.get(agent_name)
     if fn:
