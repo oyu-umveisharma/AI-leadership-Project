@@ -5503,7 +5503,7 @@ The cycle phase is determined by combining multiple indicators:
                 padding:20px 28px; text-align:center; min-width:160px;">
       <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
       <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Oyu Amar</div>
-      <a href="https://www.linkedin.com/in/oyuamar" target="_blank"
+      <a href="https://www.linkedin.com/in/oyu-amar/" target="_blank"
          style="color:#d4a843; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
     </div>
     <div style="background:#1e1a0a; border:1px solid #a07830; border-radius:8px;
