@@ -1676,6 +1676,20 @@ with main_tab_re:
             "States in the lower-left are losing both residents and corporate presence."
         )
 
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Migration Score** = 60% Population Growth + 40% Business Migration Index
+
+- **Population Growth (%)**: Year-over-year change in state population from the US Census Bureau Population Estimates Program (2023).
+- **Business Migration Index (0-100)**: Composite of corporate relocation announcements, new facility investments, and state economic incentive competitiveness.
+- **Composite Score (0-100)**: Weighted blend of both signals — higher scores indicate states attracting both residents and employers.
+- **Metro Rankings**: Top metros within each state ranked by job growth, rent growth, and migration inflows.
+
+**Data Source:** US Census Bureau Population Estimates API (2023), Bureau of Labor Statistics (BLS), corporate announcement filings.
+
+**Update Frequency:** Every 6 hours via Agent 1.
+""")
+
 
     # ═══════════════════════════════════════════════════════════════════════════════
     #  TAB 2 — CRE PRICING & PROFIT
@@ -1930,6 +1944,23 @@ with main_tab_re:
                     "When the 10-year Treasury rises above the baseline, cap rates expand — meaning asset values fall "
                     "for the same NOI. Office and retail are most sensitive; industrial and multifamily are more resilient."
                 )
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Cap Rate** = Net Operating Income (NOI) / Property Value
+
+- Benchmark cap rates are derived from historical REIT data by property type (Industrial ~5.5%, Office ~7.0%, Retail ~6.5%, etc.).
+- **Rate-Adjusted Cap Rate** = Benchmark + (Current 10Y Treasury - 3.5% baseline) x Sector Sensitivity Beta.
+
+**Profit Margin** = (NOI - Operating Expenses) / Revenue
+
+- NOI margins estimated from REIT financial disclosures by property type and market.
+- The profit matrix cross-references property type margins with metro-level rent growth and vacancy data.
+
+**PnL Impact Example:** On a $10M property at 6.0% cap rate, a 50bp cap rate expansion (to 6.5%) reduces implied value by ~$770K.
+
+**Data Source:** yfinance REIT market data (live prices, dividends, financials), updated every hour via Agent 2.
+""")
 
 
     # ═══════════════════════════════════════════════════════════════════════════════
@@ -2335,6 +2366,22 @@ with main_tab_re:
             "Sources: Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, "
             "US Dept of Energy, US Dept of Commerce, EDA, Expansion Solutions, Site Selection Magazine."
         )
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**News Relevance Scoring:**
+
+- Articles are pulled from 10+ RSS feeds covering manufacturing, government, and industry press.
+- Each article is filtered by CRE-relevant keywords: *plant, warehouse, data center, headquarters, facility, expansion, construction*.
+- Articles matching multiple keywords or mentioning specific investment amounts are ranked higher.
+- AI extraction (Groq LLM) identifies structured fields: company, location, investment size, job count, facility type, and CRE impact.
+
+**Facility Type Classification:** Manufacturing, Data Center, Warehouse/Distribution, Office/HQ, Training Center, Mixed-Use.
+
+**Data Source:** Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, Dept. of Energy, Dept. of Commerce, EDA, Expansion Solutions, Site Selection Magazine.
+
+**Update Frequency:** Company Predictions via Agent 3 (every 24h), Industry Announcements via Agent 5 (every 4h).
+""")
 
 
     with tab6:
@@ -3618,6 +3665,25 @@ with main_tab_energy:
             "Construction Cost Signal: HIGH (>+5%), MODERATE (±5%), LOW (<−5%) based on avg momentum vs 60-day SMA."
         )
 
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Construction Cost Signal** = Average % deviation of key commodities from their 60-day Simple Moving Average (SMA).
+
+- **HIGH** = Average deviation > +10% above SMA (commodity prices surging — expect higher construction bids)
+- **MODERATE** = Average deviation within +/-10% of SMA (costs stable)
+- **LOW** = Average deviation > 10% below SMA (commodity prices falling — favorable for new development)
+
+**Commodities Tracked:**
+- **Crude Oil (USO):** Drives transportation and equipment fuel costs
+- **Natural Gas (UNG):** Heating/cooling during construction, operating cost baseline
+- **Copper (CPER):** Wiring, plumbing, HVAC — direct construction input
+- **Steel (SLX):** Structural framing, rebar — largest material cost component
+
+**PnL Impact:** A 20% rise in steel and copper prices can add 5-8% to total hard construction costs on a typical CRE project.
+
+**Data Source:** Yahoo Finance commodity ETFs, updated every 6 hours via Agent 7.
+""")
+
 
     # ═══════════════════════════════════════════════════════════════════════════════
     #  TAB — SUSTAINABILITY & ESG
@@ -3753,6 +3819,26 @@ with main_tab_energy:
             "Data sourced from Yahoo Finance. ESG Momentum Signal: STRONG (clean energy outperforms SPY by >2pp), "
             "NEUTRAL (±2pp), WEAK (underperforms by >2pp). Green REITs: Prologis (LEED), Equinix (renewables), Alexandria (carbon-neutral)."
         )
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**ESG Momentum Signal** = Relative performance of clean energy ETFs vs. S&P 500 (SPY) over 6 months.
+
+- **STRONG** = Clean energy basket outperforms SPY by > 2 percentage points
+- **NEUTRAL** = Performance within +/- 2 percentage points of SPY
+- **WEAK** = Clean energy basket underperforms SPY by > 2 percentage points
+
+**Clean Energy Basket:** ICLN (global clean energy), TAN (solar), QCLN (clean tech) — equal-weighted average return.
+
+**Green REITs:**
+- **Prologis (PLD):** World's largest industrial REIT, extensive LEED-certified portfolio
+- **Equinix (EQIX):** Data center REIT, 90%+ renewable energy usage
+- **Alexandria (ARE):** Life science REIT, carbon-neutral campus commitments
+
+**Why It Matters:** Sustained ESG outperformance signals institutional capital rotation into green assets — a leading indicator for demand in solar-ready industrial, EV infrastructure, and LEED-certified buildings.
+
+**Data Source:** Yahoo Finance, updated every 6 hours via Agent 8.
+""")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -4150,6 +4236,26 @@ with main_tab_macro:
             "This is research, not financial advice."
         )
 
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Cap Rate Adjustment Model:**
+
+Cap Rate (adjusted) = Benchmark Cap Rate + (Current 10Y Treasury - 3.5% historical average) x Sector Beta
+
+- **Sector Beta** reflects each property type's sensitivity to rate changes: Office (1.0x) and Retail (0.9x) are most sensitive; Industrial (0.6x) and Multifamily (0.7x) are more resilient.
+- A **100bp rate increase** typically expands cap rates **50-75bp** across most property types.
+- **PnL Impact:** On a $10M property, a 50bp cap rate expansion = ~$800K loss in implied asset value.
+
+**Yield Curve Shape:**
+- **Normal (10Y > 2Y):** Healthy economy, favorable for long-term CRE financing
+- **Inverted (2Y > 10Y):** Recession signal, short-term borrowing costs exceed long-term — stress on floating-rate CRE debt
+- **Flat:** Transition period, uncertainty in rate direction
+
+**REIT Refinancing Risk:** Scored 0-100 based on debt maturity profile, floating-rate debt exposure, and current spread vs. origination spread.
+
+**Data Source:** Federal Reserve Bank of St. Louis (FRED) — 40+ series including DFF, DGS2, DGS10, DGS30, T10Y2Y, T10Y3M. Updated every hour via Agent 6.
+""")
+
 
     # ═══════════════════════════════════════════════════════════════════════════
     #  TAB — LABOR MARKET & TENANT DEMAND
@@ -4429,6 +4535,30 @@ with main_tab_macro:
             "This is research, not investment advice."
         )
 
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Tenant Demand Signal (0-100):**
+
+Composite score based on four equally weighted components:
+1. **Nonfarm Payroll Growth (25%):** Monthly job additions — strong payroll growth = more tenants needing space
+2. **JOLTS Job Openings (25%):** Forward-looking indicator of hiring intent — high openings signal future lease demand
+3. **Unemployment Trend (25%):** Direction matters more than level — declining unemployment = tightening labor market
+4. **Sector ETF Momentum (25%):** 6-month return of sector ETFs (XLI, XLK, XLF, etc.) mapped to property types
+
+**Property Type Mapping:**
+- Manufacturing/Logistics payrolls -> Industrial demand
+- Professional/Business services -> Office demand
+- Leisure/Hospitality -> Retail/Hospitality demand
+- Education/Healthcare -> Medical office demand
+
+**Labor Market Classification:**
+- **TIGHT** (< 4% unemployment): Strong occupier demand, rent growth potential
+- **BALANCED** (4-6%): Stable absorption
+- **LOOSE** (> 6%): Weaker absorption, potential vacancy risk
+
+**Data Source:** BLS Public API (supersector payrolls), FRED (UNRATE, JTSJOL, PAYEMS), Yahoo Finance (sector ETFs). Updated every 6 hours via Agent 9.
+""")
+
     # ═══════════════════════════════════════════════════════════════════════════
     #  TAB — GDP & ECONOMIC GROWTH
     # ═══════════════════════════════════════════════════════════════════════════
@@ -4672,6 +4802,29 @@ with main_tab_macro:
         )
         st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
 
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Economic Cycle Classification:**
+
+The cycle phase is determined by combining multiple indicators:
+- **Real GDP Growth (GDPC1):** Quarter-over-quarter annualized rate
+- **Industrial Production (INDPRO):** Monthly index of factory, mining, and utility output
+- **Consumer Sentiment (UMCSENT):** University of Michigan survey — leading indicator of consumer spending
+- **Chicago Fed National Activity Index (CFNAI):** 85-indicator composite of national economic activity
+
+**Cycle Phases:**
+- **EXPANSION:** GDP > 2%, Industrial Production rising, Sentiment > 80, CFNAI > 0
+- **SLOWDOWN:** GDP 0-2%, mixed signals, Sentiment declining
+- **CONTRACTION:** GDP < 0%, Industrial Production falling, Sentiment < 60, CFNAI < -0.7
+
+**CRE Impact by Cycle Phase:**
+- *Expansion:* All property types benefit — strongest for Office and Retail
+- *Slowdown:* Industrial and Healthcare more defensive; Office and Retail vulnerable
+- *Contraction:* Multifamily most resilient (people always need housing); Office and Retail face rising vacancies
+
+**Data Source:** FRED (GDPC1, INDPRO, UMCSENT, CFNAI, RSXFS). Updated every 6 hours via Agent 10.
+""")
+
 
     # ═══════════════════════════════════════════════════════════════════════════
     #  TAB — INFLATION
@@ -4878,6 +5031,30 @@ with main_tab_macro:
             "and compressing CRE asset values."
         )
         st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Inflation Regime Classification:**
+
+- **HOT:** Headline CPI > 4% YoY or Core CPI > 3.5% YoY — erosion of real returns, Fed likely tightening
+- **MODERATE:** Headline CPI 2-4% YoY — manageable inflation, favorable for CRE with rent escalators
+- **COOLING:** Headline CPI < 2% YoY — disinflation, potential rate cuts ahead (positive for asset values)
+
+**Key Series Tracked:**
+- **CPI Headline (CPIAUCSL):** All items, urban consumers — broadest inflation measure
+- **CPI Core (CPILFESL):** Excludes food & energy — underlying inflation trend
+- **CPI Shelter (CUSR0000SAH1):** Largest CPI component (~35% weight) — directly reflects rent/housing costs
+- **CPI Rent (CUSR0000SEHA):** Rent of primary residence — most direct CRE inflation indicator
+- **PPI Construction (WPUIP2311001):** Producer prices for construction inputs — signals replacement cost pressure
+- **5Y & 10Y Breakeven Inflation (T5YIE, T10YIE):** Market-implied inflation expectations from TIPS spreads
+
+**Why It Matters for CRE:**
+- Rising shelter/rent CPI validates rent growth assumptions in underwriting
+- Elevated PPI signals higher replacement costs — supporting existing asset values
+- Breakeven inflation above 2.5% suggests the Fed won't cut rates soon — keeping cap rates elevated
+
+**Data Source:** FRED (BLS CPI/PPI series, Treasury breakevens). Updated every 6 hours via Agent 11.
+""")
 
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -5274,6 +5451,29 @@ with main_tab_macro:
                 "Source: Trepp, MSCI Real Capital Analytics Q1 2025, FRED (DRCRELEXBS, BAMLC0A4CBBB). "
                 "Not financial advice. Distressed assets listed are representative examples, not a complete universe."
             )
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Credit Conditions Classification:**
+
+- **LOOSE:** IG spreads < 100bp, VIX < 15, bank lending easing — abundant capital, aggressive CRE lending
+- **NEUTRAL:** IG spreads 100-200bp, VIX 15-25 — normal market conditions
+- **TIGHT:** IG spreads > 200bp, VIX > 25, bank lending tightening — restricted capital, higher borrowing costs
+
+**Key Indicators:**
+- **Investment Grade (IG) Spread (BAMLC0A4CBBB):** BBB corporate bond yield minus Treasury — cost of corporate borrowing
+- **High Yield (HY) Spread (BAMLH0A0HYM2):** Junk bond spread — risk appetite measure
+- **VIX (VIXCLS):** CBOE Volatility Index — market uncertainty and risk aversion
+- **Moody's BAA-AAA Spread:** Credit quality premium — widening signals deteriorating credit conditions
+- **Fed Senior Loan Officer Survey:** Quarterly survey on bank lending standards for C&I and CRE loans
+
+**PnL Impact:**
+- A 100bp widening in IG spreads typically adds 75-100bp to CRE mortgage rates
+- On a $10M property with 65% LTV, a 100bp rate increase adds ~$65K/year to debt service
+- Tightening lending standards reduce available acquisition financing, cooling transaction volume and prices
+
+**Data Source:** FRED (corporate spreads, VIX, lending surveys), updated every 6 hours via Agent 12.
+""")
 
     # ── Meet the Team ─────────────────────────────────────────────────────────
     st.markdown("<br><br>", unsafe_allow_html=True)
