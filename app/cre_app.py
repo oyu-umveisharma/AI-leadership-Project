@@ -1307,9 +1307,16 @@ with main_tab_re:
                                   f"{r['top_driver']}", axis=1),
                     hovertemplate="%{text}<extra></extra>",
                 ))
-                fig_county.update_geos(fitbounds="locations", visible=False)
+                fig_county.update_geos(
+                    fitbounds="locations", visible=False,
+                    bgcolor="#111111",
+                    landcolor="#1a1a1a",
+                    lakecolor="#0a0a0a",
+                )
                 fig_county.update_layout(
-                    paper_bgcolor="#0d0b04",
+                    paper_bgcolor="#111111",
+                    plot_bgcolor="#111111",
+                    geo=dict(bgcolor="#111111"),
                     margin=dict(t=10, b=10, l=0, r=0),
                     height=500,
                     font=dict(family="DM Sans", color="#e8e9ed"),
