@@ -1135,17 +1135,101 @@ with main_tab_re:
                 f"(Composite: {_top['composite_score']}, Pop Growth: {_top['pop_growth_pct']:+.1f}%)"
             )
 
-        # ── KPI strip ──────────────────────────────────────────────────────────
+        # ── KPI strip (mockup stat cards) ─────────────────────────────────────
         top1      = mig_df.iloc[0]
         top_gain  = mig_df[mig_df["pop_growth_pct"] > 0].shape[0]
         top_loss  = mig_df[mig_df["pop_growth_pct"] < 0].shape[0]
         avg_grow  = mig_df["pop_growth_pct"].mean()
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.markdown(metric_card("#1 Destination", top1["state_abbr"], top1["state_name"]), unsafe_allow_html=True)
-        c2.markdown(metric_card("States Growing", str(top_gain), "Positive net migration"), unsafe_allow_html=True)
-        c3.markdown(metric_card("States Shrinking", str(top_loss), "Negative net migration"), unsafe_allow_html=True)
-        c4.markdown(metric_card("Avg Pop Growth", f"{avg_grow:.2f}%", "All states YoY"), unsafe_allow_html=True)
+        _sc1, _sc2, _sc3, _sc4 = st.columns(4)
+        _avg_bg  = "#0d2a12" if avg_grow > 0 else "#2a0d0d"
+        _avg_fc  = "#4a9e58" if avg_grow > 0 else "#9e4a4a"
+        _avg_lbl = "▲ Above avg" if avg_grow > 0 else "▼ Below avg"
+
+        _sc1.markdown(f"""
+        <div style="background:#171309;border:1px solid #2a2208;border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#d4a843;"></div>
+          <div style="font-size:10px;color:#6a5228;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">#1 DESTINATION</div>
+          <div style="font-size:36px;font-weight:500;color:#d4a843;line-height:1;margin-bottom:4px;letter-spacing:-0.5px;">{top1["state_abbr"]}</div>
+          <div style="font-size:13px;color:#8a7040;margin-bottom:10px;">{top1["state_name"]}</div>
+          <div style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:4px 10px;border-radius:5px;background:#0d2a12;color:#4a9e58;">▲ Net inflow</div>
+        </div>""", unsafe_allow_html=True)
+
+        _sc2.markdown(f"""
+        <div style="background:#171309;border:1px solid #2a2208;border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#d4a843;opacity:0.35;"></div>
+          <div style="font-size:10px;color:#6a5228;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">STATES GROWING</div>
+          <div style="font-size:36px;font-weight:500;color:#d4a843;line-height:1;margin-bottom:4px;letter-spacing:-0.5px;">{top_gain}</div>
+          <div style="font-size:13px;color:#8a7040;margin-bottom:10px;">Positive net migration</div>
+          <div style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:4px 10px;border-radius:5px;background:#0d2a12;color:#4a9e58;">▲ Net inflow states</div>
+        </div>""", unsafe_allow_html=True)
+
+        _sc3.markdown(f"""
+        <div style="background:#171309;border:1px solid #2a2208;border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#d4a843;opacity:0.35;"></div>
+          <div style="font-size:10px;color:#6a5228;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">STATES SHRINKING</div>
+          <div style="font-size:36px;font-weight:500;color:#d4a843;line-height:1;margin-bottom:4px;letter-spacing:-0.5px;">{top_loss}</div>
+          <div style="font-size:13px;color:#8a7040;margin-bottom:10px;">Negative net migration</div>
+          <div style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:4px 10px;border-radius:5px;background:#2a0d0d;color:#9e4a4a;">▼ Outflow states</div>
+        </div>""", unsafe_allow_html=True)
+
+        _sc4.markdown(f"""
+        <div style="background:#171309;border:1px solid #2a2208;border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#d4a843;opacity:0.35;"></div>
+          <div style="font-size:10px;color:#6a5228;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">AVG POP GROWTH</div>
+          <div style="font-size:36px;font-weight:500;color:#d4a843;line-height:1;margin-bottom:4px;letter-spacing:-0.5px;">{avg_grow:.2f}<span style="font-size:18px;">%</span></div>
+          <div style="font-size:13px;color:#8a7040;margin-bottom:10px;">All states YoY</div>
+          <div style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:4px 10px;border-radius:5px;background:{_avg_bg};color:{_avg_fc};">{_avg_lbl}</div>
+        </div>""", unsafe_allow_html=True)
+
+        # ── Two-panel: Top Destination States + Corporate HQ Relocations ──────
+        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+        _pan_l, _pan_r = st.columns(2)
+
+        with _pan_l:
+            _top5 = mig_df.head(5)
+            _max_net = max((_top5["pop_growth_pct"] * _top5["population"] / 100 / 1000).abs().max(), 1)
+            _bar_rows = ""
+            for _, _row in _top5.iterrows():
+                _net_k = int(_row["pop_growth_pct"] * _row["population"] / 100 / 1000)
+                _bw = max(int(abs(_net_k) / _max_net * 100), 5)
+                _bar_rows += f"""<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                  <span style="font-size:12px;color:#8a7040;width:28px;flex-shrink:0;">{_row["state_abbr"]}</span>
+                  <div style="flex:1;height:6px;background:#1e1a08;border-radius:3px;overflow:hidden;">
+                    <div style="width:{_bw}%;height:100%;border-radius:3px;background:linear-gradient(90deg,#d4a843,#e8c060);"></div>
+                  </div>
+                  <span style="font-size:12px;color:#d4a843;width:56px;text-align:right;">+{_net_k:,}K</span></div>"""
+            st.markdown(f"""<div style="background:#131008;border:1px solid #221e0a;border-radius:8px;padding:16px 18px;">
+              <div style="font-size:11px;color:#6a5228;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:14px;">Top Destination States</div>
+              {_bar_rows}</div>""", unsafe_allow_html=True)
+
+        with _pan_r:
+            _inflows = [
+                ("TX", "Tesla", "Austin, TX", "+12,000 jobs"),
+                ("FL", "Citadel / Goldman Sachs", "Miami, FL", "+8,200 jobs"),
+                ("NC", "Apple / Google", "Raleigh, NC", "+5,800 jobs"),
+                ("AZ", "TSMC / Intel", "Phoenix, AZ", "+6,400 jobs"),
+                ("TN", "Oracle / Ford BEV", "Nashville, TN", "+4,500 jobs"),
+            ]
+            _outflows = [
+                ("CA", "Exodus", "San Francisco, CA", "−31K jobs"),
+                ("NY", "Outflow", "New York, NY", "−18K jobs"),
+                ("IL", "Outflow", "Chicago, IL", "−9K jobs"),
+            ]
+            _flow_html = ""
+            for _, _co, _city, _jobs in _inflows:
+                _flow_html += f"""<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #1a1608;">
+                  <div style="width:22px;height:22px;border-radius:50%;background:#0d2a12;color:#4a9e58;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">→</div>
+                  <span style="font-size:12px;color:#8a7040;flex:1;">{_co} · {_city}</span>
+                  <span style="font-size:12px;color:#4a9e58;font-weight:600;">{_jobs}</span></div>"""
+            for _, _co, _city, _jobs in _outflows:
+                _flow_html += f"""<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #1a1608;">
+                  <div style="width:22px;height:22px;border-radius:50%;background:#2a0d0d;color:#9e4a4a;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">←</div>
+                  <span style="font-size:12px;color:#8a7040;flex:1;">{_co} · {_city}</span>
+                  <span style="font-size:12px;color:#9e4a4a;font-weight:600;">{_jobs}</span></div>"""
+            st.markdown(f"""<div style="background:#131008;border:1px solid #221e0a;border-radius:8px;padding:16px 18px;">
+              <div style="font-size:11px;color:#6a5228;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">Corporate HQ Relocations · Recent</div>
+              {_flow_html}</div>""", unsafe_allow_html=True)
 
         # ── MAP ────────────────────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
