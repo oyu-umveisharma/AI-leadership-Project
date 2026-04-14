@@ -3053,6 +3053,24 @@ with main_tab_re:
             _ms_avg       = _ms_data.get("avg_score", 0)
             _ms_fw        = _ms_data.get("factor_weights", {})
 
+            # ── Score explainer ───────────────────────────────────────────────
+            with st.expander("How the composite score is calculated"):
+                st.markdown("""
+**The composite score (0–100)** is a weighted average of 7 signals pulled from all other agents. Higher = better investment environment.
+
+| Factor | Weight | What it captures |
+|--------|--------|-----------------|
+| Migration / Population | 25% | Net domestic migration, population growth, business relocations |
+| Labor (via migration proxy) | 15% | Employment base and tenant demand potential |
+| Vacancy & Absorption | 20% | Current vacancy rate vs. national average; positive net absorption |
+| Rent Growth Momentum | 15% | YoY rent growth weighted: industrial 40%, multifamily 35%, retail 15%, office 10% |
+| Cap Rate Attractiveness | 10% | Treasury spread — wider spread = higher score |
+| Land Availability | 10% | Developable acres + entitlement timeline (faster = better) |
+| Macro Environment | 5% | Interest rate environment + credit conditions signal |
+
+**Grade scale:** A ≥ 80 · B+ ≥ 70 · B ≥ 60 · C+ ≥ 50 · C ≥ 40 · D < 40
+                """)
+
             # ── Summary cards ─────────────────────────────────────────────────
             section(" Composite Market Rankings")
             _ms_c1, _ms_c2, _ms_c3 = st.columns(3)
@@ -3154,6 +3172,22 @@ with main_tab_re:
 
             _cap_ta = {"rising": "↑", "falling": "↓", "stable": "→"}
             _cap_tc = {"rising": "#ef5350", "falling": "#66bb6a", "stable": "#CFB991"}
+
+            # ── Cap rate explainer ────────────────────────────────────────────
+            with st.expander("How to read cap rates & spread signals"):
+                st.markdown("""
+**Cap Rate (Capitalization Rate)** = Net Operating Income ÷ Property Value. A higher cap rate means a cheaper price relative to income (better yield for buyers). A lower cap rate means a premium price (compressed yield).
+
+**Treasury Spread** = Cap Rate − 10-Year Treasury Yield. This measures how much extra return CRE offers over the "risk-free" rate.
+
+| Signal | Spread | What it means |
+|--------|--------|---------------|
+| **ATTRACTIVE** | > 2.5pp | Wide spread → buyers earn a meaningful premium over treasuries. Good time to acquire. |
+| **FAIR** | 1.5–2.5pp | Normal historical range. Neither particularly cheap nor expensive. |
+| **COMPRESSED** | < 1.5pp | Thin spread → CRE priced near treasury yields. Limited margin of safety; higher downside risk if rates rise. |
+
+**Why it matters:** When the Fed raises rates, treasury yields rise. If cap rates don't rise in tandem, spreads compress and CRE valuations come under pressure.
+                """)
 
             # ── Rate context ──────────────────────────────────────────────────
             _cap_rc1, _cap_rc2, _cap_rc3 = st.columns(3)
@@ -3269,6 +3303,21 @@ with main_tab_re:
 
             if _rg_err and not _rg_fred.get("cpi_rent"):
                 st.info(f" {_rg_err}")
+
+            with st.expander("How to read rent growth indicators"):
+                st.markdown("""
+**YoY Rent Growth %** measures how much asking or effective rents have changed versus the same period last year. Positive = landlords gaining pricing power; negative = tenants have leverage.
+
+| Property Type | Healthy Range | Notes |
+|--------------|--------------|-------|
+| **Multifamily** | +2% to +5% | Above 5% = supply shortage; below 0% = oversupply (common in Sunbelt 2024-25) |
+| **Industrial** | +5% to +12% | Driven by e-commerce and nearshoring; still elevated but normalizing from 2022 peaks |
+| **Retail** | +1% to +3% | Limited new supply supporting positive growth; grocery-anchored outperforms |
+| **Office** | Negative | Structural headwind from remote work; effective rents negative after concessions |
+
+**PSF** = Per Square Foot (annual). Used for industrial and office leases.
+**FRED CPI Rent** = Bureau of Labor Statistics measure of residential rent inflation — a leading indicator for multifamily rent trends.
+                """)
 
             # ── National overview ─────────────────────────────────────────────
             section(" National Rent Growth by Property Type (YoY %)")
@@ -3388,6 +3437,20 @@ with main_tab_re:
             _oz_state_inc = _oz_data.get("state_incentives", {})
             _oz_fed_ben   = _oz_data.get("federal_benefits", [])
             _oz_ranked    = _oz_data.get("top_markets_by_score", [])
+
+            with st.expander("How Opportunity Zones work"):
+                st.markdown("""
+**Opportunity Zones (OZs)** are census tracts designated by the IRS where investors can defer and reduce capital gains taxes by investing through a **Qualified Opportunity Fund (QOF)**.
+
+**The three key benefits:**
+1. **Deferral** — Reinvest capital gains into a QOF and defer the original tax until Dec 31, 2026 (or earlier sale)
+2. **Step-Up** — Partial basis increase if held 5+ years (primarily applies to investments made before end of 2021)
+3. **Permanent Exclusion** — Hold for 10+ years and pay **zero tax** on appreciation inside the QOF — the primary economic driver
+
+**CRE application:** Buy or develop property inside an OZ through a QOF. The 10-year hold threshold aligns well with a value-add or development hold period. Industrial, multifamily, and mixed-use assets in high-score OZ markets offer the best risk-adjusted returns.
+
+**Important:** Must invest via a QOF structure; the 90% asset test applies; consult a qualified tax attorney before proceeding.
+                """)
 
             # ── Federal OZ benefit cards ───────────────────────────────────────
             section(" Federal Opportunity Zone Tax Benefits")
@@ -3753,6 +3816,18 @@ with main_tab_macro:
             low_good    = True,
             scale_labels= ("BEARISH", "25", "CAUTIOUS", "75", "BULLISH"),
         ), unsafe_allow_html=True)
+        with st.expander("How to read this indicator"):
+            st.markdown("""
+**What it measures:** The overall interest rate climate for CRE borrowing and valuation — combining the 10-year Treasury yield, Fed Funds rate, yield curve shape, and mortgage spreads.
+
+| Signal | Score | What it means for CRE |
+|--------|-------|----------------------|
+| **BULLISH** | 75–100 | Low/falling rates → lower cap rate requirements, rising valuations, cheap debt. Best time to acquire or refinance. |
+| **CAUTIOUS** | 25–74 | Rates are elevated or uncertain. Underwrite conservatively; favor shorter loan terms. |
+| **BEARISH** | 0–24 | High rates compress valuations, choke deal flow, and increase refinancing risk. Defensive positioning recommended. |
+
+**Key inputs:** 10Y Treasury (DGS10), Fed Funds Rate, 2Y Treasury, yield curve spread, IG corporate spread — all pulled live from FRED.
+            """)
 
         # ── Key Rate Cards ──────────────────────────────────────────────────────
         section(" Current Rates")
@@ -4114,6 +4189,18 @@ with main_tab_macro:
             age_label   = cache_age_label("labor_market"),
             scale_labels= ("SOFT", "25", "MODERATE", "75", "STRONG"),
         ), unsafe_allow_html=True)
+        with st.expander("How to read this indicator"):
+            st.markdown("""
+**What it measures:** The strength of employment-driven demand for commercial space — the primary driver of office, industrial, and retail lease-up.
+
+| Signal | Score | What it means for CRE |
+|--------|-------|----------------------|
+| **STRONG** | 65–100 | Low unemployment, rising payrolls, high job openings → businesses expanding → tenants leasing more space. Landlords hold pricing power. |
+| **MODERATE** | 41–64 | Mixed signals. Demand is present but softening. Selective acquisitions in supply-constrained markets remain viable. |
+| **SOFT** | 0–40 | Rising unemployment or falling payrolls → tenants downsizing, sublease supply rising, lease concessions increasing. |
+
+**Key inputs:** Nonfarm Payrolls, Unemployment Rate (U-3), JOLTS Job Openings, Quits Rate, Labor Force Participation, Avg Hourly Earnings — all from FRED.
+            """)
 
         # ── KPI Strip — National Labor ──────────────────────────────────────────
         section(" National Labor Market Snapshot")
@@ -4376,6 +4463,18 @@ with main_tab_macro:
             age_label   = cache_age_label("gdp_data"),
             scale_labels= ("CONTRACTION", "25", "SLOWDOWN", "75", "EXPANSION"),
         ), unsafe_allow_html=True)
+        with st.expander("How to read this indicator"):
+            st.markdown("""
+**What it measures:** Where the US economy sits in its business cycle — which directly drives CRE occupancy, rent growth, and transaction volume.
+
+| Signal | Score | What it means for CRE |
+|--------|-------|----------------------|
+| **EXPANSION** | 65–100 | GDP growing, consumer spending up, businesses investing → rising occupancy across all property types, rent growth likely. Peak valuations possible. |
+| **SLOWDOWN** | 25–74 | Growth decelerating. Industrial and logistics hold up; office and retail face headwinds. Reduce leverage exposure. |
+| **CONTRACTION** | 0–24 | Negative GDP, rising layoffs → vacancy climbing, cap rates rising, values declining. Distressed opportunities may emerge. |
+
+**Key inputs:** Real GDP Growth Rate, Industrial Production Index, Chicago Fed National Activity Index (CFNAI), Retail Sales, Real PCE, Consumer Sentiment — from FRED.
+            """)
 
         # ── KPI Strip ──────────────────────────────────────────────────────────
         section(" Key Economic Indicators")
@@ -4612,6 +4711,18 @@ with main_tab_macro:
             low_good=True,
             scale_labels=("COOLING", "25", "MODERATE", "75", "HOT"),
         ), unsafe_allow_html=True)
+        with st.expander("How to read this indicator"):
+            st.markdown("""
+**What it measures:** The current inflation environment and its impact on CRE construction costs, cap rates, and real returns.
+
+| Signal | Score | What it means for CRE |
+|--------|-------|----------------------|
+| **COOLING** | 0–35 | CPI falling toward 2% target. Fed likely cutting rates → cap rate compression, rising valuations, easier financing. |
+| **MODERATE** | 36–74 | Inflation in the 2–4% range. Mixed — some replacement cost support for values, but rate uncertainty limits cap rate compression. |
+| **HOT** | 75–100 | CPI well above target. Fed holds rates high → higher cap rates, value pressure on stabilized assets. Construction cost inflation eats development margins. |
+
+**Key inputs:** CPI All Items, Core CPI (ex food & energy), CPI Shelter, CPI Rent, 5-Year Breakeven Inflation, 1-Year Inflation Expectations (U of Michigan) — from FRED.
+            """)
 
         # ── KPI Strip ──────────────────────────────────────────────────────────
         section(" Inflation Dashboard")
@@ -4807,6 +4918,18 @@ with main_tab_macro:
             low_good=False,
             scale_labels=("TIGHT", "25", "NEUTRAL", "75", "LOOSE"),
         ), unsafe_allow_html=True)
+        with st.expander("How to read this indicator"):
+            st.markdown("""
+**What it measures:** Whether debt capital is flowing freely into CRE or being restricted — tracking corporate credit spreads, bank lending standards, and market volatility.
+
+| Signal | Score | What it means for CRE |
+|--------|-------|----------------------|
+| **LOOSE** | 65–100 | Spreads narrow, banks easing standards, VIX low → debt is cheap and available. Strong deal volume, high leverage possible. |
+| **NEUTRAL** | 25–74 | Normal credit access. Standard underwriting prevails. Selective lenders; moderate leverage recommended. |
+| **TIGHT** | 0–24 | Spreads wide, banks tightening, VIX elevated → lenders pulling back. Higher equity requirements, fewer loans closing. Distressed deals may emerge. |
+
+**Key inputs:** IG & HY Corporate Spreads, BBB Spread (CRE proxy), BAA–AAA Quality Spread, VIX Volatility Index, Fed Senior Loan Officer Survey (CRE tightening %) — from FRED.
+            """)
 
         # ── KPI Strip ──────────────────────────────────────────────────────────
         section(" Credit Market Snapshot")
@@ -5000,6 +5123,27 @@ with main_tab_macro:
                   {"<div style='margin-top:12px;padding:8px 12px;background:#1c1c14;border-radius:6px;border-left:3px solid #66bb6a;'><span style='color:#66bb6a;font-weight:700;'>Best Opportunity:</span> <span style='color:#c8bfa8;'>" + _dst_intel.get('top_opportunity','') + "</span></div>" if _dst_intel.get('top_opportunity') else ""}
                   {"<div style='margin-top:8px;padding:8px 12px;background:#1c1c14;border-radius:6px;border-left:3px solid #ef5350;'><span style='color:#ef5350;font-weight:700;'>Key Risk:</span> <span style='color:#c8bfa8;'>" + _dst_intel.get('key_risk','') + "</span></div>" if _dst_intel.get('key_risk') else ""}
                 </div>""", unsafe_allow_html=True)
+
+            # ── Distress explainer ────────────────────────────────────────────
+            with st.expander("How to read CMBS delinquency & distress signals"):
+                st.markdown("""
+**CMBS (Commercial Mortgage-Backed Securities)** are bonds backed by commercial real estate loans. The delinquency rate measures what percentage of those loans are 30+ days past due.
+
+| Rate | Severity | Context |
+|------|----------|---------|
+| < 2% | Low | Normal/healthy — minimal stress |
+| 2–5% | Moderate | Elevated — watch for loan modifications and maturity extensions |
+| 5–10% | High | Significant distress — expect special servicing, discounted sales |
+| > 10% | Crisis | GFC-level stress (office/retail peaked ~10–12% in 2020) |
+
+**Distress statuses:**
+- **REO** (Real Estate Owned) — Lender has taken back the property; available at steep discount
+- **Maturity Default** — Borrower couldn't refinance at loan maturity; often the first step toward REO
+- **Special Servicing** — Loan transferred to a workout specialist; active negotiation underway
+- **Watchlist** — Flagged for potential stress; borrower still current but at risk
+
+**Opportunity:** Distressed assets often trade at 30–60% below peak value, creating entry points for repositioning or conversion plays.
+                """)
 
             # ── National distress signals ──────────────────────────────────────
             section(" National Distress Signals")
