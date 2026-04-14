@@ -258,7 +258,7 @@ python3 .pipeline/status.py  # Check sync status
 |------|----------|
 | Aayman Afzal | [linkedin.com/in/aayman-afzal](https://www.linkedin.com/in/aayman-afzal) |
 | Ajinkya Kodnikar | [linkedin.com/in/ajinkya-kodnikar](https://www.linkedin.com/in/ajinkya-kodnikar) |
-| Oyu Amar | [linkedin.com/in/oyuamar](https://www.linkedin.com/in/oyuamar) |
+| Oyu Amar | [linkedin.com/in/oyu-amar](https://www.linkedin.com/in/oyu-amar/) |
 | Ricardo Ruiz | [linkedin.com/in/ricardoruizjr](https://www.linkedin.com/in/ricardoruizjr) |
 
 ---

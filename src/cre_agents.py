@@ -71,8 +71,54 @@ def _cache_path(key: str) -> Path:
 
 def write_cache(key: str, data: Any):
     payload = {"updated_at": datetime.now().isoformat(), "data": data}
+    # Data quality: reject if data is unexpectedly None
+    if data is not None:
+        _validate_cache_data(key, data)
     with open(_cache_path(key), "w") as f:
         json.dump(payload, f, default=str)
+
+
+def _validate_cache_data(key: str, data: Any):
+    """Lightweight schema validation and outlier detection on cache writes."""
+    warnings = []
+    if key == "migration" and isinstance(data, dict):
+        mig = data.get("migration", [])
+        for rec in mig:
+            score = rec.get("composite_score")
+            if score is not None and (score < 0 or score > 100):
+                warnings.append(f"migration: {rec.get('state_abbr')} composite_score={score} out of [0,100]")
+            pop = rec.get("population")
+            if pop is not None and pop <= 0:
+                warnings.append(f"migration: {rec.get('state_abbr')} population <= 0")
+    elif key == "pricing" and isinstance(data, dict):
+        reits = data.get("reits", [])
+        null_prices = sum(1 for r in reits if not r.get("price") or r.get("price", 0) <= 0)
+        if reits and null_prices / max(len(reits), 1) > 0.10:
+            warnings.append(f"pricing: {null_prices}/{len(reits)} REITs have null/zero prices (>10%)")
+        for r in reits:
+            p = r.get("price", 0)
+            if p and p > 1000:
+                warnings.append(f"pricing: {r.get('ticker')} price ${p} exceeds $1000 sanity limit")
+    elif key == "energy_data" and isinstance(data, dict):
+        sig = data.get("construction_cost_signal", "")
+        if sig and sig not in ("HIGH", "MODERATE", "LOW"):
+            warnings.append(f"energy: invalid construction_cost_signal '{sig}'")
+        for c in data.get("commodities", []):
+            if abs(c.get("pct_above_sma", 0)) > 50:
+                warnings.append(f"energy: {c.get('ticker')} pct_above_sma={c.get('pct_above_sma'):.1f}% (extreme)")
+    elif key == "rates" and isinstance(data, dict):
+        yc = data.get("yield_curve", {})
+        for mat in ["3M", "2Y", "5Y", "10Y", "30Y"]:
+            val = yc.get(mat)
+            if val is not None and (val < 0 or val > 15):
+                warnings.append(f"rates: yield_curve {mat}={val}% out of range")
+    # Log warnings via audit logger if any
+    if warnings:
+        try:
+            from src.audit_logger import log_agent_run
+            log_agent_run(key, "warning", 0, "; ".join(warnings[:3]))
+        except Exception:
+            pass
 
 
 def read_cache(key: str) -> dict:
@@ -140,10 +186,20 @@ def _set_status(agent: str, status: str, error: str = None):
         _agent_status[agent]["status"] = status
         if status == "running":
             _agent_status[agent]["last_run"] = datetime.now().isoformat()
+            _agent_status[agent]["_start_time"] = datetime.now()
         if error:
             _agent_status[agent]["last_error"] = error
         else:
             _agent_status[agent]["runs"] += 1
+        # Audit logging on completion (ok or error)
+        if status in ("ok", "error"):
+            try:
+                from src.audit_logger import log_agent_run
+                start = _agent_status[agent].get("_start_time")
+                latency = (datetime.now() - start).total_seconds() * 1000 if start else 0
+                log_agent_run(agent, status, latency, error=error or "")
+            except Exception:
+                pass
 
 
 # ── Agent 1 · Migration ───────────────────────────────────────────────────────
