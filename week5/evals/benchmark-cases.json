@@ -1,0 +1,290 @@
+{
+  "meta": {
+    "version": "1.0",
+    "created": "2026-04-14",
+    "description": "Labeled evaluation cases for CRE Intelligence Platform agents. Each case has a known ground-truth answer derived from public data sources (Census, FRED, yfinance, BLS).",
+    "pass_threshold": 0.80
+  },
+  "cases": [
+    {
+      "id": "MIG-01",
+      "agent": "migration",
+      "description": "Texas is a top-3 migration destination state",
+      "input": {"query": "industrial in austin"},
+      "expected": {
+        "field": "migration[].state_abbr",
+        "condition": "TX in top 3 by composite_score",
+        "ground_truth": "TX composite_score > 90",
+        "source": "US Census Bureau Population Estimates 2023 — TX population growth +1.6-2.1% YoY"
+      },
+      "tolerance": null,
+      "type": "ranking"
+    },
+    {
+      "id": "MIG-02",
+      "agent": "migration",
+      "description": "Florida is a top-3 migration destination state",
+      "input": {"query": "multifamily in miami"},
+      "expected": {
+        "field": "migration[].state_abbr",
+        "condition": "FL in top 3 by composite_score",
+        "ground_truth": "FL composite_score > 85",
+        "source": "US Census Bureau — FL consistent top-3 inbound state"
+      },
+      "tolerance": null,
+      "type": "ranking"
+    },
+    {
+      "id": "MIG-03",
+      "agent": "migration",
+      "description": "California shows net outbound migration (low score)",
+      "input": {"query": "office in san francisco"},
+      "expected": {
+        "field": "migration[?state_abbr=='CA'].composite_score",
+        "condition": "< 30",
+        "ground_truth": "CA biz_score = 18 (net corporate outflows)",
+        "source": "US Census Bureau — CA net domestic outmigration since 2020"
+      },
+      "tolerance": 10,
+      "type": "threshold"
+    },
+    {
+      "id": "MIG-04",
+      "agent": "migration",
+      "description": "Migration data returns all 50 states + DC",
+      "input": {},
+      "expected": {
+        "field": "len(migration)",
+        "condition": ">= 50",
+        "ground_truth": "51 states/territories",
+        "source": "Census API returns all states"
+      },
+      "tolerance": 0,
+      "type": "count"
+    },
+    {
+      "id": "MIG-05",
+      "agent": "migration",
+      "description": "Composite score formula: 60% pop growth + 40% biz score",
+      "input": {},
+      "expected": {
+        "field": "migration[?state_abbr=='TX'].composite_score",
+        "condition": "within 5 pts of (pop_growth_normalized * 0.6 + biz_score * 0.4)",
+        "ground_truth": "Score follows documented formula",
+        "source": "Internal formula validation"
+      },
+      "tolerance": 5,
+      "type": "formula"
+    },
+    {
+      "id": "PRC-01",
+      "agent": "pricing",
+      "description": "Industrial cap rate benchmark is 5.6%",
+      "input": {"property_type": "Industrial / Logistics"},
+      "expected": {
+        "field": "CAP_RATE_BENCHMARKS['Industrial / Logistics']['cap_rate']",
+        "condition": "== 0.056",
+        "ground_truth": "5.6% per platform benchmark table",
+        "source": "src/cre_pricing.py CAP_RATE_BENCHMARKS constant"
+      },
+      "tolerance": 0,
+      "type": "exact"
+    },
+    {
+      "id": "PRC-02",
+      "agent": "pricing",
+      "description": "Office has highest cap rate among all property types",
+      "input": {},
+      "expected": {
+        "field": "CAP_RATE_BENCHMARKS sorted by cap_rate desc",
+        "condition": "Office cap_rate (0.085) > all others",
+        "ground_truth": "Office 8.5% is highest; Data Center 4.8% is lowest",
+        "source": "src/cre_pricing.py CAP_RATE_BENCHMARKS"
+      },
+      "tolerance": 0,
+      "type": "ranking"
+    },
+    {
+      "id": "PRC-03",
+      "agent": "pricing",
+      "description": "REIT universe contains expected tickers",
+      "input": {},
+      "expected": {
+        "field": "reits[].ticker",
+        "condition": "contains PLD, EQR, SPG, BXP, WELL, PSA, EQIX",
+        "ground_truth": "7 anchor REITs present across all property types",
+        "source": "src/cre_pricing.py REIT_UNIVERSE"
+      },
+      "tolerance": 0,
+      "type": "membership"
+    },
+    {
+      "id": "PRC-04",
+      "agent": "pricing",
+      "description": "REIT prices are positive and within reasonable range",
+      "input": {},
+      "expected": {
+        "field": "reits[].price",
+        "condition": "all values > 0 and < 2000",
+        "ground_truth": "No REIT trades above $2000 or at $0 (EQIX trades ~$1050)",
+        "source": "yfinance market data sanity check"
+      },
+      "tolerance": 0,
+      "type": "range"
+    },
+    {
+      "id": "RATE-01",
+      "agent": "rates",
+      "description": "Fed Funds Rate is within plausible range",
+      "input": {},
+      "expected": {
+        "field": "rates['Federal Funds Rate'].current",
+        "condition": ">= 0.0 and <= 10.0",
+        "ground_truth": "Fed Funds has been 0-5.5% in modern era",
+        "source": "FRED series DFF"
+      },
+      "tolerance": 0,
+      "type": "range"
+    },
+    {
+      "id": "RATE-02",
+      "agent": "rates",
+      "description": "10Y Treasury is populated and plausible",
+      "input": {},
+      "expected": {
+        "field": "rates['10Y Treasury'].current",
+        "condition": ">= 1.0 and <= 8.0",
+        "ground_truth": "10Y has ranged 0.5-5.0% since 2020",
+        "source": "FRED series DGS10"
+      },
+      "tolerance": 0,
+      "type": "range"
+    },
+    {
+      "id": "RATE-03",
+      "agent": "rates",
+      "description": "Yield curve data has all 5 maturities",
+      "input": {},
+      "expected": {
+        "field": "yield_curve keys",
+        "condition": "contains 3M, 2Y, 5Y, 10Y, 30Y",
+        "ground_truth": "5 maturities required for curve shape analysis",
+        "source": "src/rate_agent.py yield curve construction"
+      },
+      "tolerance": 0,
+      "type": "membership"
+    },
+    {
+      "id": "RATE-04",
+      "agent": "rates",
+      "description": "Cap rate adjustments cover all 7 property types",
+      "input": {},
+      "expected": {
+        "field": "len(cap_rate_adjustments)",
+        "condition": "== 7",
+        "ground_truth": "Industrial, Multifamily, Retail, Office, Healthcare, Self-Storage, Data Centers",
+        "source": "src/rate_agent.py CAP_RATE_SPREADS"
+      },
+      "tolerance": 0,
+      "type": "count"
+    },
+    {
+      "id": "NRG-01",
+      "agent": "energy",
+      "description": "Construction cost signal is one of HIGH/MODERATE/LOW",
+      "input": {},
+      "expected": {
+        "field": "construction_cost_signal",
+        "condition": "in ['HIGH', 'MODERATE', 'LOW']",
+        "ground_truth": "Signal must be one of three valid values",
+        "source": "src/energy_analyst.py threshold logic"
+      },
+      "tolerance": 0,
+      "type": "enum"
+    },
+    {
+      "id": "NRG-02",
+      "agent": "energy",
+      "description": "All 5 commodities are tracked with valid SMA data",
+      "input": {},
+      "expected": {
+        "field": "commodities[].ticker",
+        "condition": "contains USO, UNG, XLE, CPER, SLX and all have sma_60 > 0",
+        "ground_truth": "5 commodity ETFs with 60-day moving averages",
+        "source": "src/energy_analyst.py COMMODITIES list"
+      },
+      "tolerance": 0,
+      "type": "membership"
+    },
+    {
+      "id": "NRG-03",
+      "agent": "energy",
+      "description": "Signal HIGH when avg momentum > +5%",
+      "input": {"simulated_avg_momentum": 8.0},
+      "expected": {
+        "field": "construction_cost_signal",
+        "condition": "== 'HIGH' when avg_momentum_pct > 5.0",
+        "ground_truth": "Threshold: >+5% = HIGH",
+        "source": "src/energy_analyst.py signal classification"
+      },
+      "tolerance": 0,
+      "type": "conditional"
+    },
+    {
+      "id": "LBR-01",
+      "agent": "labor_market",
+      "description": "Tenant demand signal score is 0-100",
+      "input": {},
+      "expected": {
+        "field": "demand_signal.score",
+        "condition": ">= 0 and <= 100",
+        "ground_truth": "Composite score bounded 0-100",
+        "source": "src/labor_market_agent.py scoring logic"
+      },
+      "tolerance": 0,
+      "type": "range"
+    },
+    {
+      "id": "LBR-02",
+      "agent": "labor_market",
+      "description": "Demand signal label matches score thresholds",
+      "input": {},
+      "expected": {
+        "field": "demand_signal.label",
+        "condition": "STRONG if score >= 65, MODERATE if 40-64, SOFT if < 40",
+        "ground_truth": "Label must be consistent with score",
+        "source": "src/labor_market_agent.py threshold classification"
+      },
+      "tolerance": 0,
+      "type": "conditional"
+    },
+    {
+      "id": "INF-01",
+      "agent": "inflation",
+      "description": "Inflation signal is one of HOT/MODERATE/COOLING",
+      "input": {},
+      "expected": {
+        "field": "signal.label",
+        "condition": "in ['HOT', 'MODERATE', 'COOLING']",
+        "ground_truth": "Signal must be one of three valid values",
+        "source": "src/inflation_agent.py threshold logic"
+      },
+      "tolerance": 0,
+      "type": "enum"
+    },
+    {
+      "id": "CRD-01",
+      "agent": "credit",
+      "description": "Credit conditions signal is one of LOOSE/NEUTRAL/TIGHT",
+      "input": {},
+      "expected": {
+        "field": "signal.label",
+        "condition": "in ['LOOSE', 'NEUTRAL', 'TIGHT']",
+        "ground_truth": "Signal must be one of three valid values",
+        "source": "src/credit_markets_agent.py threshold logic"
+      },
+      "tolerance": 0,
+      "type": "enum"
+    }
+  ]
+}
