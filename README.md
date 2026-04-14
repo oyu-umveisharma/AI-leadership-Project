@@ -16,6 +16,25 @@ The agents run on a scheduler. Open the dashboard and the data is already there.
 
 ---
 
+## Industry Benchmark Comparison
+
+| Feature | CRE Intelligence Platform | CoStar | Morningstar | CBRE EA |
+|---------|---------------------------|--------|-------------|---------|
+| Real-time REIT pricing | Yes (hourly) | Yes | Yes | Limited |
+| Population migration data | Yes (Census API) | No | No | No |
+| AI-powered facility tracking | Yes (Groq LLM) | No | No | No |
+| Interest rate integration | Yes (40+ FRED series) | Limited | Yes | Limited |
+| Construction cost signals | Yes (commodities) | No | No | Yes |
+| Labor market analysis | Yes (BLS + FRED) | No | Limited | Yes |
+| ESG/Sustainability metrics | Yes | Limited | Yes | Limited |
+| Personalized AI chatbox | Yes | No | No | No |
+| Metro neighborhood maps | Yes (17 metros) | Yes | No | Limited |
+| Pricing | Free / Open Source | $$$$ | $$$ | $$$$ |
+
+*Comparison based on publicly available feature documentation. Capabilities may vary by subscription tier.*
+
+---
+
 ## Agent Architecture
 
 Twelve specialized agents operate independently on fixed schedules, writing to a shared JSON cache that survives Streamlit reruns.
