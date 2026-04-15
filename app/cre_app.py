@@ -1930,6 +1930,13 @@ with main_tab_re:
                 _cap_sub  = "Market benchmark"
                 _noi_sub  = "After opex, before CapEx"
 
+                _KPI_EXPLAIN = {
+                    "AVG CAP RATE":   ("NOI ÷ Property Value",       "A lower cap rate = higher asset value. Compressed cap rates signal strong investor demand. Rises when interest rates climb or asset values fall."),
+                    "NOI MARGIN":     ("NOI ÷ Gross Revenue",        "Measures operating efficiency after expenses (insurance, maintenance, mgmt fees) but before CapEx and debt service. Higher = more cash flow per dollar of revenue."),
+                    "RENT GROWTH YOY":("(Rent Now − Rent Yr Ago) ÷ Rent Yr Ago", "Positive rent growth compounds NOI over time. Driven by supply/demand imbalance, lease rollovers at market rates, and inflation passthroughs."),
+                    "AVG VACANCY":    ("Unleased SF ÷ Total Rentable SF", "Lower vacancy tightens rent pricing power. Rising vacancy signals oversupply or demand softness — a leading indicator of cap rate expansion."),
+                }
+
                 _kc1, _kc2, _kc3, _kc4 = st.columns(4)
                 for _col, _lbl, _val_str, _sub, _badge_html, _border in [
                     (_kc1, "AVG CAP RATE",     f"{_cap*100:.2f}%",    _cap_sub,  _badge(_cap_d,  "YoY", False), "#d4a843"),
@@ -1937,14 +1944,18 @@ with main_tab_re:
                     (_kc3, "RENT GROWTH YOY",   f"{_rent*100:+.1f}%", _rent_sub, _badge(_rent_d, "YoY", True),  "#4a9e58" if _rent > 0 else "#ef5350"),
                     (_kc4, "AVG VACANCY",       f"{_vac*100:.1f}%",    _vac_sub,  _badge(_vac_d,  "vs prior", False), "#d4a843" if _vac < 0.10 else "#ef5350"),
                 ]:
-                    _val_color = _border
+                    _exp_formula, _exp_desc = _KPI_EXPLAIN[_lbl]
                     _col.markdown(f"""
 <div style="background:#171309;border:1px solid #2a2208;border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;min-height:130px;">
   <div style="position:absolute;top:0;left:0;right:0;height:2px;background:{_border};border-radius:10px 10px 0 0;"></div>
   <div style="font-size:10px;color:#6a5228;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">{_lbl}</div>
-  <div style="font-size:34px;font-weight:500;color:{_val_color};line-height:1;margin-bottom:4px;">{_val_str}</div>
+  <div style="font-size:34px;font-weight:500;color:{_border};line-height:1;margin-bottom:4px;">{_val_str}</div>
   <div style="font-size:11px;color:#6a5228;margin-bottom:2px;">{_sub}</div>
   {_badge_html}
+</div>
+<div style="margin-top:6px;padding:10px 12px;background:#0f0c05;border:1px solid #1e1a08;border-radius:8px;">
+  <div style="font-size:10px;color:#d4a843;letter-spacing:0.05em;margin-bottom:4px;font-family:monospace;">{_exp_formula}</div>
+  <div style="font-size:11px;color:#5a4820;line-height:1.5;">{_exp_desc}</div>
 </div>""", unsafe_allow_html=True)
 
                 st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
