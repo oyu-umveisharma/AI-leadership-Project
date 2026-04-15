@@ -22,11 +22,10 @@ Cap rate adjustment model:
 import os
 import json
 import time
-import urllib.request
-import urllib.error
 import urllib.parse
 from datetime import datetime, timedelta
 from pathlib import Path
+import requests as _requests
 
 try:
     from dotenv import load_dotenv
@@ -122,25 +121,23 @@ def _fetch_fred(series_id: str, api_key: str, limit: int = 500) -> list[dict]:
     Returns list of {"date": "YYYY-MM-DD", "value": float} sorted oldest→newest.
     Missing values (FRED returns ".") are dropped.
     """
-    params = urllib.parse.urlencode({
-        "series_id":    series_id,
-        "api_key":      api_key,
-        "file_type":    "json",
-        "limit":        limit,
-        "sort_order":   "desc",
-    })
-    url = f"{FRED_BASE}?{params}"
+    params = {
+        "series_id":  series_id,
+        "api_key":    api_key,
+        "file_type":  "json",
+        "limit":      limit,
+        "sort_order": "desc",
+    }
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "cre-rate-agent/1.0"})
-        with urllib.request.urlopen(req, timeout=12) as r:
-            data = json.loads(r.read())
+        r = _requests.get(FRED_BASE, params=params, timeout=12)
+        r.raise_for_status()
         obs = [
             {"date": o["date"], "value": float(o["value"])}
-            for o in data.get("observations", [])
+            for o in r.json().get("observations", [])
             if o.get("value") not in (".", "", None)
         ]
         return sorted(obs, key=lambda x: x["date"])   # oldest first
-    except Exception as e:
+    except Exception:
         return []
 
 
