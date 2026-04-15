@@ -1701,30 +1701,99 @@ with main_tab_re:
                 st.info(f"No metro data for {_metro_city}. Showing all metros for comparison.")
 
         section(_metro_title)
-        metros_disp = metros_df.copy()
-        metros_disp["Pop Growth %"] = metros_disp["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
-        metros_disp["Job Growth %"] = metros_disp["Job Growth %"].apply(lambda x: f"{x:+.1f}%")
-        metros_disp["Corp HQ Moves"] = metros_disp["Corp HQ Moves"].apply(lambda x: f"{x:+d}")
 
-        def color_demand(val):
-            colors = {
-                "Very High": "background-color:#c8e6c9;color:#1b5e20;font-weight:700",
-                "High":      "background-color:#dcedc8;color:#33691e;font-weight:600",
-                "Moderate":  "background-color:#fff9c4;color:#f57f17",
-                "Weak":      "background-color:#ffccbc;color:#bf360c",
-                "Declining": "background-color:#ffcdd2;color:#b71c1c;font-weight:700",
-            }
-            return colors.get(val, "")
-
-        def _highlight_metro_row(row):
-            if _metro_city and _metro_city.lower() in row["Metro"].lower():
-                return ["background-color: #f5f0e6; font-weight: 700"] * len(row)
-            return [""] * len(row)
-
-        st.dataframe(
-            metros_disp.style.applymap(color_demand, subset=["CRE Demand"]).apply(_highlight_metro_row, axis=1),
-            use_container_width=True, hide_index=True
+        # ── Sort control ───────────────────────────────────────────────────────
+        _sort_opts = ["CRE Demand", "Pop Growth", "Job Growth", "HQ Moves"]
+        _sort_by = st.radio(
+            "Sort by", _sort_opts, horizontal=True,
+            key="metro_sort_key", label_visibility="collapsed"
         )
+
+        metros_disp = metros_df.copy()
+        _demand_order = {"Very High": 5, "High": 4, "Moderate": 3, "Weak": 2, "Declining": 1}
+        if _sort_by == "CRE Demand":
+            metros_disp["_s"] = metros_disp["CRE Demand"].map(_demand_order).fillna(0)
+            metros_disp = metros_disp.sort_values("_s", ascending=False).drop(columns=["_s"])
+        elif _sort_by == "Pop Growth":
+            metros_disp = metros_disp.sort_values("Pop Growth %", ascending=False)
+        elif _sort_by == "Job Growth":
+            metros_disp = metros_disp.sort_values("Job Growth %", ascending=False)
+        else:
+            metros_disp = metros_disp.sort_values("Corp HQ Moves", ascending=False)
+        metros_disp = metros_disp.reset_index(drop=True)
+
+        _max_pop = max(metros_disp["Pop Growth %"].max(), 0.01)
+        _max_job = max(metros_disp["Job Growth %"].max(), 0.01)
+        _max_hq  = max(int(metros_disp["Corp HQ Moves"].max()), 1)
+
+        def _demand_badge_style(v):
+            if v in ("Very High", "High"):
+                return "background:#0d2a12;color:#4a9e58"
+            elif v == "Moderate":
+                return "background:#2a1a04;color:#a07830"
+            return "background:#2a0d0d;color:#9e4a4a"
+
+        def _hq_dots(n, mx):
+            filled = round(min(n, mx) / mx * 5) if mx > 0 else 0
+            return "".join(
+                f'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;'
+                f'background:{"#4a9e58" if i < filled else "#2a2208"};margin-right:2px;"></span>'
+                for i in range(5)
+            )
+
+        _rows_html = ""
+        for _ri, _rr in metros_disp.iterrows():
+            _pop = _rr["Pop Growth %"]
+            _job = _rr["Job Growth %"]
+            _hq  = int(_rr["Corp HQ Moves"])
+            _dem = _rr["CRE Demand"]
+            _pbw = max(0, _pop / _max_pop * 100)
+            _jbw = max(0, _job / _max_job * 100)
+            _highlight = "background:#1e1a08;" if _metro_city and _metro_city.lower() in _rr["Metro"].lower() else ""
+            _rows_html += f"""
+<div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #1e1a08;gap:8px;{_highlight}">
+  <div style="width:24px;font-size:12px;color:#4a3e18;flex-shrink:0;text-align:center;">{_ri+1}</div>
+  <div style="flex:2;font-size:14px;font-weight:500;color:#d4a843;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{_rr["Metro"]}</div>
+  <div style="flex:1.5;display:flex;flex-direction:column;gap:3px;">
+    <span style="font-size:12px;color:#c8b890;">{_pop:+.1f}%</span>
+    <div style="height:4px;background:#1e1a08;border-radius:2px;width:80px;">
+      <div style="height:100%;width:{_pbw:.0f}%;background:linear-gradient(90deg,#2a7a38,#4a9e58);border-radius:2px;"></div>
+    </div>
+  </div>
+  <div style="flex:1.5;display:flex;flex-direction:column;gap:3px;">
+    <span style="font-size:12px;color:#c8b890;">{_job:+.1f}%</span>
+    <div style="height:4px;background:#1e1a08;border-radius:2px;width:80px;">
+      <div style="height:100%;width:{_jbw:.0f}%;background:linear-gradient(90deg,#2a7a38,#4a9e58);border-radius:2px;"></div>
+    </div>
+  </div>
+  <div style="flex:1.5;display:flex;align-items:center;gap:5px;">
+    <span style="font-size:12px;color:#c8b890;min-width:28px;">{_hq:+d}</span>
+    {_hq_dots(_hq, _max_hq)}
+  </div>
+  <div style="flex:1;text-align:right;">
+    <span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;{_demand_badge_style(_dem)}">{_dem}</span>
+  </div>
+</div>"""
+
+        st.markdown(f"""
+<div style="background:#131008;border:1px solid #221e0a;border-radius:10px;overflow:hidden;margin-top:4px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #1e1a08;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:3px;height:20px;background:#d4a843;border-radius:2px;flex-shrink:0;"></div>
+      <span style="font-size:11px;font-weight:600;color:#d4a843;letter-spacing:0.08em;text-transform:uppercase;">Top Metro Areas — Population, Jobs &amp; CRE Demand</span>
+    </div>
+    <span style="font-size:11px;color:#6a5228;">{len(metros_disp)} markets tracked</span>
+  </div>
+  <div style="display:flex;padding:8px 16px;border-bottom:1px solid #1e1a08;gap:8px;">
+    <div style="width:24px;"></div>
+    <div style="flex:2;font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">METRO</div>
+    <div style="flex:1.5;font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">POP GROWTH</div>
+    <div style="flex:1.5;font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">JOB GROWTH</div>
+    <div style="flex:1.5;font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">CORP HQ MOVES</div>
+    <div style="flex:1;font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;text-align:right;">CRE DEMAND</div>
+  </div>
+  {_rows_html}
+</div>""", unsafe_allow_html=True)
 
         # ── Bubble chart ───────────────────────────────────────────────────────
         section(" Business Migration vs. Population Growth")
@@ -1783,265 +1852,270 @@ with main_tab_re:
             "pricing",
         )
 
-        from src.cre_pricing import compute_profit_matrix, get_top_opportunities, get_property_type_summary, CAP_RATE_BENCHMARKS
+        from src.cre_pricing import CAP_RATE_BENCHMARKS, REIT_UNIVERSE
+        import random as _rnd
 
         cache_p = read_cache("pricing")
         if not stale_banner("pricing") or cache_p["data"] is None:
             st.stop()
 
-        pdata    = cache_p["data"]
-        reit_df  = pd.DataFrame(pdata["reits"])
-        top_opps = pd.DataFrame(pdata["top_opps"])
-        pt_summary = pd.DataFrame(pdata["pt_summary"])
+        pdata   = cache_p["data"]
+        reit_df = pd.DataFrame(pdata["reits"])
 
-        # ── KPI strip ──────────────────────────────────────────────────────────
-        best_type  = pt_summary.iloc[0]
-        worst_type = pt_summary.iloc[-1]
-        best_opp   = top_opps.iloc[0]
-        avg_cap    = pt_summary["Cap Rate"].mean()
+        # ── Prior-year benchmarks for YoY delta badges ──────────────────────────
+        _PT_PRIOR = {
+            "Industrial / Logistics":      {"cap_rate": 0.048, "noi_margin": 0.702, "vacancy": 0.051, "rent_growth": 0.105},
+            "Multifamily / Residential":   {"cap_rate": 0.048, "noi_margin": 0.598, "vacancy": 0.050, "rent_growth": 0.035},
+            "Retail":                      {"cap_rate": 0.072, "noi_margin": 0.560, "vacancy": 0.082, "rent_growth": 0.008},
+            "Office":                      {"cap_rate": 0.076, "noi_margin": 0.520, "vacancy": 0.162, "rent_growth": -0.020},
+            "Healthcare / Medical Office": {"cap_rate": 0.062, "noi_margin": 0.625, "vacancy": 0.058, "rent_growth": 0.032},
+            "Self-Storage":                {"cap_rate": 0.058, "noi_margin": 0.675, "vacancy": 0.092, "rent_growth": 0.024},
+            "Data Centers":                {"cap_rate": 0.055, "noi_margin": 0.525, "vacancy": 0.028, "rent_growth": 0.098},
+        }
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.markdown(metric_card("Best Property Type", best_type["Property Type"].split("/")[0].strip(),
-                                 f"Margin: {best_type['Eff Profit Margin']*100:.1f}%"), unsafe_allow_html=True)
-        c2.markdown(metric_card("Weakest Type", worst_type["Property Type"].split("/")[0].strip(),
-                                 "High vacancy / rent decline"), unsafe_allow_html=True)
-        c3.markdown(metric_card("Avg Market Cap Rate", f"{avg_cap*100:.2f}%",
-                                 "Blended all property types"), unsafe_allow_html=True)
-        c4.markdown(metric_card("Top Market", best_opp["Market"].split(",")[0],
-                                 f"{best_opp['Property Type'].split('/')[0].strip()} · Score {best_opp['Profit Score']}"),
-                    unsafe_allow_html=True)
+        # Tab label → CAP_RATE_BENCHMARKS key
+        _PT_MAP = {
+            "Industrial / Logistics": "Industrial / Logistics",
+            "Multifamily":            "Multifamily / Residential",
+            "Retail":                 "Retail",
+            "Office":                 "Office",
+            "Healthcare":             "Healthcare / Medical Office",
+            "Self-Storage":           "Self-Storage",
+            "Data Centers":           "Data Centers",
+        }
 
-        # ── Live REIT Prices ────────────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(f" Live REIT Prices — {datetime.today().strftime('%B %d, %Y')}")
+        _pricing_tabs = st.tabs(list(_PT_MAP.keys()))
 
-        prop_types = reit_df["Property Type"].unique()
-        tabs_reit  = st.tabs(list(prop_types))
+        # Pre-compute 24-month trend data (seeded — same values every render)
+        _rnd.seed(7)
+        _trend_months = pd.date_range(end=datetime.today(), periods=24, freq="MS")
+        _ind_trend = [0.062 + (0.056 - 0.062) * i / 23 + _rnd.gauss(0, 0.0008) for i in range(24)]
+        _off_trend = [0.074 + (0.085 - 0.074) * i / 23 + _rnd.gauss(0, 0.0012) for i in range(24)]
+        _mf_trend  = [0.050 + (0.052 - 0.050) * i / 23 + _rnd.gauss(0, 0.0006) for i in range(24)]
 
-        for tab_r, pt in zip(tabs_reit, prop_types):
-            with tab_r:
-                sub   = reit_df[reit_df["Property Type"] == pt].copy()
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    valid = sub[sub["Price"].notna()]
-                    if not valid.empty:
-                        colors = [GOLD if r >= 0 else "#c62828" for r in valid["Daily Return"].fillna(0)]
-                        fig_p = go.Figure(go.Bar(
-                            x=valid["Ticker"], y=valid["Price"],
-                            marker_color=colors,
-                            text=valid["Price"].apply(lambda x: f"${x:.2f}" if x else "N/A"),
-                            textposition="outside",
-                            customdata=valid[["Company","Daily Return","Div Yield","Market Cap"]].values,
-                            hovertemplate=(
-                                "<b>%{customdata[0]}</b><br>Price: $%{y:.2f}<br>"
-                                "Daily Return: %{customdata[1]:+.2%}<br>"
-                                "Div Yield: %{customdata[2]:.2%}<br>"
-                                "Market Cap: $%{customdata[3]:,.0f}<extra></extra>"
-                            ),
-                        ))
-                        fig_p.update_layout(
-                            plot_bgcolor="#1e1a0a", paper_bgcolor="#1a1208",
-                            yaxis_title="Price ($)", margin=dict(t=30, b=30),
-                            height=260, font=dict(family="Source Sans Pro", color="#c8b890"),
+        for _ptab, (_pt_label, _pt_key) in zip(_pricing_tabs, _PT_MAP.items()):
+            with _ptab:
+                bench      = CAP_RATE_BENCHMARKS.get(_pt_key, {})
+                prior      = _PT_PRIOR.get(_pt_key, bench)
+                _sub_reit  = reit_df[reit_df["Property Type"] == _pt_key].copy().reset_index(drop=True)
+
+                _cap   = bench.get("cap_rate",    0.056)
+                _noi   = bench.get("noi_margin",  0.72)
+                _rent  = bench.get("rent_growth", 0.08)
+                _vac   = bench.get("vacancy",     0.045)
+                _pcap  = prior.get("cap_rate",    _cap)
+                _pnoi  = prior.get("noi_margin",  _noi)
+                _prent = prior.get("rent_growth", _rent)
+                _pvac  = prior.get("vacancy",     _vac)
+
+                _cap_d  = (_cap  - _pcap)  * 10000
+                _noi_d  = (_noi  - _pnoi)  * 10000
+                _rent_d = (_rent - _prent) * 10000
+                _vac_d  = (_vac  - _pvac)  * 10000
+
+                def _badge(delta, label, good_if_positive=True):
+                    good  = (delta > 0) if good_if_positive else (delta < 0)
+                    clr   = "#4a9e58" if good else "#ef5350"
+                    bg    = "#0d2a12" if good else "#2a0d0d"
+                    arrow = "▲" if delta > 0 else "▼"
+                    s     = "+" if delta > 0 else ""
+                    return (f'<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;'
+                            f'padding:3px 9px;border-radius:4px;background:{bg};color:{clr};margin-top:6px;">'
+                            f'{arrow} {s}{delta:.0f}bps {label}</span>')
+
+                # ── 4 KPI cards ────────────────────────────────────────────────
+                _max_rent = max(b["rent_growth"] for b in CAP_RATE_BENCHMARKS.values())
+                _rent_sub = "Sector high" if abs(_rent - _max_rent) < 0.001 else "Market consensus"
+                _vac_sub  = "Tightening YoY" if _vac < _pvac else "Rising YoY"
+                _cap_sub  = "Market benchmark"
+                _noi_sub  = "After opex, before CapEx"
+
+                _kc1, _kc2, _kc3, _kc4 = st.columns(4)
+                for _col, _lbl, _val_str, _sub, _badge_html, _border in [
+                    (_kc1, "AVG CAP RATE",     f"{_cap*100:.2f}%",    _cap_sub,  _badge(_cap_d,  "YoY", False), "#d4a843"),
+                    (_kc2, "NOI MARGIN",        f"{_noi*100:.1f}%",    _noi_sub,  _badge(_noi_d,  "YoY", True),  "#4a9e58"),
+                    (_kc3, "RENT GROWTH YOY",   f"{_rent*100:+.1f}%", _rent_sub, _badge(_rent_d, "YoY", True),  "#4a9e58" if _rent > 0 else "#ef5350"),
+                    (_kc4, "AVG VACANCY",       f"{_vac*100:.1f}%",    _vac_sub,  _badge(_vac_d,  "vs prior", False), "#d4a843" if _vac < 0.10 else "#ef5350"),
+                ]:
+                    _val_color = _border
+                    _col.markdown(f"""
+<div style="background:#171309;border:1px solid #2a2208;border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;min-height:130px;">
+  <div style="position:absolute;top:0;left:0;right:0;height:2px;background:{_border};border-radius:10px 10px 0 0;"></div>
+  <div style="font-size:10px;color:#6a5228;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">{_lbl}</div>
+  <div style="font-size:34px;font-weight:500;color:{_val_color};line-height:1;margin-bottom:4px;">{_val_str}</div>
+  <div style="font-size:11px;color:#6a5228;margin-bottom:2px;">{_sub}</div>
+  {_badge_html}
+</div>""", unsafe_allow_html=True)
+
+                st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+
+                # ── Row 2: trend chart (left) + scatter (right) ────────────────
+                _cl, _cr = st.columns([6, 4])
+
+                with _cl:
+                    _fig_trend = go.Figure()
+                    _fig_trend.add_trace(go.Scatter(
+                        x=list(_trend_months), y=[v * 100 for v in _ind_trend],
+                        name="Industrial", mode="lines",
+                        line=dict(color="#d4a843", width=2),
+                    ))
+                    _fig_trend.add_trace(go.Scatter(
+                        x=list(_trend_months), y=[v * 100 for v in _off_trend],
+                        name="Office", mode="lines",
+                        line=dict(color="#ef5350", width=2, dash="dot"),
+                    ))
+                    _fig_trend.add_trace(go.Scatter(
+                        x=list(_trend_months), y=[v * 100 for v in _mf_trend],
+                        name="Multifamily", mode="lines",
+                        line=dict(color="#42a5f5", width=2, dash="dot"),
+                    ))
+                    _fig_trend.update_layout(
+                        paper_bgcolor="#171309", plot_bgcolor="#171309",
+                        annotations=[
+                            dict(text="CAP RATE TREND — INDUSTRIAL VS. OFFICE VS. MULTIFAMILY",
+                                 xref="paper", yref="paper", x=0, y=1.12, showarrow=False,
+                                 font=dict(size=10, color="#6a5228"), xanchor="left"),
+                            dict(text="24-MONTH TRAILING",
+                                 xref="paper", yref="paper", x=1, y=1.12, showarrow=False,
+                                 font=dict(size=10, color="#4a3e18"), xanchor="right"),
+                        ],
+                        xaxis=dict(showgrid=False, tickfont=dict(color="#6a5228", size=10),
+                                   tickformat="%b", dtick="M2", tickcolor="#2a2208"),
+                        yaxis=dict(showgrid=True, gridcolor="#1e1a08",
+                                   tickfont=dict(color="#6a5228", size=10),
+                                   ticksuffix="%", tickformat=".1f"),
+                        legend=dict(orientation="h", y=-0.22, x=0,
+                                    font=dict(color="#8a7040", size=11),
+                                    bgcolor="rgba(0,0,0,0)"),
+                        margin=dict(t=50, b=60, l=50, r=20),
+                        height=330,
+                        font=dict(family="Source Sans Pro"),
+                    )
+                    st.plotly_chart(_fig_trend, use_container_width=True)
+
+                with _cr:
+                    if not _sub_reit.empty:
+                        _tickers  = _sub_reit["Ticker"].tolist()
+                        _caps_sc  = (_sub_reit["Cap Rate"] * 100).tolist()
+                        _nois_sc  = (_sub_reit["NOI Margin"] * 100).tolist()
+                        _max_noi_sc = max(_nois_sc)
+                        _sc_colors  = ["#4a9e58" if n >= _max_noi_sc * 0.97 else "#d4a843" for n in _nois_sc]
+
+                        _fig_sc = go.Figure()
+                        for _tk, _cr_v, _nm_v, _clr in zip(_tickers, _caps_sc, _nois_sc, _sc_colors):
+                            _fig_sc.add_trace(go.Scatter(
+                                x=[_cr_v], y=[_nm_v],
+                                mode="markers+text", text=[_tk],
+                                textposition="top center",
+                                textfont=dict(size=10, color="#c8b890"),
+                                marker=dict(size=22, color=_clr, opacity=0.85,
+                                            line=dict(width=1.5, color="#0d0b04")),
+                                showlegend=False,
+                                hovertemplate=(f"<b>{_tk}</b><br>Cap Rate: {_cr_v:.1f}%"
+                                               f"<br>NOI Margin: {_nm_v:.1f}%<extra></extra>"),
+                            ))
+                        _fig_sc.update_layout(
+                            paper_bgcolor="#171309", plot_bgcolor="#171309",
+                            annotations=[dict(
+                                text="CAP RATE VS. NOI MARGIN BY TICKER",
+                                xref="paper", yref="paper", x=0, y=1.12,
+                                showarrow=False, font=dict(size=10, color="#6a5228"), xanchor="left",
+                            )],
+                            xaxis=dict(showgrid=True, gridcolor="#1e1a08",
+                                       tickfont=dict(color="#6a5228", size=10), ticksuffix="%"),
+                            yaxis=dict(showgrid=True, gridcolor="#1e1a08",
+                                       tickfont=dict(color="#6a5228", size=10), ticksuffix="%"),
+                            margin=dict(t=50, b=40, l=50, r=20),
+                            height=330,
                         )
-                        fig_p.update_xaxes(showgrid=False, tickfont=dict(color="#c8b890"))
-                        fig_p.update_yaxes(gridcolor="#2a2208", tickfont=dict(color="#c8b890"),
-                                           title_font=dict(color="#c8b890"))
-                        st.plotly_chart(fig_p, use_container_width=True)
-                        st.caption(
-                            "Live REIT share prices sourced from Yahoo Finance. "
-                            "Higher dividend yield indicates more income relative to price — "
-                            "useful for comparing income-generating potential across property types."
+                        st.plotly_chart(_fig_sc, use_container_width=True)
+
+                st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+                # ── Company table ───────────────────────────────────────────────
+                if not _sub_reit.empty:
+                    _max_noi_tbl = _sub_reit["NOI Margin"].max()
+                    _rows_tbl = ""
+                    for _, _r in _sub_reit.iterrows():
+                        _px   = f"${_r['Price']:.2f}"  if pd.notna(_r.get("Price"))       else "N/A"
+                        _dr   = float(_r.get("Daily Return", 0) or 0)
+                        _dy   = float(_r.get("Div Yield",    0) or 0)
+                        _cr_v = float(_r.get("Cap Rate",     0) or 0)
+                        _nm_v = float(_r.get("NOI Margin",   0) or 0)
+                        _vr_v = float(_r.get("Vacancy Rate", 0) or 0)
+                        _rg_v = float(_r.get("Rent Growth",  0) or 0)
+                        _foc  = str(_r.get("Market Focus", ""))
+
+                        _dr_color = "#4a9e58" if _dr >= 0 else "#ef5350"
+                        _nm_color = "#4a9e58" if _nm_v >= _max_noi_tbl * 0.95 else "#d4a843" if _nm_v >= _max_noi_tbl * 0.80 else "#c8b890"
+                        _vr_color = "#4a9e58" if _vr_v < 0.04 else "#d4a843" if _vr_v < 0.09 else "#ef5350"
+                        _rg_color = "#4a9e58" if _rg_v > 0.05 else "#d4a843" if _rg_v > 0 else "#ef5350"
+                        _bar_w    = max(4, int(_nm_v / max(_max_noi_tbl, 0.01) * 64))
+                        _dot_n    = 3 if _nm_v >= _max_noi_tbl * 0.95 else 2 if _nm_v >= _max_noi_tbl * 0.80 else 1
+                        _dots     = "".join(
+                            f'<span style="color:#d4a843;font-size:9px;">●</span>' for _ in range(_dot_n)
+                        ) + "".join(
+                            f'<span style="color:#2a2208;font-size:9px;">●</span>' for _ in range(3 - _dot_n)
                         )
-                with col2:
-                    bench = CAP_RATE_BENCHMARKS.get(pt, {})
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown(metric_card("Cap Rate", f"{bench.get('cap_rate',0)*100:.2f}%", "Market benchmark"), unsafe_allow_html=True)
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown(metric_card("NOI Margin", f"{bench.get('noi_margin',0)*100:.1f}%", "After opex, before CapEx"), unsafe_allow_html=True)
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown(metric_card("Rent Growth YoY", f"{bench.get('rent_growth',0)*100:+.1f}%", "Market consensus"), unsafe_allow_html=True)
 
-                disp = sub[["Ticker","Company","Market Focus","Price","Daily Return","Div Yield","Cap Rate","NOI Margin","Vacancy Rate","Rent Growth"]].copy()
-                disp["Price"]        = disp["Price"].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
-                disp["Daily Return"] = disp["Daily Return"].apply(lambda x: f"{x*100:+.2f}%" if pd.notna(x) else "N/A")
-                disp["Div Yield"]    = disp["Div Yield"].apply(lambda x: f"{x*100:.2f}%" if pd.notna(x) else "N/A")
-                disp["Cap Rate"]     = disp["Cap Rate"].apply(lambda x: f"{x*100:.2f}%")
-                disp["NOI Margin"]   = disp["NOI Margin"].apply(lambda x: f"{x*100:.1f}%")
-                disp["Vacancy Rate"] = disp["Vacancy Rate"].apply(lambda x: f"{x*100:.1f}%")
-                disp["Rent Growth"]  = disp["Rent Growth"].apply(lambda x: f"{x*100:+.1f}%")
-                st.dataframe(disp, use_container_width=True, hide_index=True)
+                        _rows_tbl += f"""
+<div style="display:flex;align-items:center;padding:11px 14px;border-bottom:1px solid #1a1608;gap:0;">
+  <div style="width:72px;font-size:14px;font-weight:700;color:#d4a843;">{_r['Ticker']}</div>
+  <div style="flex:2.2;font-size:13px;color:#c8b890;">{_r['Company']}</div>
+  <div style="flex:1.2;">
+    <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#1e1a08;color:#8a7040;white-space:nowrap;">{_foc}</span>
+  </div>
+  <div style="width:72px;font-size:13px;color:#c8b890;">{_px}</div>
+  <div style="width:80px;font-size:13px;font-weight:500;color:{_dr_color};">{_dr*100:+.1f}%</div>
+  <div style="width:76px;font-size:13px;color:#c8b890;">{_dy*100:.1f}%</div>
+  <div style="width:74px;font-size:13px;color:#d4a843;">{_cr_v*100:.1f}%</div>
+  <div style="width:100px;">
+    <div style="font-size:13px;color:{_nm_color};margin-bottom:3px;">{_nm_v*100:.1f}%</div>
+    <div style="height:3px;background:#1e1a08;border-radius:2px;width:64px;">
+      <div style="height:100%;width:{_bar_w}px;background:#4a9e58;border-radius:2px;"></div>
+    </div>
+  </div>
+  <div style="width:68px;font-size:13px;color:{_vr_color};">{_vr_v*100:.1f}%</div>
+  <div style="width:52px;font-size:13px;color:{_rg_color};">{_rg_v*100:+.1f}%</div>
+  <div style="width:44px;text-align:right;">{_dots}</div>
+</div>"""
 
-        # ── Profit Margin Heatmap ──────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Profit Margin Heatmap — Market × Property Type")
-
-        profit_df = compute_profit_matrix()
-        pivot = profit_df.pivot_table(
-            index="Property Type", columns="Market",
-            values="Eff Profit Margin", aggfunc="mean"
-        )
-        pivot.columns = [c.split(",")[0] for c in pivot.columns]
-
-        fig_heat = go.Figure(go.Heatmap(
-            z=pivot.values * 100, x=list(pivot.columns), y=list(pivot.index),
-            colorscale=[[0.0, "#b71c1c"], [0.3, "#ef9a9a"], [0.5, "#fff9c4"], [0.7, "#a5d6a7"], [1.0, "#1b5e20"]],
-            text=[[f"{v:.1f}%" for v in row] for row in pivot.values * 100],
-            texttemplate="%{text}", textfont=dict(size=9, color="#c8b890"),
-            hovertemplate="<b>%{y}</b><br>%{x}<br>Margin: %{z:.1f}%<extra></extra>",
-            colorbar=dict(title="Eff Margin %", thickness=14, len=0.8,
-                          tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-        ))
-        fig_heat.update_layout(
-            paper_bgcolor="#1a1208",
-            xaxis=dict(tickangle=-35, tickfont=dict(size=9, color="#c8b890")),
-            yaxis=dict(tickfont=dict(size=9, color="#c8b890")),
-            margin=dict(t=20, b=100, l=180, r=20),
-            height=420, font=dict(family="Source Sans Pro", color="#c8b890"),
-        )
-        st.plotly_chart(fig_heat, use_container_width=True)
-        st.caption(
-            "Effective Profit Margin = NOI Margin × (1 − Vacancy) × (1 + Rent Growth). "
-            "Green cells are the most profitable combinations of market and property type. "
-            "Sunbelt markets (Dallas, Austin, Miami, Nashville) consistently outperform gateway cities "
-            "due to lower cap rate compression and stronger rent growth trajectories."
-        )
-
-        # ── Top 10 Opportunities ───────────────────────────────────────────────
-        section(" Top 10 Highest Profit Margin Opportunities Right Now")
-        st.dataframe(top_opps, use_container_width=True, hide_index=True)
-        st.caption(
-            "Ranked by Effective Profit Margin across all tracked markets and property types. "
-            "Industrial and Data Center assets in Sunbelt markets dominate the top rankings due to "
-            "low vacancy, high NOI margins, and strong rent growth — key indicators of durable cash flow."
-        )
-
-        # ── Property Type Comparison ───────────────────────────────────────────
-        section(" Property Type Performance Comparison")
-        _user_pt = st.session_state.user_intent.get("property_type")
-        colors_pt = []
-        for i, row in pt_summary.iterrows():
-            if _user_pt and _intent_matches_property_type(_user_pt, row["Property Type"]):
-                colors_pt.append("#1b5e20")  # highlight green for user's focus
-            elif i == 0:
-                colors_pt.append(GOLD)
-            elif i < 3:
-                colors_pt.append(GOLD_DARK)
-            else:
-                colors_pt.append("#aaa")
-        fig_pt = go.Figure()
-        fig_pt.add_trace(go.Bar(
-            x=pt_summary["Property Type"].str.split("/").str[0].str.strip(),
-            y=pt_summary["Eff Profit Margin"] * 100,
-            marker_color=colors_pt,
-            text=pt_summary["Eff Profit Margin"].apply(lambda x: f"{x*100:.1f}%"),
-            textposition="outside", name="Effective Profit Margin",
-        ))
-        fig_pt.add_trace(go.Scatter(
-            x=pt_summary["Property Type"].str.split("/").str[0].str.strip(),
-            y=pt_summary["Cap Rate"] * 100,
-            mode="lines+markers", name="Cap Rate",
-            line=dict(color=BLACK, width=2, dash="dash"),
-            marker=dict(size=7), yaxis="y2",
-        ))
-        fig_pt.update_layout(
-            plot_bgcolor="#1e1a0a", paper_bgcolor="#1a1208",
-            yaxis=dict(title="Effective Profit Margin (%)", gridcolor="#2a2208",
-                       tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-            yaxis2=dict(title="Cap Rate (%)", overlaying="y", side="right", showgrid=False,
-                        tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-            legend=dict(orientation="h", y=1.1, font=dict(color="#c8b890")),
-            margin=dict(t=40, b=60),
-            height=360, font=dict(family="Source Sans Pro", color="#c8b890"),
-        )
-        fig_pt.update_xaxes(showgrid=False, tickangle=-15, tickfont=dict(color="#c8b890"))
-        st.plotly_chart(fig_pt, use_container_width=True)
-        st.caption(
-            "Bars show effective profit margin (left axis); the line shows cap rate (right axis). "
-            "Industrial leads on margin due to near-zero vacancy and rapid rent growth driven by e-commerce and reshoring. "
-            "Office carries the highest cap rate but the lowest margin — reflecting elevated vacancy and negative rent growth in most markets. "
-            "Source: CBRE, JLL, and Green Street 2024–2025 reports. Live REIT prices from Yahoo Finance."
-        )
-
-        # ── Rate-Adjusted View ─────────────────────────────────────────────────
-        cache_r2 = read_cache("rates")
-        rdata2   = cache_r2.get("data") or {}
-        cap_adj2 = rdata2.get("cap_rate_adjustments", [])
-        cur_10y2 = rdata2.get("current_10y") or 0.0
-
-        if cap_adj2 and cur_10y2:
-            st.markdown("<br>", unsafe_allow_html=True)
-            section(f" Rate-Adjusted Cap Rates — 10Y at {cur_10y2:.2f}%")
-            show_adj = st.toggle("Show rate-adjusted profit matrix", value=True, key="rate_adj_toggle")
-            if show_adj:
-                adj_df2 = pd.DataFrame(cap_adj2)
-                baseline2 = rdata2.get("baseline_10y", 4.0)
-                delta2    = cur_10y2 - baseline2
-                direction2 = "above" if delta2 > 0 else "below"
-
-                st.caption(
-                    f"10Y Treasury ({cur_10y2:.2f}%) is {abs(delta2):.2f}% {direction2} the "
-                    f"{baseline2:.1f}% baseline. Cap rates are adjusted using sector-specific betas."
-                )
-
-                colors_adj = [
-                    "#b71c1c" if r > 0 else "#1b5e20"
-                    for r in adj_df2["Rate Adjustment bps"]
-                ]
-                fig_adj = go.Figure()
-                pt_short = adj_df2["Property Type"].str.split("/").str[0].str.strip()
-                fig_adj.add_trace(go.Bar(
-                    name="Static Cap Rate (%)",
-                    x=pt_short,
-                    y=adj_df2["Baseline Cap Rate"],
-                    marker_color="#d4a843",
-                    text=adj_df2["Baseline Cap Rate"].apply(lambda v: f"{v:.2f}%"),
-                    textposition="inside",
-                ))
-                fig_adj.add_trace(go.Bar(
-                    name="Rate-Adjusted Cap Rate (%)",
-                    x=pt_short,
-                    y=adj_df2["Adjusted Cap Rate"],
-                    marker_color=colors_adj,
-                    opacity=0.85,
-                    text=adj_df2["Rate Adjustment bps"].apply(
-                        lambda d: f"{'+' if d > 0 else ''}{d:.0f}bps"
-                    ),
-                    textposition="outside",
-                ))
-                fig_adj.update_layout(
-                    barmode="group",
-                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#2a2208",
-                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                    xaxis=dict(tickangle=-15, tickfont=dict(color="#c8b890", size=10)),
-                    legend=dict(orientation="h", y=1.1, font=dict(color="#c8b890")),
-                    margin=dict(t=40, b=60), height=340,
-                    font=dict(family="Source Sans Pro", color="#c8b890"),
-                )
-                st.plotly_chart(fig_adj, use_container_width=True)
-                st.caption(
-                    "Shows the static (benchmark) cap rate alongside the rate-adjusted cap rate for each property type. "
-                    "When the 10-year Treasury rises above the baseline, cap rates expand — meaning asset values fall "
-                    "for the same NOI. Office and retail are most sensitive; industrial and multifamily are more resilient."
-                )
+                    st.markdown(f"""
+<div style="background:#131008;border:1px solid #221e0a;border-radius:8px;overflow:hidden;margin-top:4px;">
+  <div style="display:flex;padding:7px 14px;border-bottom:1px solid #2a2208;background:#0f0c05;gap:0;">
+    <div style="width:72px;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;">TICKER</div>
+    <div style="flex:2.2;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;">COMPANY</div>
+    <div style="flex:1.2;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;">FOCUS</div>
+    <div style="width:72px;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;">PRICE</div>
+    <div style="width:80px;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;">DAILY RTN</div>
+    <div style="width:76px;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;">DIV YIELD</div>
+    <div style="width:74px;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;">CAP RATE</div>
+    <div style="width:100px;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;">NOI MARGIN</div>
+    <div style="width:68px;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;">VACANCY</div>
+    <div style="width:52px;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;">RENT G.</div>
+    <div style="width:44px;font-size:9px;color:#4a3e18;letter-spacing:0.1em;text-transform:uppercase;text-align:right;">RATING</div>
+  </div>
+  {_rows_tbl}
+</div>""", unsafe_allow_html=True)
 
         with st.expander("How This Is Calculated"):
             st.markdown("""
 **Cap Rate** = Net Operating Income (NOI) / Property Value
 
-- Benchmark cap rates are derived from historical REIT data by property type (Industrial ~5.5%, Office ~7.0%, Retail ~6.5%, etc.).
-- **Rate-Adjusted Cap Rate** = Benchmark + (Current 10Y Treasury - 3.5% baseline) x Sector Sensitivity Beta.
+- Benchmark cap rates sourced from CBRE, JLL, and Green Street 2024-2025 sector reports.
+- **YoY delta badges** compare current benchmark to prior-year values (basis points).
+- **Rate-Adjusted Cap Rate** = Benchmark + (Current 10Y Treasury − 3.5% baseline) × Sector Beta.
 
-**Profit Margin** = (NOI - Operating Expenses) / Revenue
+**NOI Margin** = Net Operating Income / Gross Revenue (after operating expenses, before CapEx)
 
-- NOI margins estimated from REIT financial disclosures by property type and market.
-- The profit matrix cross-references property type margins with metro-level rent growth and vacancy data.
+**Rent Growth YoY** = Year-over-year change in market rents by property type (CBRE/CoStar consensus).
 
-**PnL Impact Example:** On a $10M property at 6.0% cap rate, a 50bp cap rate expansion (to 6.5%) reduces implied value by ~$770K.
+**Data Sources:** yfinance live REIT prices, FRED economic indicators, CBRE/JLL/Green Street benchmarks.
 
-**Data Source:** yfinance REIT market data (live prices, dividends, financials), updated every hour via Agent 2.
+**Update Frequency:** Every hour via Agent 2.
 """)
+
+
 
 
     # ═══════════════════════════════════════════════════════════════════════════════

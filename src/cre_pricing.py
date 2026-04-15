@@ -14,9 +14,10 @@ from datetime import datetime, timedelta
 REIT_UNIVERSE = {
     "Industrial / Logistics": [
         {"ticker": "PLD",  "name": "Prologis",               "market": "National"},
-        {"ticker": "STAG", "name": "STAG Industrial",         "market": "Secondary"},
+        {"ticker": "REXR", "name": "Rexford Industrial",      "market": "SoCal"},
         {"ticker": "EGP",  "name": "EastGroup Properties",    "market": "Sunbelt"},
         {"ticker": "FR",   "name": "First Industrial Realty",  "market": "National"},
+        {"ticker": "STAG", "name": "STAG Industrial",         "market": "Secondary"},
     ],
     "Multifamily / Residential": [
         {"ticker": "EQR",  "name": "Equity Residential",      "market": "Urban"},
