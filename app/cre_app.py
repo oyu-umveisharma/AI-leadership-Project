@@ -1991,44 +1991,52 @@ with main_tab_re:
                         height=330,
                         font=dict(family="Source Sans Pro"),
                     )
-                    st.plotly_chart(_fig_trend, use_container_width=True)
+                    st.plotly_chart(_fig_trend, use_container_width=True, key=f"trend_{_pt_label}")
 
                 with _cr:
                     if not _sub_reit.empty:
-                        _tickers  = _sub_reit["Ticker"].tolist()
-                        _caps_sc  = (_sub_reit["Cap Rate"] * 100).tolist()
-                        _nois_sc  = (_sub_reit["NOI Margin"] * 100).tolist()
+                        _tickers    = _sub_reit["Ticker"].tolist()
+                        _caps_sc    = (_sub_reit["Cap Rate"] * 100).tolist()
+                        _nois_sc    = (_sub_reit["NOI Margin"] * 100).tolist()
                         _max_noi_sc = max(_nois_sc)
                         _sc_colors  = ["#4a9e58" if n >= _max_noi_sc * 0.97 else "#d4a843" for n in _nois_sc]
+                        # Alternate label positions to avoid overlap
+                        _label_pos  = ["top right", "top left", "bottom right", "bottom left",
+                                        "top center", "bottom center"]
 
                         _fig_sc = go.Figure()
-                        for _tk, _cr_v, _nm_v, _clr in zip(_tickers, _caps_sc, _nois_sc, _sc_colors):
+                        for _i, (_tk, _cr_v, _nm_v, _clr) in enumerate(
+                                zip(_tickers, _caps_sc, _nois_sc, _sc_colors)):
                             _fig_sc.add_trace(go.Scatter(
                                 x=[_cr_v], y=[_nm_v],
                                 mode="markers+text", text=[_tk],
-                                textposition="top center",
+                                textposition=_label_pos[_i % len(_label_pos)],
                                 textfont=dict(size=10, color="#c8b890"),
-                                marker=dict(size=22, color=_clr, opacity=0.85,
+                                marker=dict(size=16, color=_clr, opacity=0.88,
                                             line=dict(width=1.5, color="#0d0b04")),
                                 showlegend=False,
-                                hovertemplate=(f"<b>{_tk}</b><br>Cap Rate: {_cr_v:.1f}%"
+                                hovertemplate=(f"<b>{_tk}</b><br>Cap Rate: {_cr_v:.2f}%"
                                                f"<br>NOI Margin: {_nm_v:.1f}%<extra></extra>"),
                             ))
                         _fig_sc.update_layout(
                             paper_bgcolor="#171309", plot_bgcolor="#171309",
                             annotations=[dict(
                                 text="CAP RATE VS. NOI MARGIN BY TICKER",
-                                xref="paper", yref="paper", x=0, y=1.12,
+                                xref="paper", yref="paper", x=0, y=1.14,
                                 showarrow=False, font=dict(size=10, color="#6a5228"), xanchor="left",
                             )],
                             xaxis=dict(showgrid=True, gridcolor="#1e1a08",
-                                       tickfont=dict(color="#6a5228", size=10), ticksuffix="%"),
+                                       tickfont=dict(color="#6a5228", size=10),
+                                       ticksuffix="%", tickformat=".1f",
+                                       title=dict(text="Cap Rate", font=dict(color="#6a5228", size=10))),
                             yaxis=dict(showgrid=True, gridcolor="#1e1a08",
-                                       tickfont=dict(color="#6a5228", size=10), ticksuffix="%"),
-                            margin=dict(t=50, b=40, l=50, r=20),
+                                       tickfont=dict(color="#6a5228", size=10),
+                                       ticksuffix="%", tickformat=".0f",
+                                       title=dict(text="NOI Margin", font=dict(color="#6a5228", size=10))),
+                            margin=dict(t=55, b=50, l=60, r=20),
                             height=330,
                         )
-                        st.plotly_chart(_fig_sc, use_container_width=True)
+                        st.plotly_chart(_fig_sc, use_container_width=True, key=f"scatter_{_pt_label}")
 
                 st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
@@ -2098,19 +2106,32 @@ with main_tab_re:
   {_rows_tbl}
 </div>""", unsafe_allow_html=True)
 
-        with st.expander("How This Is Calculated"):
+        with st.expander("How These Metrics Are Calculated"):
             st.markdown("""
-**Cap Rate** = Net Operating Income (NOI) / Property Value
+#### KPI Cards
+| Metric | Formula | Source |
+|--------|---------|--------|
+| **Avg Cap Rate** | Net Operating Income ÷ Property Value | CBRE / Green Street sector benchmarks |
+| **NOI Margin** | Net Operating Income ÷ Gross Revenue (after opex, before CapEx) | REIT 10-K filings, SNL Real Estate |
+| **Rent Growth YoY** | (Current Avg Rent − Prior Year Avg Rent) ÷ Prior Year Avg Rent | CoStar / CBRE market reports |
+| **Avg Vacancy** | Unleased SF ÷ Total Rentable SF | JLL / CBRE quarterly vacancy surveys |
 
-- Benchmark cap rates sourced from CBRE, JLL, and Green Street 2024-2025 sector reports.
-- **YoY delta badges** compare current benchmark to prior-year values (basis points).
-- **Rate-Adjusted Cap Rate** = Benchmark + (Current 10Y Treasury − 3.5% baseline) × Sector Beta.
+**YoY delta badges** show the change in basis points (bps) vs. the prior year. Green = improving (NOI up, vacancy down), Red = deteriorating.
 
-**NOI Margin** = Net Operating Income / Gross Revenue (after operating expenses, before CapEx)
+#### Cap Rate Trend Chart
+24-month trailing cap rate history for Industrial, Office, and Multifamily — generated from known sector benchmarks interpolated monthly. Industrial cap rates have **compressed** as e-commerce demand keeps vacancy near historic lows. Office cap rates have **expanded** as WFH and maturity defaults push values down.
 
-**Rent Growth YoY** = Year-over-year change in market rents by property type (CBRE/CoStar consensus).
+#### Cap Rate vs. NOI Margin Scatter
+Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (high asset values) and high NOI margin (efficient operations). REXR (Rexford Industrial) leads in the Industrial sector due to SoCal infill scarcity. Lower-right tickers face cap rate pressure and thinner margins.
 
-**Data Sources:** yfinance live REIT prices, FRED economic indicators, CBRE/JLL/Green Street benchmarks.
+#### Company Table
+- **DAILY RTN**: 1-day price return from Yahoo Finance (live)
+- **DIV YIELD**: Annual dividend ÷ current price
+- **CAP RATE**: Per-REIT estimate from Green Street / SNL filings
+- **NOI MARGIN spark bar**: Width scaled to best-in-class NOI for that property type
+- **RATING (●●●)**: 3 dots = top-quartile NOI, 2 dots = mid, 1 dot = below median
+
+**Data Sources:** yfinance (live prices), CBRE/JLL/Green Street/CoStar 2024-2025 benchmarks, REIT 10-K filings.
 
 **Update Frequency:** Every hour via Agent 2.
 """)
