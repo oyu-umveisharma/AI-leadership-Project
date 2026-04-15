@@ -190,6 +190,7 @@ def _set_status(agent: str, status: str, error: str = None):
         if error:
             _agent_status[agent]["last_error"] = error
         else:
+            _agent_status[agent]["last_error"] = None
             _agent_status[agent]["runs"] += 1
         # Audit logging on completion (ok or error)
         if status in ("ok", "error"):
