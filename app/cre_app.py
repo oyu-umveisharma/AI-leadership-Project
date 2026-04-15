@@ -2501,10 +2501,12 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
         summary = ndata.get("summary", "")
         if summary:
             st.markdown(f"""
-            <div class="agent-card">
-              <div class="agent-label"> Agent 5 · Industry Announcements · {datetime.today().strftime('%b %d, %Y')}</div>
-              <div class="agent-text">{summary}</div>
-            </div>""", unsafe_allow_html=True)
+<div style="background:#171309;border:1px solid #2a2208;border-radius:10px;padding:18px 20px;border-left:3px solid #d4a843;margin-bottom:8px;">
+  <div style="font-size:10px;color:#6a5228;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;">
+    Agent 5 · Industry Announcements · {datetime.today().strftime('%b %d, %Y')}
+  </div>
+  <div style="font-size:14px;color:#c8b890;line-height:1.7;">{summary}</div>
+</div>""", unsafe_allow_html=True)
         else:
             st.info("News summary is generated every 4 hours. Ensure GROQ_API_KEY is set in .env.")
 
@@ -2519,35 +2521,58 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                 key="news_filter",
             )
 
-            source_colors = {
-                "government": "#1565c0",
-                "industry":   "#2e7d32",
-                "press":      "#6a1b9a",
-                "news":       "#bf360c",
+            _ft_badge_colors = {
+                "government": ("#0d1a2a", "#4a8abf"),
+                "industry":   ("#0d2a12", "#4a9e58"),
+                "press":      ("#1e0d2a", "#8a5abf"),
+                "news":       ("#2a1208", "#d4a843"),
             }
 
             for art in raw:
                 if feed_type_filter != "All" and art.get("feed_type") != feed_type_filter:
                     continue
                 ft    = art.get("feed_type", "news")
-                color = source_colors.get(ft, "#555")
                 link  = art.get("link", "#")
                 title = art.get("title", "No title")
-                desc  = art.get("description", "")[:280]
+                desc  = art.get("description", "")[:300]
                 src   = art.get("source", "")
                 date  = art.get("pub_date", "")[:22]
 
-                href = f'<a href="{link}" target="_blank" style="color:{color};font-weight:700;text-decoration:none;">{title}</a>' if link and link != "#" else f'<span style="font-weight:700;">{title}</span>'
+                _bg, _clr = _ft_badge_colors.get(ft, ("#2a2208", "#d4a843"))
+
+                _title_html = (
+                    f'<a href="{link}" target="_blank" style="color:#d4a843;font-weight:600;'
+                    f'font-size:15px;text-decoration:none;line-height:1.4;">{title}</a>'
+                    if link and link != "#"
+                    else f'<span style="color:#d4a843;font-weight:600;font-size:15px;">{title}</span>'
+                )
+
+                _src_badge = (
+                    f'<span style="font-size:10px;padding:2px 8px;border-radius:4px;'
+                    f'background:{_bg};color:{_clr};letter-spacing:0.08em;text-transform:uppercase;'
+                    f'font-weight:600;">{ft}</span>'
+                )
+                _src_label = (
+                    f'<span style="font-size:11px;color:#6a5228;">{src}</span>'
+                    if src else ""
+                )
+                _date_label = (
+                    f'<span style="font-size:11px;color:#4a3e18;">{date}</span>'
+                    if date else ""
+                )
 
                 st.markdown(f"""
-                <div style="border-left:3px solid {color};padding:10px 14px;margin:6px 0;background:#fafafa;border-radius:4px;">
-                  <div style="font-size:0.7rem;color:{color};text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">
-                    {src} &nbsp;·&nbsp; {ft.upper()} &nbsp;·&nbsp; {date}
-                  </div>
-                  <div style="font-size:0.9rem;margin-bottom:4px;">{href}</div>
-                  <div style="font-size:0.8rem;color:#555;">{desc}</div>
-                </div>
-                """, unsafe_allow_html=True)
+<div style="background:#171309;border:1px solid #2a2208;border-radius:10px;
+            padding:16px 18px;margin:8px 0;border-left:3px solid #d4a843;">
+  <div style="margin-bottom:10px;">{_title_html}</div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+    {_src_badge}
+    {_src_label}
+    {'<span style="color:#2a2208;">·</span>' if src and date else ""}
+    {_date_label}
+  </div>
+  <div style="font-size:13px;color:#8a7040;line-height:1.6;">{desc}</div>
+</div>""", unsafe_allow_html=True)
 
         st.caption(
             "Sources: Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, "
