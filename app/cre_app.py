@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"), override=True)
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -736,6 +737,9 @@ st.markdown(f"""
     z-index: 9998; pointer-events: none;
   }}
   .main .block-container {{ padding-bottom: 40px; }}
+
+  /* Keep Streamlit's own topbar hidden so our header shows cleanly */
+  [data-testid="stHeader"] {{ background: transparent !important; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -810,6 +814,56 @@ if _cur_pt or _cur_loc:
         f'</div>',
         unsafe_allow_html=True,
     )
+
+# ── Sticky header injection ───────────────────────────────────────────────────
+components.html("""
+<script>
+(function() {
+  function applySticky() {
+    var doc = window.parent.document;
+    var blockContainer = doc.querySelector('.main .block-container');
+    if (!blockContainer) return false;
+    var vertBlock = blockContainer.querySelector('[data-testid="stVerticalBlock"]');
+    if (!vertBlock) return false;
+    var children = Array.from(vertBlock.children);
+    if (children.length < 2) return false;
+
+    // Measure combined height of header (child 0) + chat bar columns (child 1)
+    var headerEl  = children[0];
+    var chatBarEl = children[1];
+    var totalH = headerEl.offsetHeight + chatBarEl.offsetHeight;
+    if (totalH === 0) return false;
+
+    // Make them sticky
+    [headerEl, chatBarEl].forEach(function(el) {
+      el.style.position  = 'sticky';
+      el.style.top       = '0';
+      el.style.zIndex    = '9999';
+      el.style.background = '#0d0b04';
+    });
+
+    // Ensure no ancestor blocks sticky with overflow:hidden
+    var el = headerEl.parentElement;
+    while (el && el !== doc.body) {
+      var ov = window.parent.getComputedStyle(el).overflow;
+      if (ov === 'hidden') el.style.overflow = 'visible';
+      el = el.parentElement;
+    }
+    return true;
+  }
+
+  var attempts = 0;
+  var iv = setInterval(function() {
+    if (applySticky() || ++attempts > 30) clearInterval(iv);
+  }, 200);
+
+  // Reapply on Streamlit reruns via MutationObserver
+  var doc = window.parent.document;
+  var observer = new MutationObserver(function() { applySticky(); });
+  observer.observe(doc.body, { childList: true, subtree: true });
+})();
+</script>
+""", height=0)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1047,7 +1101,7 @@ def gauge_card(title: str, label: str, score: int, summary: str,
 main_tab_re, main_tab_energy, main_tab_macro = st.tabs(["Real Estate", "Energy", "Macro Environment"])
 
 with main_tab_re:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score, tab_climate = st.tabs([
         "Migration Intelligence",
         "Pricing & Profit",
         "Company Predictions",
@@ -1060,6 +1114,7 @@ with main_tab_re:
         "Rent Growth",
         "Opportunity Zones",
         "Market Score",
+        "Climate Risk",
     ])
 
 
@@ -1286,16 +1341,18 @@ with main_tab_re:
                 counties_geojson = _load_county_geojson()
                 section(f"County Migration — {_US_STATES.get(_sel_state_abbr, _sel_state_abbr)}")
 
-                fig_county = go.Figure(go.Choropleth(
+                fig_county = go.Figure(go.Choroplethmapbox(
                     geojson=counties_geojson,
                     locations=county_df["fips"],
                     z=county_df["migration_score"],
+                    featureidkey="id",
                     colorscale=[
                         [0.0, "#7f0000"], [0.25, "#c62828"], [0.45, "#d4c5a9"],
                         [0.55, "#a5d6a7"], [0.75, "#2e7d32"], [1.0, "#1b5e20"],
                     ],
                     zmin=0, zmax=100,
                     marker_line_width=0.5, marker_line_color="#333",
+                    marker_opacity=0.85,
                     colorbar=dict(title=dict(text="Score", font=dict(size=10, color="#e8e9ed")),
                                   tickfont=dict(size=9, color="#e8e9ed"), thickness=12, len=0.6,
                                   bgcolor="#171309", bordercolor="#2a2208"),
@@ -1318,7 +1375,7 @@ with main_tab_re:
                     plot_bgcolor="#111111",
                     geo=dict(bgcolor="#111111"),
                     margin=dict(t=10, b=10, l=0, r=0),
-                    height=500,
+                    height=520,
                     font=dict(family="DM Sans", color="#e8e9ed"),
                 )
                 st.plotly_chart(fig_county, use_container_width=True, config={"displayModeBar": False})
@@ -3657,6 +3714,356 @@ with main_tab_re:
             st.caption(
                 "Source: IRS Revenue Ruling 2018-29, HUD Opportunity Zone designations, "
                 "state economic development agencies. Not financial or legal advice. Consult a tax advisor."
+            )
+
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB 8 — CLIMATE RISK
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_climate:
+        from src.climate_risk_agent import (
+            WEIGHTS as CR_WEIGHTS,
+            WEIGHT_LABELS as CR_WEIGHT_LABELS,
+            PROPERTY_RISK_CONTEXT,
+            score_label as cr_score_label,
+            label_color as cr_label_color,
+        )
+
+        _show_tab_header(
+            "climate_risk",
+            "Agent 14 tracks **climate hazard exposure** across US CRE markets — scoring flood, "
+            "wildfire, extreme heat, hurricane/wind, and sea level rise risk at the state and metro level. "
+            "Data from OpenFEMA, NIFC, and NOAA. Updates every 24 hours.",
+            "climate_risk",
+        )
+
+        cr_cache = read_cache("climate_risk")
+        cr_data  = cr_cache.get("data")
+
+        if not cr_data:
+            st.info(" Climate Risk agent is running for the first time — fetching FEMA and NIFC data. This may take 60–90 seconds. Refresh when ready.")
+            st.stop()
+
+        state_scores = cr_data.get("states", {})
+        metro_scores = cr_data.get("metros", [])
+        top_risk     = cr_data.get("top_risk_states", [])
+        low_risk     = cr_data.get("lowest_risk_states", [])
+        sources      = cr_data.get("data_sources", [])
+        ts           = cr_data.get("timestamp", "")
+        if ts:
+            st.caption(f"Last updated: {ts[:16].replace('T', ' ')} UTC · Sources: {', '.join(sources[:2])}")
+
+        # ── Personalized insight ─────────────────────────────────────────────
+        pt, loc, focus_label = _focus_parts()
+        if pt or loc:
+            risk_context = PROPERTY_RISK_CONTEXT.get(pt, "all major climate hazards") if pt else "all major climate hazards"
+            loc_state = st.session_state.user_intent.get("state")
+            loc_data  = state_scores.get(loc_state, {}) if loc_state else {}
+            focus_metro = next((m for m in metro_scores if loc and loc.lower() in m["metro"].lower()), None)
+            if focus_metro:
+                loc_score = focus_metro["composite_score"]
+                loc_label = focus_metro["label"]
+                loc_display = focus_metro["metro"]
+            elif loc_data:
+                loc_score = loc_data.get("composite_score", "N/A")
+                loc_label = loc_data.get("label", "")
+                loc_display = loc_state
+            else:
+                loc_score = None
+                loc_label = ""
+                loc_display = loc or "US"
+
+            if loc_score is not None:
+                color = cr_label_color(loc_label)
+                st.markdown(
+                    f'<div style="background:#1a1a12;border-left:3px solid {color};padding:10px 16px;'
+                    f'border-radius:4px;margin-bottom:16px;">'
+                    f'<span style="color:{color};font-weight:600;">{loc_display} — {loc_label} ({loc_score}/100)</span>'
+                    f'<br><span style="font-size:0.85rem;color:#c8bfa0;">'
+                    f'{pt or "CRE"} in this market is exposed to {risk_context}.</span></div>',
+                    unsafe_allow_html=True,
+                )
+
+        # ── Score legend ─────────────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Score Legend & Factor Weights")
+        leg_cols = st.columns(4)
+        for col, (label_name, color, rng) in zip(leg_cols, [
+            ("Low",      "#4caf50", "0–25"),
+            ("Moderate", "#ff9800", "26–50"),
+            ("High",     "#f44336", "51–75"),
+            ("Severe",   "#7b1fa2", "76–100"),
+        ]):
+            col.markdown(
+                f'<div class="metric-card"><div class="label">{label_name}</div>'
+                f'<div class="value" style="color:{color};font-size:1.4rem;">{rng}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        wt_cols = st.columns(5)
+        for col, (factor, weight) in zip(wt_cols, CR_WEIGHTS.items()):
+            col.markdown(
+                f'<div class="metric-card"><div class="label">{CR_WEIGHT_LABELS[factor]}</div>'
+                f'<div class="value" style="font-size:1.3rem;">{int(weight*100)}%</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        # ── US Choropleth — State-level composite scores ──────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" US Climate Risk Map — State Composite Score (0–100)")
+
+        if state_scores:
+            map_states  = list(state_scores.keys())
+            map_scores  = [state_scores[s]["composite_score"] for s in map_states]
+            map_labels  = [state_scores[s]["label"] for s in map_states]
+            map_hover   = [
+                f"{s}: {state_scores[s]['composite_score']:.1f} ({state_scores[s]['label']})<br>"
+                f"Flood: {state_scores[s]['factors']['flood']:.0f} | "
+                f"Fire: {state_scores[s]['factors']['wildfire']:.0f} | "
+                f"Heat: {state_scores[s]['factors']['heat']:.0f} | "
+                f"Wind: {state_scores[s]['factors']['wind']:.0f} | "
+                f"SLR: {state_scores[s]['factors']['sea_level']:.0f}"
+                for s in map_states
+            ]
+
+            fig_map = go.Figure(go.Choropleth(
+                locations=map_states,
+                z=map_scores,
+                locationmode="USA-states",
+                colorscale=[
+                    [0.0,  "#1b5e20"],
+                    [0.25, "#66bb6a"],
+                    [0.50, "#ff9800"],
+                    [0.75, "#f44336"],
+                    [1.0,  "#4a148c"],
+                ],
+                zmin=0, zmax=100,
+                colorbar=dict(
+                    title=dict(text="Risk Score", font=dict(color="#e8dfc4", size=11)),
+                    tickfont=dict(color="#e8dfc4", size=10),
+                    thickness=14,
+                    bgcolor="#16160f",
+                    bordercolor="#3a3a2a",
+                    tickvals=[0, 25, 50, 75, 100],
+                    ticktext=["0 Low", "25", "50", "75", "100 Severe"],
+                ),
+                hovertext=map_hover,
+                hovertemplate="%{hovertext}<extra></extra>",
+            ))
+            fig_map.update_layout(
+                geo=dict(
+                    scope="usa",
+                    bgcolor="#0f0f0c",
+                    showlakes=False,
+                    lakecolor="#0f0f0c",
+                    landcolor="#1a1a12",
+                ),
+                paper_bgcolor="#16160f",
+                margin=dict(t=10, b=0, l=0, r=0),
+                height=420,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+            st.caption(
+                "Green = Low risk (0–25). Orange = Moderate (26–50). Red = High (51–75). Purple = Severe (76–100). "
+                "Composite score weighted: Flood 25% | Wildfire 20% | Heat 20% | Wind 20% | Sea Level Rise 15%."
+            )
+
+        # ── Metro Risk Heatmap — factors × metros ─────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Metro Climate Risk Heatmap — Factor Breakdown")
+
+        if metro_scores:
+            top_metros = metro_scores[:20]  # top 20 by composite score
+            hm_metros  = [m["metro"] for m in top_metros]
+            hm_factors = list(CR_WEIGHTS.keys())
+            hm_labels  = [CR_WEIGHT_LABELS[f] for f in hm_factors]
+            hm_z       = [[m["factors"][f] for f in hm_factors] for m in top_metros]
+
+            fig_hm = go.Figure(go.Heatmap(
+                z=hm_z,
+                x=hm_labels,
+                y=hm_metros,
+                colorscale=[
+                    [0.0,  "#1b5e20"],
+                    [0.3,  "#66bb6a"],
+                    [0.55, "#fff9c4"],
+                    [0.75, "#f44336"],
+                    [1.0,  "#4a148c"],
+                ],
+                zmin=0, zmax=100,
+                text=[[f"{v:.0f}" for v in row] for row in hm_z],
+                texttemplate="%{text}",
+                textfont=dict(size=11, color="#0f0f0c"),
+                hoverongaps=False,
+                hovertemplate="<b>%{y}</b><br>%{x}: %{z:.0f}/100<extra></extra>",
+                colorbar=dict(
+                    title=dict(text="Score", font=dict(color="#e8dfc4", size=11)),
+                    tickfont=dict(color="#e8dfc4", size=10),
+                    thickness=14,
+                    bgcolor="#16160f",
+                    bordercolor="#3a3a2a",
+                ),
+            ))
+            fig_hm.update_layout(
+                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                margin=dict(t=10, b=20, l=160, r=20),
+                height=600,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                xaxis=dict(side="top", tickfont=dict(color="#e8dfc4", size=12)),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=11)),
+            )
+            st.plotly_chart(fig_hm, use_container_width=True, config={"displayModeBar": False})
+            st.caption("Top 20 highest-risk metros. Each cell = factor score 0–100. Darker purple = greater hazard exposure.")
+
+        # ── Top Risk / Safest Markets side by side ────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        col_risk, col_safe = st.columns(2)
+
+        with col_risk:
+            section(" 10 Highest-Risk States")
+            if top_risk:
+                tr_df = pd.DataFrame(top_risk)
+                fig_tr = go.Figure(go.Bar(
+                    x=tr_df["score"],
+                    y=tr_df["state"],
+                    orientation="h",
+                    marker=dict(
+                        color=tr_df["score"],
+                        colorscale=[
+                            [0.0, "#ff9800"], [0.5, "#f44336"], [1.0, "#4a148c"]
+                        ],
+                        cmin=40, cmax=100,
+                    ),
+                    text=[f"{s['score']:.0f} — {s['label']}" for s in top_risk],
+                    textposition="inside",
+                    textfont=dict(color="#fff", size=11),
+                    hovertemplate="<b>%{y}</b>: %{x:.1f}/100<extra></extra>",
+                ))
+                fig_tr.update_layout(
+                    plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                    margin=dict(t=10, b=10, l=40, r=10),
+                    height=340,
+                    xaxis=dict(range=[0, 100], tickfont=dict(color="#e8dfc4", size=10), gridcolor="#2a2a1a"),
+                    yaxis=dict(tickfont=dict(color="#e8dfc4", size=11), autorange="reversed"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                )
+                st.plotly_chart(fig_tr, use_container_width=True, config={"displayModeBar": False})
+
+        with col_safe:
+            section(" 10 Lowest-Risk States")
+            if low_risk:
+                lr_df = pd.DataFrame(low_risk)
+                fig_lr = go.Figure(go.Bar(
+                    x=lr_df["score"],
+                    y=lr_df["state"],
+                    orientation="h",
+                    marker=dict(
+                        color=lr_df["score"],
+                        colorscale=[[0.0, "#1b5e20"], [0.5, "#66bb6a"], [1.0, "#fff9c4"]],
+                        cmin=0, cmax=40,
+                    ),
+                    text=[f"{s['score']:.0f} — {s['label']}" for s in low_risk],
+                    textposition="inside",
+                    textfont=dict(color="#0f0f0c", size=11),
+                    hovertemplate="<b>%{y}</b>: %{x:.1f}/100<extra></extra>",
+                ))
+                fig_lr.update_layout(
+                    plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                    margin=dict(t=10, b=10, l=40, r=10),
+                    height=340,
+                    xaxis=dict(range=[0, 100], tickfont=dict(color="#e8dfc4", size=10), gridcolor="#2a2a1a"),
+                    yaxis=dict(tickfont=dict(color="#e8dfc4", size=11), autorange="reversed"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                )
+                st.plotly_chart(fig_lr, use_container_width=True, config={"displayModeBar": False})
+
+        # ── Metro Detail Table ────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" All Metro Markets — Full Risk Breakdown")
+
+        if metro_scores:
+            tbl_rows = []
+            for m in metro_scores:
+                f = m["factors"]
+                tbl_rows.append({
+                    "Metro":          m["metro"],
+                    "State":          m["state"],
+                    "Score":          m["composite_score"],
+                    "Risk Level":     m["label"],
+                    "Flood":          f["flood"],
+                    "Wildfire":       f["wildfire"],
+                    "Heat":           f["heat"],
+                    "Wind":           f["wind"],
+                    "Sea Level Rise": f["sea_level"],
+                })
+            tbl_df = pd.DataFrame(tbl_rows)
+
+            def _style_score(val):
+                if val >= 76:   return "color:#ce93d8;font-weight:600"
+                if val >= 51:   return "color:#ef5350;font-weight:600"
+                if val >= 26:   return "color:#ffa726;font-weight:600"
+                return "color:#66bb6a;font-weight:600"
+
+            st.dataframe(
+                tbl_df.style.map(_style_score, subset=["Score", "Flood", "Wildfire", "Heat", "Wind", "Sea Level Rise"]),
+                use_container_width=True,
+                hide_index=True,
+                height=500,
+            )
+            st.caption("Scores 0–100. Green = Low | Orange = Moderate | Red = High | Purple = Severe.")
+
+        # ── Trend Chart — disaster events per year for focused market ─────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Disaster Event Trend — Annual FEMA Declarations")
+
+        trend_data = None
+        trend_title = "US Overall"
+
+        if pt or loc:
+            # Try to find focused metro or state trend
+            if loc:
+                focus_m = next((m for m in metro_scores if loc.lower() in m["metro"].lower()), None)
+                if focus_m:
+                    trend_data  = focus_m["trend"]
+                    trend_title = focus_m["metro"]
+                elif loc_state and loc_state in state_scores:
+                    trend_data  = state_scores[loc_state]["trend"]
+                    trend_title = loc_state
+
+        if not trend_data and state_scores:
+            # Default: show the highest-risk state trend
+            top_state = top_risk[0]["state"] if top_risk else list(state_scores.keys())[0]
+            trend_data  = state_scores[top_state]["trend"]
+            trend_title = f"{top_state} (highest risk)"
+
+        if trend_data:
+            trend_df = pd.DataFrame(trend_data)
+            fig_trend = go.Figure(go.Bar(
+                x=trend_df["year"],
+                y=trend_df["events"],
+                marker=dict(
+                    color=trend_df["events"],
+                    colorscale=[[0.0, "#388e3c"], [0.5, "#f57c00"], [1.0, "#c62828"]],
+                ),
+                hovertemplate="<b>%{x}</b>: %{y} FEMA disaster declarations<extra></extra>",
+            ))
+            fig_trend.update_layout(
+                title=dict(
+                    text=f"FEMA Disaster Declarations — {trend_title}",
+                    font=dict(color="#e8dfc4", size=13),
+                ),
+                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                margin=dict(t=40, b=30, l=50, r=20),
+                height=280,
+                xaxis=dict(tickfont=dict(color="#e8dfc4", size=11), gridcolor="#2a2a1a"),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=11), gridcolor="#2a2a1a", title="Declarations"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_trend, use_container_width=True, config={"displayModeBar": False})
+            st.caption(
+                "Annual count of FEMA disaster declarations (flood, hurricane, wildfire, severe storm) for the selected market. "
+                "Rising bars indicate worsening climate event frequency."
             )
 
 
