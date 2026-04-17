@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"), override=True)
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -93,6 +94,12 @@ if "onboarding_complete" not in st.session_state:
     st.session_state.onboarding_complete = False
 if "user_intent" not in st.session_state:
     st.session_state.user_intent = {"property_type": None, "location": None, "city": None, "state": None, "raw_input": ""}
+if "adv_home_prompt" not in st.session_state:
+    st.session_state.adv_home_prompt = None
+if "adv_auto_generate" not in st.session_state:
+    st.session_state.adv_auto_generate = False
+if "adv_navigate" not in st.session_state:
+    st.session_state.adv_navigate = False
 
 # US state name/abbreviation lookup
 _US_STATES = {
@@ -343,6 +350,24 @@ _FILLER_WORDS = {"potential", "places", "properties", "property", "investment",
                   "top", "good", "great", "cheap", "cheapest", "expensive", "near", "around"}
 
 
+import re as _re
+
+def _is_advisor_query(text: str) -> bool:
+    """Return True if the text looks like a full investment query (not just property + location)."""
+    t = text.lower()
+    has_budget   = bool(_re.search(r'\$[\d,]+|\b\d+\s*(m|million|b|billion|k|thousand)\b', t))
+    has_sqft     = bool(_re.search(r'[\d,]+\s*(sq\s?ft|sqft|sf|square\s?feet)', t))
+    has_timeline = bool(_re.search(r'\d+[\s-]*(year|yr)', t))
+    has_action   = any(w in t for w in [
+        'build', 'invest', 'develop', 'construction', 'acquire', 'purchase',
+        'looking to', 'want to', 'interested in', 'planning to', 'advise',
+        'recommend', 'where should', 'best market', 'best city',
+    ])
+    # Trigger advisor if: (has financials + action) OR (budget + sqft) OR (3+ signals)
+    signals = sum([has_budget, has_sqft, has_timeline, has_action])
+    return (has_budget and has_action) or (has_budget and has_sqft) or signals >= 3
+
+
 def _parse_intent(raw: str) -> dict:
     """Parse free-text input into property_type and location."""
     raw_lower = raw.lower().strip()
@@ -512,8 +537,14 @@ if not st.session_state.onboarding_complete:
         label_visibility="collapsed",
     )
     if user_input:
-        intent = _parse_intent(user_input)
-        _complete_onboarding(**intent)
+        if _is_advisor_query(user_input):
+            _complete_onboarding(raw_input=user_input)
+            st.session_state.adv_home_prompt    = user_input
+            st.session_state.adv_auto_generate  = True
+            st.session_state.adv_navigate       = True
+        else:
+            intent = _parse_intent(user_input)
+            _complete_onboarding(**intent)
         st.rerun()
 
     # Quick-select buttons
@@ -736,6 +767,9 @@ st.markdown(f"""
     z-index: 9998; pointer-events: none;
   }}
   .main .block-container {{ padding-bottom: 40px; }}
+
+  /* Keep Streamlit's own topbar hidden so our header shows cleanly */
+  [data-testid="stHeader"] {{ background: transparent !important; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -793,9 +827,15 @@ with _bar_left:
         key="chat_bar_input",
     )
     if _new_query:
-        _new_intent = _parse_intent(_new_query)
-        _complete_onboarding(**_new_intent)
-        st.rerun()
+        if _is_advisor_query(_new_query):
+            st.session_state.adv_home_prompt   = _new_query
+            st.session_state.adv_auto_generate = True
+            st.session_state.adv_navigate      = True
+            st.rerun()
+        else:
+            _new_intent = _parse_intent(_new_query)
+            _complete_onboarding(**_new_intent)
+            st.rerun()
 with _bar_right:
     if st.button("Reset", use_container_width=True, key="reset_focus"):
         st.session_state.onboarding_complete = False
@@ -810,6 +850,82 @@ if _cur_pt or _cur_loc:
         f'</div>',
         unsafe_allow_html=True,
     )
+
+# ── Sticky header injection ───────────────────────────────────────────────────
+components.html("""
+<script>
+(function() {
+  function applySticky() {
+    var doc = window.parent.document;
+    var blockContainer = doc.querySelector('.main .block-container');
+    if (!blockContainer) return false;
+    var vertBlock = blockContainer.querySelector('[data-testid="stVerticalBlock"]');
+    if (!vertBlock) return false;
+    var children = Array.from(vertBlock.children);
+    if (children.length < 2) return false;
+
+    // Measure combined height of header (child 0) + chat bar columns (child 1)
+    var headerEl  = children[0];
+    var chatBarEl = children[1];
+    var totalH = headerEl.offsetHeight + chatBarEl.offsetHeight;
+    if (totalH === 0) return false;
+
+    // Make them sticky
+    [headerEl, chatBarEl].forEach(function(el) {
+      el.style.position  = 'sticky';
+      el.style.top       = '0';
+      el.style.zIndex    = '9999';
+      el.style.background = '#0d0b04';
+    });
+
+    // Ensure no ancestor blocks sticky with overflow:hidden
+    var el = headerEl.parentElement;
+    while (el && el !== doc.body) {
+      var ov = window.parent.getComputedStyle(el).overflow;
+      if (ov === 'hidden') el.style.overflow = 'visible';
+      el = el.parentElement;
+    }
+    return true;
+  }
+
+  var attempts = 0;
+  var iv = setInterval(function() {
+    if (applySticky() || ++attempts > 30) clearInterval(iv);
+  }, 200);
+
+  // Reapply on Streamlit reruns via MutationObserver
+  var doc = window.parent.document;
+  var observer = new MutationObserver(function() { applySticky(); });
+  observer.observe(doc.body, { childList: true, subtree: true });
+})();
+</script>
+""", height=0)
+
+
+# ── Auto-navigate to Investment Advisor tab when routed from chat bar ─────────
+if st.session_state.get("adv_navigate"):
+    st.session_state.adv_navigate = False
+    components.html("""
+<script>
+(function() {
+  function clickAdvisorTab() {
+    var doc = window.parent.document;
+    var tabs = doc.querySelectorAll('button[role="tab"]');
+    for (var i = 0; i < tabs.length; i++) {
+      if (tabs[i].innerText.trim() === 'Investment Advisor') {
+        tabs[i].click();
+        return true;
+      }
+    }
+    return false;
+  }
+  var attempts = 0;
+  var iv = setInterval(function() {
+    if (clickAdvisorTab() || ++attempts > 30) clearInterval(iv);
+  }, 150);
+})();
+</script>
+""", height=0)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1044,10 +1160,10 @@ def gauge_card(title: str, label: str, score: int, summary: str,
 # ═══════════════════════════════════════════════════════════════════════════════
 #  MAIN TABS
 # ═══════════════════════════════════════════════════════════════════════════════
-main_tab_re, main_tab_energy, main_tab_macro = st.tabs(["Real Estate", "Energy", "Macro Environment"])
+main_tab_re, main_tab_energy, main_tab_macro, main_tab_advisor = st.tabs(["Real Estate", "Energy", "Macro Environment", "Investment Advisor"])
 
 with main_tab_re:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score, tab_climate = st.tabs([
         "Migration Intelligence",
         "Pricing & Profit",
         "Company Predictions",
@@ -1060,6 +1176,7 @@ with main_tab_re:
         "Rent Growth",
         "Opportunity Zones",
         "Market Score",
+        "Climate Risk",
     ])
 
 
@@ -1286,16 +1403,18 @@ with main_tab_re:
                 counties_geojson = _load_county_geojson()
                 section(f"County Migration — {_US_STATES.get(_sel_state_abbr, _sel_state_abbr)}")
 
-                fig_county = go.Figure(go.Choropleth(
+                fig_county = go.Figure(go.Choroplethmapbox(
                     geojson=counties_geojson,
                     locations=county_df["fips"],
                     z=county_df["migration_score"],
+                    featureidkey="id",
                     colorscale=[
                         [0.0, "#7f0000"], [0.25, "#c62828"], [0.45, "#d4c5a9"],
                         [0.55, "#a5d6a7"], [0.75, "#2e7d32"], [1.0, "#1b5e20"],
                     ],
                     zmin=0, zmax=100,
                     marker_line_width=0.5, marker_line_color="#333",
+                    marker_opacity=0.85,
                     colorbar=dict(title=dict(text="Score", font=dict(size=10, color="#e8e9ed")),
                                   tickfont=dict(size=9, color="#e8e9ed"), thickness=12, len=0.6,
                                   bgcolor="#171309", bordercolor="#2a2208"),
@@ -1307,11 +1426,18 @@ with main_tab_re:
                                   f"{r['top_driver']}", axis=1),
                     hovertemplate="%{text}<extra></extra>",
                 ))
-                fig_county.update_geos(fitbounds="locations", visible=False)
+                fig_county.update_geos(
+                    fitbounds="locations", visible=False,
+                    bgcolor="#111111",
+                    landcolor="#1a1a1a",
+                    lakecolor="#0a0a0a",
+                )
                 fig_county.update_layout(
-                    paper_bgcolor="#0d0b04",
+                    paper_bgcolor="#111111",
+                    plot_bgcolor="#111111",
+                    geo=dict(bgcolor="#111111"),
                     margin=dict(t=10, b=10, l=0, r=0),
-                    height=500,
+                    height=520,
                     font=dict(family="DM Sans", color="#e8e9ed"),
                 )
                 st.plotly_chart(fig_county, use_container_width=True, config={"displayModeBar": False})
@@ -3784,6 +3910,356 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
             )
 
 
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB 8 — CLIMATE RISK
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_climate:
+        from src.climate_risk_agent import (
+            WEIGHTS as CR_WEIGHTS,
+            WEIGHT_LABELS as CR_WEIGHT_LABELS,
+            PROPERTY_RISK_CONTEXT,
+            score_label as cr_score_label,
+            label_color as cr_label_color,
+        )
+
+        _show_tab_header(
+            "climate_risk",
+            "Agent 14 tracks **climate hazard exposure** across US CRE markets — scoring flood, "
+            "wildfire, extreme heat, hurricane/wind, and sea level rise risk at the state and metro level. "
+            "Data from OpenFEMA, NIFC, and NOAA. Updates every 24 hours.",
+            "climate_risk",
+        )
+
+        cr_cache = read_cache("climate_risk")
+        cr_data  = cr_cache.get("data")
+
+        if not cr_data:
+            st.info(" Climate Risk agent is running for the first time — fetching FEMA and NIFC data. This may take 60–90 seconds. Refresh when ready.")
+            st.stop()
+
+        state_scores = cr_data.get("states", {})
+        metro_scores = cr_data.get("metros", [])
+        top_risk     = cr_data.get("top_risk_states", [])
+        low_risk     = cr_data.get("lowest_risk_states", [])
+        sources      = cr_data.get("data_sources", [])
+        ts           = cr_data.get("timestamp", "")
+        if ts:
+            st.caption(f"Last updated: {ts[:16].replace('T', ' ')} UTC · Sources: {', '.join(sources[:2])}")
+
+        # ── Personalized insight ─────────────────────────────────────────────
+        pt, loc, focus_label = _focus_parts()
+        if pt or loc:
+            risk_context = PROPERTY_RISK_CONTEXT.get(pt, "all major climate hazards") if pt else "all major climate hazards"
+            loc_state = st.session_state.user_intent.get("state")
+            loc_data  = state_scores.get(loc_state, {}) if loc_state else {}
+            focus_metro = next((m for m in metro_scores if loc and loc.lower() in m["metro"].lower()), None)
+            if focus_metro:
+                loc_score = focus_metro["composite_score"]
+                loc_label = focus_metro["label"]
+                loc_display = focus_metro["metro"]
+            elif loc_data:
+                loc_score = loc_data.get("composite_score", "N/A")
+                loc_label = loc_data.get("label", "")
+                loc_display = loc_state
+            else:
+                loc_score = None
+                loc_label = ""
+                loc_display = loc or "US"
+
+            if loc_score is not None:
+                color = cr_label_color(loc_label)
+                st.markdown(
+                    f'<div style="background:#1a1a12;border-left:3px solid {color};padding:10px 16px;'
+                    f'border-radius:4px;margin-bottom:16px;">'
+                    f'<span style="color:{color};font-weight:600;">{loc_display} — {loc_label} ({loc_score}/100)</span>'
+                    f'<br><span style="font-size:0.85rem;color:#c8bfa0;">'
+                    f'{pt or "CRE"} in this market is exposed to {risk_context}.</span></div>',
+                    unsafe_allow_html=True,
+                )
+
+        # ── Score legend ─────────────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Score Legend & Factor Weights")
+        leg_cols = st.columns(4)
+        for col, (label_name, color, rng) in zip(leg_cols, [
+            ("Low",      "#4caf50", "0–25"),
+            ("Moderate", "#ff9800", "26–50"),
+            ("High",     "#f44336", "51–75"),
+            ("Severe",   "#7b1fa2", "76–100"),
+        ]):
+            col.markdown(
+                f'<div class="metric-card"><div class="label">{label_name}</div>'
+                f'<div class="value" style="color:{color};font-size:1.4rem;">{rng}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        wt_cols = st.columns(5)
+        for col, (factor, weight) in zip(wt_cols, CR_WEIGHTS.items()):
+            col.markdown(
+                f'<div class="metric-card"><div class="label">{CR_WEIGHT_LABELS[factor]}</div>'
+                f'<div class="value" style="font-size:1.3rem;">{int(weight*100)}%</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        # ── US Choropleth — State-level composite scores ──────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" US Climate Risk Map — State Composite Score (0–100)")
+
+        if state_scores:
+            map_states  = list(state_scores.keys())
+            map_scores  = [state_scores[s]["composite_score"] for s in map_states]
+            map_labels  = [state_scores[s]["label"] for s in map_states]
+            map_hover   = [
+                f"{s}: {state_scores[s]['composite_score']:.1f} ({state_scores[s]['label']})<br>"
+                f"Flood: {state_scores[s]['factors']['flood']:.0f} | "
+                f"Fire: {state_scores[s]['factors']['wildfire']:.0f} | "
+                f"Heat: {state_scores[s]['factors']['heat']:.0f} | "
+                f"Wind: {state_scores[s]['factors']['wind']:.0f} | "
+                f"SLR: {state_scores[s]['factors']['sea_level']:.0f}"
+                for s in map_states
+            ]
+
+            fig_map = go.Figure(go.Choropleth(
+                locations=map_states,
+                z=map_scores,
+                locationmode="USA-states",
+                colorscale=[
+                    [0.0,  "#1b5e20"],
+                    [0.25, "#66bb6a"],
+                    [0.50, "#ff9800"],
+                    [0.75, "#f44336"],
+                    [1.0,  "#4a148c"],
+                ],
+                zmin=0, zmax=100,
+                colorbar=dict(
+                    title=dict(text="Risk Score", font=dict(color="#e8dfc4", size=11)),
+                    tickfont=dict(color="#e8dfc4", size=10),
+                    thickness=14,
+                    bgcolor="#16160f",
+                    bordercolor="#3a3a2a",
+                    tickvals=[0, 25, 50, 75, 100],
+                    ticktext=["0 Low", "25", "50", "75", "100 Severe"],
+                ),
+                hovertext=map_hover,
+                hovertemplate="%{hovertext}<extra></extra>",
+            ))
+            fig_map.update_layout(
+                geo=dict(
+                    scope="usa",
+                    bgcolor="#0f0f0c",
+                    showlakes=False,
+                    lakecolor="#0f0f0c",
+                    landcolor="#1a1a12",
+                ),
+                paper_bgcolor="#16160f",
+                margin=dict(t=10, b=0, l=0, r=0),
+                height=420,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+            st.caption(
+                "Green = Low risk (0–25). Orange = Moderate (26–50). Red = High (51–75). Purple = Severe (76–100). "
+                "Composite score weighted: Flood 25% | Wildfire 20% | Heat 20% | Wind 20% | Sea Level Rise 15%."
+            )
+
+        # ── Metro Risk Heatmap — factors × metros ─────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Metro Climate Risk Heatmap — Factor Breakdown")
+
+        if metro_scores:
+            top_metros = metro_scores[:20]  # top 20 by composite score
+            hm_metros  = [m["metro"] for m in top_metros]
+            hm_factors = list(CR_WEIGHTS.keys())
+            hm_labels  = [CR_WEIGHT_LABELS[f] for f in hm_factors]
+            hm_z       = [[m["factors"][f] for f in hm_factors] for m in top_metros]
+
+            fig_hm = go.Figure(go.Heatmap(
+                z=hm_z,
+                x=hm_labels,
+                y=hm_metros,
+                colorscale=[
+                    [0.0,  "#1b5e20"],
+                    [0.3,  "#66bb6a"],
+                    [0.55, "#fff9c4"],
+                    [0.75, "#f44336"],
+                    [1.0,  "#4a148c"],
+                ],
+                zmin=0, zmax=100,
+                text=[[f"{v:.0f}" for v in row] for row in hm_z],
+                texttemplate="%{text}",
+                textfont=dict(size=11, color="#0f0f0c"),
+                hoverongaps=False,
+                hovertemplate="<b>%{y}</b><br>%{x}: %{z:.0f}/100<extra></extra>",
+                colorbar=dict(
+                    title=dict(text="Score", font=dict(color="#e8dfc4", size=11)),
+                    tickfont=dict(color="#e8dfc4", size=10),
+                    thickness=14,
+                    bgcolor="#16160f",
+                    bordercolor="#3a3a2a",
+                ),
+            ))
+            fig_hm.update_layout(
+                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                margin=dict(t=10, b=20, l=160, r=20),
+                height=600,
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                xaxis=dict(side="top", tickfont=dict(color="#e8dfc4", size=12)),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=11)),
+            )
+            st.plotly_chart(fig_hm, use_container_width=True, config={"displayModeBar": False})
+            st.caption("Top 20 highest-risk metros. Each cell = factor score 0–100. Darker purple = greater hazard exposure.")
+
+        # ── Top Risk / Safest Markets side by side ────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        col_risk, col_safe = st.columns(2)
+
+        with col_risk:
+            section(" 10 Highest-Risk States")
+            if top_risk:
+                tr_df = pd.DataFrame(top_risk)
+                fig_tr = go.Figure(go.Bar(
+                    x=tr_df["score"],
+                    y=tr_df["state"],
+                    orientation="h",
+                    marker=dict(
+                        color=tr_df["score"],
+                        colorscale=[
+                            [0.0, "#ff9800"], [0.5, "#f44336"], [1.0, "#4a148c"]
+                        ],
+                        cmin=40, cmax=100,
+                    ),
+                    text=[f"{s['score']:.0f} — {s['label']}" for s in top_risk],
+                    textposition="inside",
+                    textfont=dict(color="#fff", size=11),
+                    hovertemplate="<b>%{y}</b>: %{x:.1f}/100<extra></extra>",
+                ))
+                fig_tr.update_layout(
+                    plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                    margin=dict(t=10, b=10, l=40, r=10),
+                    height=340,
+                    xaxis=dict(range=[0, 100], tickfont=dict(color="#e8dfc4", size=10), gridcolor="#2a2a1a"),
+                    yaxis=dict(tickfont=dict(color="#e8dfc4", size=11), autorange="reversed"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                )
+                st.plotly_chart(fig_tr, use_container_width=True, config={"displayModeBar": False})
+
+        with col_safe:
+            section(" 10 Lowest-Risk States")
+            if low_risk:
+                lr_df = pd.DataFrame(low_risk)
+                fig_lr = go.Figure(go.Bar(
+                    x=lr_df["score"],
+                    y=lr_df["state"],
+                    orientation="h",
+                    marker=dict(
+                        color=lr_df["score"],
+                        colorscale=[[0.0, "#1b5e20"], [0.5, "#66bb6a"], [1.0, "#fff9c4"]],
+                        cmin=0, cmax=40,
+                    ),
+                    text=[f"{s['score']:.0f} — {s['label']}" for s in low_risk],
+                    textposition="inside",
+                    textfont=dict(color="#0f0f0c", size=11),
+                    hovertemplate="<b>%{y}</b>: %{x:.1f}/100<extra></extra>",
+                ))
+                fig_lr.update_layout(
+                    plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                    margin=dict(t=10, b=10, l=40, r=10),
+                    height=340,
+                    xaxis=dict(range=[0, 100], tickfont=dict(color="#e8dfc4", size=10), gridcolor="#2a2a1a"),
+                    yaxis=dict(tickfont=dict(color="#e8dfc4", size=11), autorange="reversed"),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                )
+                st.plotly_chart(fig_lr, use_container_width=True, config={"displayModeBar": False})
+
+        # ── Metro Detail Table ────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" All Metro Markets — Full Risk Breakdown")
+
+        if metro_scores:
+            tbl_rows = []
+            for m in metro_scores:
+                f = m["factors"]
+                tbl_rows.append({
+                    "Metro":          m["metro"],
+                    "State":          m["state"],
+                    "Score":          m["composite_score"],
+                    "Risk Level":     m["label"],
+                    "Flood":          f["flood"],
+                    "Wildfire":       f["wildfire"],
+                    "Heat":           f["heat"],
+                    "Wind":           f["wind"],
+                    "Sea Level Rise": f["sea_level"],
+                })
+            tbl_df = pd.DataFrame(tbl_rows)
+
+            def _style_score(val):
+                if val >= 76:   return "color:#ce93d8;font-weight:600"
+                if val >= 51:   return "color:#ef5350;font-weight:600"
+                if val >= 26:   return "color:#ffa726;font-weight:600"
+                return "color:#66bb6a;font-weight:600"
+
+            st.dataframe(
+                tbl_df.style.map(_style_score, subset=["Score", "Flood", "Wildfire", "Heat", "Wind", "Sea Level Rise"]),
+                use_container_width=True,
+                hide_index=True,
+                height=500,
+            )
+            st.caption("Scores 0–100. Green = Low | Orange = Moderate | Red = High | Purple = Severe.")
+
+        # ── Trend Chart — disaster events per year for focused market ─────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Disaster Event Trend — Annual FEMA Declarations")
+
+        trend_data = None
+        trend_title = "US Overall"
+
+        if pt or loc:
+            # Try to find focused metro or state trend
+            if loc:
+                focus_m = next((m for m in metro_scores if loc.lower() in m["metro"].lower()), None)
+                if focus_m:
+                    trend_data  = focus_m["trend"]
+                    trend_title = focus_m["metro"]
+                elif loc_state and loc_state in state_scores:
+                    trend_data  = state_scores[loc_state]["trend"]
+                    trend_title = loc_state
+
+        if not trend_data and state_scores:
+            # Default: show the highest-risk state trend
+            top_state = top_risk[0]["state"] if top_risk else list(state_scores.keys())[0]
+            trend_data  = state_scores[top_state]["trend"]
+            trend_title = f"{top_state} (highest risk)"
+
+        if trend_data:
+            trend_df = pd.DataFrame(trend_data)
+            fig_trend = go.Figure(go.Bar(
+                x=trend_df["year"],
+                y=trend_df["events"],
+                marker=dict(
+                    color=trend_df["events"],
+                    colorscale=[[0.0, "#388e3c"], [0.5, "#f57c00"], [1.0, "#c62828"]],
+                ),
+                hovertemplate="<b>%{x}</b>: %{y} FEMA disaster declarations<extra></extra>",
+            ))
+            fig_trend.update_layout(
+                title=dict(
+                    text=f"FEMA Disaster Declarations — {trend_title}",
+                    font=dict(color="#e8dfc4", size=13),
+                ),
+                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                margin=dict(t=40, b=30, l=50, r=20),
+                height=280,
+                xaxis=dict(tickfont=dict(color="#e8dfc4", size=11), gridcolor="#2a2a1a"),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=11), gridcolor="#2a2a1a", title="Declarations"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(fig_trend, use_container_width=True, config={"displayModeBar": False})
+            st.caption(
+                "Annual count of FEMA disaster declarations (flood, hurricane, wildfire, severe storm) for the selected market. "
+                "Rising bars indicate worsening climate event frequency."
+            )
+
+
 with main_tab_energy:
     tab_energy, tab_esg = st.tabs([
         "Energy & Construction Costs",
@@ -5729,5 +6205,527 @@ The cycle phase is determined by combining multiple indicators:
          style="color:#d4a843; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
     </div>
   </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MAIN TAB — INVESTMENT ADVISOR
+# ═══════════════════════════════════════════════════════════════════════════════
+with main_tab_advisor:
+    from src.recommendation_engine import (
+        build_recommendation, parse_prompt,
+        ALL_MARKETS, _PROP_SYNONYMS,
+    )
+
+    st.markdown("""
+<div style="background:linear-gradient(135deg,#1a1208 0%,#2a1e08 100%);
+            border:1px solid #a07830; border-top:3px solid #d4a843;
+            border-radius:10px; padding:28px 36px; margin-bottom:24px;">
+  <div style="color:#d4a843;font-size:1.45rem;font-weight:700;letter-spacing:1px;">
+    AI Investment Advisor
+  </div>
+  <div style="color:#a09880;font-size:0.92rem;margin-top:6px;max-width:720px;">
+    Describe your investment goal in plain English. The advisor parses your intent,
+    scores every candidate market across migration, pricing, climate, capital markets,
+    cap rates, and more, then delivers a personalized recommendation &mdash; with financials,
+    buildout timeline, and a ranked runner-up comparison.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── Session state for advisor ─────────────────────────────────────────────
+    if "adv_result" not in st.session_state:
+        st.session_state.adv_result = None
+    if "adv_show_followup" not in st.session_state:
+        st.session_state.adv_show_followup = False
+    if "adv_parsed" not in st.session_state:
+        st.session_state.adv_parsed = None
+
+    # Pre-populate text area with home/chat bar query if routed here
+    _home_prompt = st.session_state.get("adv_home_prompt")
+    if _home_prompt and not st.session_state.get("adv_prompt_text"):
+        st.session_state["adv_prompt_text"] = _home_prompt
+
+    # ── Input area ────────────────────────────────────────────────────────────
+    st.markdown("""
+<div style="background:#16140a;border:1px solid #3a3020;border-radius:8px;
+            padding:20px 24px 8px 24px;margin-bottom:8px;">
+  <div style="color:#d4a843;font-weight:600;font-size:0.95rem;margin-bottom:10px;">
+    Describe your investment
+  </div>
+""", unsafe_allow_html=True)
+
+    prompt_input = st.text_area(
+        label="prompt",
+        label_visibility="collapsed",
+        placeholder='e.g. "I want to build a 50,000 sq ft warehouse in southern Texas with a $8M budget over a 5-year hold"',
+        height=90,
+        key="adv_prompt_text",
+    )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    col_parse, col_generate, col_regen = st.columns([1.5, 1.8, 1], gap="small")
+
+    with col_parse:
+        do_parse = st.button("Analyze Prompt", key="adv_btn_parse", use_container_width=True)
+
+    if do_parse and prompt_input.strip():
+        parsed = parse_prompt(prompt_input.strip())
+        st.session_state.adv_parsed = parsed
+        st.session_state.adv_show_followup = bool(parsed["missing_fields"])
+        st.session_state.adv_result = None
+
+    # ── Follow-up inputs for missing fields ───────────────────────────────────
+    followup_values = {}
+    if st.session_state.adv_parsed and st.session_state.adv_show_followup:
+        missing = st.session_state.adv_parsed.get("missing_fields", [])
+        if missing:
+            st.markdown("""
+<div style="background:#1a1208;border-left:3px solid #d4a843;border-radius:4px;
+            padding:12px 18px;margin:12px 0 8px 0;color:#e8dfc4;font-size:0.9rem;">
+  A few details were not found in your prompt. Fill in the fields below to improve accuracy
+  (or leave blank to use platform defaults).
+</div>
+""", unsafe_allow_html=True)
+            fu_cols = st.columns(min(len(missing), 4))
+            for i, field in enumerate(missing):
+                col = fu_cols[i % len(fu_cols)]
+                if field == "property_type":
+                    prop_options = sorted(set(_PROP_SYNONYMS.values()))
+                    sel = col.selectbox("Property Type", [""] + prop_options, key="adv_fu_pt")
+                    followup_values["property_type"] = sel or None
+                elif field == "location":
+                    followup_values["location_raw"] = col.text_input(
+                        "Target Market / Region", key="adv_fu_loc",
+                        placeholder="e.g. Texas, Southeast, Phoenix"
+                    ) or None
+                elif field == "budget":
+                    raw_budget = col.text_input(
+                        "Total Budget ($)", key="adv_fu_budget",
+                        placeholder="e.g. 8M or 8000000"
+                    )
+                    if raw_budget:
+                        try:
+                            v = raw_budget.strip().lower().replace(",", "")
+                            if v.endswith("m"):   v = float(v[:-1]) * 1_000_000
+                            elif v.endswith("b"): v = float(v[:-1]) * 1_000_000_000
+                            elif v.endswith("k"): v = float(v[:-1]) * 1_000
+                            else:                 v = float(v)
+                            followup_values["budget"] = v
+                        except Exception:
+                            followup_values["budget"] = None
+                elif field == "sqft":
+                    raw_sf = col.text_input(
+                        "Square Footage", key="adv_fu_sqft",
+                        placeholder="e.g. 50000"
+                    )
+                    if raw_sf:
+                        try:
+                            followup_values["sqft"] = float(raw_sf.replace(",", ""))
+                        except Exception:
+                            followup_values["sqft"] = None
+                elif field == "timeline_years":
+                    followup_values["timeline_years"] = col.number_input(
+                        "Hold Period (years)", min_value=1, max_value=30,
+                        value=5, key="adv_fu_timeline"
+                    )
+
+    # ── Generate / Regenerate buttons ─────────────────────────────────────────
+    with col_generate:
+        do_generate = st.button("Generate Recommendation", key="adv_btn_gen",
+                                type="primary", use_container_width=True)
+
+    with col_regen:
+        do_regen = st.button("Regenerate", key="adv_btn_regen", use_container_width=True,
+                             disabled=(st.session_state.adv_result is None))
+
+    def _run_advisor(prompt_text, override_fields):
+        parsed = parse_prompt(prompt_text)
+        for k, v in override_fields.items():
+            if v is not None:
+                parsed[k] = v
+        if not parsed.get("property_type"):  parsed["property_type"]  = "Industrial"
+        if not parsed.get("location_raw"):   parsed["location_raw"]   = "sunbelt"
+        if not parsed.get("budget"):         parsed["budget"]         = 10_000_000
+        if not parsed.get("sqft"):           parsed["sqft"]           = 50_000
+        if not parsed.get("timeline_years"): parsed["timeline_years"] = 5
+        if not parsed.get("risk_tolerance"): parsed["risk_tolerance"] = "moderate"
+        return build_recommendation(parsed)
+
+    # Pick up auto-generate flag set by chat bar routing
+    _auto_gen = st.session_state.get("adv_auto_generate", False)
+    if _auto_gen:
+        st.session_state.adv_auto_generate = False   # consume flag
+
+    trigger_generate = do_generate or do_regen or _auto_gen
+
+    _effective_prompt = prompt_input.strip() or (st.session_state.get("adv_home_prompt") or "").strip()
+
+    if trigger_generate and _effective_prompt:
+        # Clear the home prompt so it doesn't re-fire on next rerun
+        st.session_state.adv_home_prompt = None
+        with st.spinner("Analyzing markets and building your investment brief…"):
+            try:
+                result = _run_advisor(_effective_prompt, followup_values)
+                st.session_state.adv_result = result
+                st.session_state.adv_show_followup = False
+            except Exception as _adv_err:
+                st.error(f"Error generating recommendation: {_adv_err}")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  REPORT OUTPUT
+    # ══════════════════════════════════════════════════════════════════════════
+    _adv_result = st.session_state.adv_result
+    if _adv_result and "error" not in _adv_result:
+        primary    = _adv_result["primary"]
+        runners    = _adv_result["runners"]
+        financials = _adv_result["financials"]
+        weights    = _adv_result["weights"]
+        narrative  = _adv_result["narrative"]
+        params     = _adv_result["params"]
+        all_scored = _adv_result.get("all_scored", [])
+
+        # ── Parsed-params banner ─────────────────────────────────────────────
+        _prop_type = params.get("property_type", "")
+        _location  = params.get("location_raw", "")
+        _timeline  = params.get("timeline_years", "N/A")
+        _risk_tol  = (params.get("risk_tolerance") or "moderate").title()
+        _budget_m  = f"${params['budget']/1_000_000:.1f}M" if params.get("budget") else "N/A"
+        _sqft_k    = f"{params['sqft']/1000:.0f}K sq ft" if params.get("sqft") else "N/A"
+
+        st.markdown(f"""
+<div style="background:#16140a;border:1px solid #3a3020;border-radius:6px;
+            padding:10px 18px;margin:8px 0 20px 0;font-size:0.88rem;color:#a09880;">
+  <span style="color:#d4a843;font-weight:600;">Parsed: </span>
+  {_prop_type} &nbsp;&middot;&nbsp; {_location or 'All Markets'} &nbsp;&middot;&nbsp;
+  {_budget_m} budget &nbsp;&middot;&nbsp; {_sqft_k} &nbsp;&middot;&nbsp;
+  {_timeline}-yr hold &nbsp;&middot;&nbsp; {_risk_tol} risk
+  <span style="float:right;color:#5a5040;">Generated {_adv_result['generated_at'][:16].replace('T', ' ')} UTC</span>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── Summary metric cards ─────────────────────────────────────────────
+        section(" Summary")
+        _c1, _c2, _c3, _c4, _c5 = st.columns(5)
+
+        def _adv_score_color(s):
+            if s >= 75: return "#4caf50"
+            if s >= 55: return "#ff9800"
+            if s >= 35: return "#f44336"
+            return "#9e9e9e"
+
+        _opp = primary["opportunity_score"]
+        _roi = financials["roi_pct"]
+        _roi_color = "#4caf50" if _roi > 30 else ("#ff9800" if _roi > 10 else "#f44336")
+
+        for _col, (_lbl, _val, _clr) in zip(
+            [_c1, _c2, _c3, _c4, _c5],
+            [
+                ("Opportunity Score",  f"{_opp:.1f}/100",                             _adv_score_color(_opp)),
+                ("Est. Total Cost",    f"${financials['total_cost']/1e6:.2f}M",         "#e8dfc4"),
+                ("Estimated ROI",      f"{_roi}%",                                     _roi_color),
+                ("Buildout Timeline",  f"{financials['buildout_months']} mo",           "#e8dfc4"),
+                ("Est. Exit Value",    f"${financials['exit_value']/1e6:.2f}M",          "#d4a843"),
+            ]
+        ):
+            _col.markdown(
+                f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                f'<div class="value" style="color:{_clr};font-size:1.5rem;">{_val}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Primary recommendation ────────────────────────────────────────────
+        section(f" Primary Recommendation — {primary['market']}")
+        _col_left, _col_right = st.columns([1.05, 0.95], gap="large")
+
+        with _col_left:
+            _bd         = primary.get("factor_scores", {})
+            _fnames     = list(_bd.keys())
+            _raw_s      = [_bd[f]["raw_score"] for f in _fnames]
+            _wt_s       = [_bd[f]["weighted"]   for f in _fnames]
+            _flabels    = [f.replace("_", " ").title() for f in _fnames]
+
+            _fig_score = go.Figure()
+            _fig_score.add_trace(go.Bar(
+                x=_raw_s, y=_flabels, orientation="h",
+                marker=dict(color=[_adv_score_color(s) for s in _raw_s]),
+                text=[f"{s:.0f}" for s in _raw_s],
+                textposition="auto",
+                textfont=dict(color="#fff", size=11),
+                name="Raw Score",
+                hovertemplate="<b>%{y}</b><br>Raw: %{x:.1f}/100<extra></extra>",
+            ))
+            _fig_score.add_trace(go.Bar(
+                x=_wt_s, y=_flabels, orientation="h",
+                marker=dict(color="rgba(212,168,67,0.35)", line=dict(color="#d4a843", width=1)),
+                text=[f"{v:.1f} wt" for v in _wt_s],
+                textposition="auto",
+                textfont=dict(color="#d4a843", size=10),
+                name="Weighted Score",
+                hovertemplate="<b>%{y}</b><br>Weighted: %{x:.1f}<extra></extra>",
+            ))
+            _fig_score.update_layout(
+                barmode="overlay",
+                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                margin=dict(t=10, b=10, l=120, r=10),
+                height=280,
+                legend=dict(font=dict(color="#a09880", size=10), bgcolor="rgba(0,0,0,0)",
+                            orientation="h", y=1.08, x=0),
+                xaxis=dict(range=[0, 100], tickfont=dict(color="#e8dfc4", size=10), gridcolor="#2a2a1a"),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=11)),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(_fig_score, use_container_width=True, config={"displayModeBar": False})
+            st.caption("Bar length = raw factor score (0–100). Gold overlay = weighted contribution to composite.")
+
+        with _col_right:
+            _cap   = primary.get("cap_rate", 0)
+            _rg    = primary.get("rent_growth", 0)
+            _clbl  = primary.get("climate_label", "N/A")
+            _cscr  = primary.get("climate_score", 0)
+            _gdp   = primary.get("gdp_cycle", "N/A")
+            _cred  = primary.get("credit_signal", "N/A")
+            _mig   = primary.get("mig_score", 50)
+            _cc    = ("#4caf50" if _cscr < 25 else "#ff9800" if _cscr < 50
+                      else "#f44336" if _cscr < 75 else "#9c27b0")
+            _rg_c  = "#4caf50" if _rg > 3 else ("#ff9800" if _rg > 0 else "#f44336")
+
+            st.markdown(f"""
+<div style="background:#1a1208;border:1px solid #2a2010;border-radius:8px;padding:18px 20px;">
+  <div style="color:#d4a843;font-weight:600;font-size:0.95rem;margin-bottom:12px;">Market Signals</div>
+  <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+    <tr><td style="color:#a09880;padding:5px 0;">Cap Rate</td>
+        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_cap:.2f}%</td></tr>
+    <tr><td style="color:#a09880;padding:5px 0;">Rent Growth YoY</td>
+        <td style="color:{_rg_c};font-weight:600;text-align:right;">{_rg:+.1f}%</td></tr>
+    <tr><td style="color:#a09880;padding:5px 0;">Climate Risk</td>
+        <td style="color:{_cc};font-weight:600;text-align:right;">{_clbl} ({_cscr:.0f}/100)</td></tr>
+    <tr><td style="color:#a09880;padding:5px 0;">GDP Cycle</td>
+        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_gdp.title()}</td></tr>
+    <tr><td style="color:#a09880;padding:5px 0;">Credit Conditions</td>
+        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_cred.title()}</td></tr>
+    <tr><td style="color:#a09880;padding:5px 0;">Migration Score</td>
+        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_mig:.0f}/100</td></tr>
+  </table>
+</div>
+""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Financials breakdown ──────────────────────────────────────────────
+        section(" Financial Estimates")
+
+        _fc1, _fc2, _fc3, _fc4 = st.columns(4)
+        for _fc, (_lbl, _val, _clr) in zip(
+            [_fc1, _fc2, _fc3, _fc4],
+            [
+                ("Land Cost",          f"${financials['land_cost']/1e6:.2f}M",         "#e8dfc4"),
+                ("Construction",       f"${financials['construction_cost']/1e6:.2f}M", "#e8dfc4"),
+                ("Soft Costs",         f"${financials['soft_costs']/1e6:.2f}M",         "#e8dfc4"),
+                ("Total Project Cost", f"${financials['total_cost']/1e6:.2f}M",         "#d4a843"),
+            ]
+        ):
+            _fc.markdown(
+                f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                f'<div class="value" style="color:{_clr};">{_val}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
+        _fc5, _fc6, _fc7, _fc8 = st.columns(4)
+        _irr_c = "#4caf50" if financials["irr_est"] > 10 else "#ff9800"
+        _pft_c = "#4caf50" if financials["total_profit"] > 0 else "#f44336"
+        for _fc, (_lbl, _val, _clr) in zip(
+            [_fc5, _fc6, _fc7, _fc8],
+            [
+                ("Annual NOI",     f"${financials['annual_noi']/1e3:.0f}K",     "#e8dfc4"),
+                ("Cumulative NOI", f"${financials['total_noi']/1e6:.2f}M",       "#e8dfc4"),
+                ("Estimated IRR",  f"{financials['irr_est']:.1f}%",              _irr_c),
+                ("Total Profit",   f"${financials['total_profit']/1e6:.2f}M",    _pft_c),
+            ]
+        ):
+            _fc.markdown(
+                f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                f'<div class="value" style="color:{_clr};">{_val}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        _esig = financials.get("energy_signal", "MODERATE")
+        _emult = {"LOW": "0.88×", "MODERATE": "1.0×", "HIGH": "1.20×"}.get(_esig, "1.0×")
+        st.caption(
+            f"Construction cost signal: **{_esig}** (platform energy agent). "
+            f"Cost multiplier: {_emult}. Buildout estimate: {financials['buildout_months']} months."
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Investment narrative ──────────────────────────────────────────────
+        section(" Investment Rationale")
+        for _para in narrative.strip().split("\n\n"):
+            if _para.strip():
+                st.markdown(
+                    f'<div style="background:#16140a;border-left:3px solid #a07830;'
+                    f'border-radius:4px;padding:14px 18px;margin-bottom:12px;'
+                    f'color:#e8dfc4;font-size:0.93rem;line-height:1.65;">{_para.strip()}</div>',
+                    unsafe_allow_html=True,
+                )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Conditional: Climate risk detail if High/Severe ───────────────────
+        if primary.get("climate_score", 0) >= 50:
+            section(f" Climate Risk Alert — {primary['market']} ({primary['climate_label']})")
+            _cf = primary.get("climate_factors", {})
+            if _cf:
+                _cf_cols = st.columns(len(_cf))
+                _cf_display = {"flood": "Flood", "wildfire": "Wildfire",
+                               "heat": "Extreme Heat", "wind": "Wind/Hurricane",
+                               "sea_level": "Sea Level Rise"}
+                for _cfc, (_fk, _fv) in zip(_cf_cols, _cf.items()):
+                    _fc_color = ("#4caf50" if _fv < 25 else "#ff9800" if _fv < 50
+                                 else "#f44336" if _fv < 75 else "#9c27b0")
+                    _cfc.markdown(
+                        f'<div class="metric-card"><div class="label">{_cf_display.get(_fk, _fk)}</div>'
+                        f'<div class="value" style="color:{_fc_color};font-size:1.3rem;">{_fv:.0f}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+            st.warning(
+                f"{primary['market']} carries **{primary['climate_label'].upper()}** physical climate risk "
+                f"(composite {primary['climate_score']:.0f}/100). "
+                f"Factor higher insurance budgets, resilience design costs, and potential exit cap rate "
+                f"expansion into your underwriting.",
+                icon="⚠️",
+            )
+            st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Runner-up comparison ──────────────────────────────────────────────
+        if runners:
+            section(" Runner-Up Markets")
+            _compare = [primary] + runners
+            _cmp_rows = []
+            for _i, _m in enumerate(_compare):
+                _bd_m = _m.get("factor_scores", {})
+                _cmp_rows.append({
+                    "Rank":              "Primary" if _i == 0 else f"#{_i+1} Runner-Up",
+                    "Market":            _m["market"],
+                    "Opp. Score":        _m["opportunity_score"],
+                    "Cap Rate":          f"{_m.get('cap_rate', 0):.2f}%",
+                    "Rent Growth":       f"{_m.get('rent_growth', 0):+.1f}%",
+                    "Climate Risk":      f"{_m.get('climate_score', 0):.0f} ({_m.get('climate_label', 'N/A')})",
+                    "Mkt Fundamentals":  f"{_bd_m.get('market_fundamentals', {}).get('raw_score', 0):.0f}",
+                    "Migration Score":   f"{_m.get('mig_score', 0):.0f}",
+                })
+            _cmp_df = pd.DataFrame(_cmp_rows)
+
+            def _adv_style_rank(val):
+                if val == "Primary": return "color:#d4a843;font-weight:700"
+                return "color:#a09880"
+
+            st.dataframe(
+                _cmp_df.style.map(_adv_style_rank, subset=["Rank"]),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            # Composite score bar chart
+            _cmp_names  = [_m["market"] for _m in _compare]
+            _cmp_scores = [_m["opportunity_score"] for _m in _compare]
+            _fig_cmp = go.Figure(go.Bar(
+                x=_cmp_names,
+                y=_cmp_scores,
+                marker=dict(color=[_adv_score_color(s) for s in _cmp_scores]),
+                text=[f"{s:.1f}" for s in _cmp_scores],
+                textposition="outside",
+                textfont=dict(color="#e8dfc4", size=12),
+                hovertemplate="<b>%{x}</b><br>Score: %{y:.1f}/100<extra></extra>",
+            ))
+            _fig_cmp.update_layout(
+                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                margin=dict(t=20, b=20, l=20, r=20),
+                height=260,
+                xaxis=dict(tickfont=dict(color="#e8dfc4", size=11), gridcolor="#2a2a1a"),
+                yaxis=dict(range=[0, 110], tickfont=dict(color="#e8dfc4", size=10),
+                           gridcolor="#2a2a1a", title="Opportunity Score"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                showlegend=False,
+            )
+            st.plotly_chart(_fig_cmp, use_container_width=True, config={"displayModeBar": False})
+            st.caption("Composite opportunity scores (0–100). Green ≥ 75, Orange 55–74, Red < 55.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── All scored markets (collapsed) ────────────────────────────────────
+        if all_scored and len(all_scored) > 3:
+            with st.expander(f"All {len(all_scored)} candidate markets scored"):
+                _all_rows = []
+                for _i, _m in enumerate(all_scored):
+                    _all_rows.append({
+                        "Rank":           _i + 1,
+                        "Market":         _m["market"],
+                        "Score":          _m["opportunity_score"],
+                        "Cap Rate":       f"{_m.get('cap_rate', 0):.2f}%",
+                        "Rent Growth":    f"{_m.get('rent_growth', 0):+.1f}%",
+                        "Climate Score":  _m.get("climate_score", 0),
+                        "Migration":      f"{_m.get('mig_score', 0):.0f}",
+                    })
+                _all_df = pd.DataFrame(_all_rows)
+                def _adv_style_score(val):
+                    if val >= 75: return "color:#4caf50;font-weight:600"
+                    if val >= 55: return "color:#ff9800;font-weight:600"
+                    if val >= 35: return "color:#f44336;font-weight:600"
+                    return "color:#9e9e9e"
+                st.dataframe(
+                    _all_df.style.map(_adv_style_score, subset=["Score"]),
+                    use_container_width=True,
+                    hide_index=True,
+                    height=420,
+                )
+
+        # ── Methodology & weights ─────────────────────────────────────────────
+        with st.expander("Scoring Methodology & Factor Weights"):
+            _meth   = weights.get("methodology", "")
+            _wsrc   = "AI-determined (Groq)" if weights.get("source") == "groq" else "Platform default"
+            st.markdown(
+                f'<div style="background:#16140a;border-left:3px solid #d4a843;border-radius:4px;'
+                f'padding:12px 16px;margin-bottom:16px;color:#e8dfc4;font-size:0.9rem;">'
+                f'<b>Weight source:</b> {_wsrc}<br>'
+                f'<b>Methodology:</b> {_meth}</div>',
+                unsafe_allow_html=True,
+            )
+            _wt_data  = weights.get("weights", {})
+            _rat_data = weights.get("rationales", {})
+            if _wt_data:
+                _wt_rows = []
+                for _f, _w in sorted(_wt_data.items(), key=lambda x: -x[1]):
+                    _bd_f = primary.get("factor_scores", {}).get(_f, {})
+                    _wt_rows.append({
+                        "Factor":         _f.replace("_", " ").title(),
+                        "Weight":         f"{_w*100:.0f}%",
+                        "Raw Score":      f"{_bd_f.get('raw_score', 0):.1f}/100",
+                        "Contribution":   f"{_bd_f.get('weighted', 0):.1f} pts",
+                        "Rationale":      _rat_data.get(_f, ""),
+                    })
+                st.dataframe(pd.DataFrame(_wt_rows), use_container_width=True, hide_index=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+    elif _adv_result and "error" in _adv_result:
+        st.error(_adv_result["error"])
+
+    else:
+        # Idle state — example prompts
+        st.markdown("""
+<div style="background:#16140a;border:1px solid #2a2010;border-radius:8px;
+            padding:24px 28px;margin-top:12px;">
+  <div style="color:#d4a843;font-weight:600;margin-bottom:14px;">Example prompts to get started:</div>
+  <ul style="color:#a09880;font-size:0.92rem;line-height:2.0;padding-left:20px;margin:0;">
+    <li>"I want to build a 50,000 sq ft warehouse in southern Texas with an $8M budget over a 5-year hold."</li>
+    <li>"Looking for multifamily development in the Southeast. $15M budget, 7-year hold, moderate risk."</li>
+    <li>"Office development, 20,000 sq ft, $12M, in the Sunbelt &mdash; where should I build?"</li>
+    <li>"Conservative industrial play in the Midwest, $5M, 3 years."</li>
+  </ul>
 </div>
 """, unsafe_allow_html=True)

@@ -169,12 +169,15 @@ _agent_status = {
     "gdp":            {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "inflation":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "credit":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "land_market":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "cap_rate":       {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "rent_growth":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "opportunity_zone":{"status": "idle",   "last_run": None, "last_error": None, "runs": 0},
-    "distressed":     {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "market_score":   {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "land_market":     {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "cap_rate":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "rent_growth":     {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "opportunity_zone":{"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "distressed":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "market_score":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "vacancy":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "property_tax":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "climate_risk":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
 def get_status() -> dict:
@@ -714,6 +717,19 @@ def run_market_score_agent():
         _set_status("market_score", "error", str(e))
 
 
+# ── Agent 19 · Climate Risk ───────────────────────────────────────────────────
+
+def run_climate_risk_agent():
+    _set_status("climate_risk", "running")
+    try:
+        from src.climate_risk_agent import run_climate_risk_agent as _run
+        result = _run()
+        write_cache("climate_risk", result)
+        _set_status("climate_risk", "ok")
+    except Exception as e:
+        _set_status("climate_risk", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -740,13 +756,14 @@ def start_scheduler():
         _scheduler.add_job(run_gdp_agent,            IntervalTrigger(hours=6),      id="gdp",             replace_existing=True)
         _scheduler.add_job(run_inflation_agent,      IntervalTrigger(hours=6),      id="inflation",       replace_existing=True)
         _scheduler.add_job(run_credit_markets_agent, IntervalTrigger(hours=6),      id="credit",          replace_existing=True)
-        _scheduler.add_job(run_vacancy_agent,         IntervalTrigger(hours=12),     id="vacancy",         replace_existing=True)
-        _scheduler.add_job(run_land_market_agent,     IntervalTrigger(hours=12),     id="land_market",      replace_existing=True)
-        _scheduler.add_job(run_cap_rate_agent,        IntervalTrigger(hours=6),      id="cap_rate",         replace_existing=True)
-        _scheduler.add_job(run_rent_growth_agent,     IntervalTrigger(hours=6),      id="rent_growth",      replace_existing=True)
-        _scheduler.add_job(run_opportunity_zone_agent,IntervalTrigger(hours=24),     id="opportunity_zone", replace_existing=True)
-        _scheduler.add_job(run_distressed_agent,      IntervalTrigger(hours=6),      id="distressed",       replace_existing=True)
-        _scheduler.add_job(run_market_score_agent,    IntervalTrigger(hours=6),      id="market_score",     replace_existing=True)
+        _scheduler.add_job(run_vacancy_agent,          IntervalTrigger(hours=12),     id="vacancy",          replace_existing=True)
+        _scheduler.add_job(run_land_market_agent,      IntervalTrigger(hours=12),     id="land_market",      replace_existing=True)
+        _scheduler.add_job(run_cap_rate_agent,         IntervalTrigger(hours=6),      id="cap_rate",         replace_existing=True)
+        _scheduler.add_job(run_rent_growth_agent,      IntervalTrigger(hours=6),      id="rent_growth",      replace_existing=True)
+        _scheduler.add_job(run_opportunity_zone_agent, IntervalTrigger(hours=24),     id="opportunity_zone", replace_existing=True)
+        _scheduler.add_job(run_distressed_agent,       IntervalTrigger(hours=6),      id="distressed",       replace_existing=True)
+        _scheduler.add_job(run_market_score_agent,     IntervalTrigger(hours=6),      id="market_score",     replace_existing=True)
+        _scheduler.add_job(run_climate_risk_agent,     IntervalTrigger(hours=24),     id="climate_risk",     replace_existing=True)
 
         _scheduler.start()
 
@@ -755,7 +772,8 @@ def start_scheduler():
                    run_news_agent, run_rate_agent, run_energy_agent, run_sustainability_agent,
                    run_labor_market_agent, run_gdp_agent, run_inflation_agent, run_credit_markets_agent,
                    run_vacancy_agent, run_land_market_agent, run_cap_rate_agent, run_rent_growth_agent,
-                   run_opportunity_zone_agent, run_distressed_agent, run_market_score_agent]:
+                   run_opportunity_zone_agent, run_distressed_agent, run_market_score_agent,
+                   run_climate_risk_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -774,7 +792,7 @@ def force_run(agent_name: str):
         "labor_market":  run_labor_market_agent,
         "gdp":           run_gdp_agent,
         "inflation":     run_inflation_agent,
-        "credit":        run_credit_markets_agent,
+        "credit":           run_credit_markets_agent,
         "vacancy":          run_vacancy_agent,
         "land_market":      run_land_market_agent,
         "cap_rate":         run_cap_rate_agent,
@@ -782,6 +800,7 @@ def force_run(agent_name: str):
         "opportunity_zone": run_opportunity_zone_agent,
         "distressed":       run_distressed_agent,
         "market_score":     run_market_score_agent,
+        "climate_risk":     run_climate_risk_agent,
     }
     fn = agents.get(agent_name)
     if fn:
