@@ -22,8 +22,8 @@ The agents run on a scheduler. Open the dashboard and the data is already there.
 |---------|---------------------------|--------|-------------|---------|
 | Real-time REIT pricing | Yes (hourly) | Yes | Yes | Limited |
 | Population migration data | Yes (Census API) | No | No | No |
-| AI-powered facility tracking | Yes (Groq LLM) | No | No | No |
-| Interest rate integration | Yes (40+ FRED series) | Limited | Yes | Limited |
+| AI-powered facility tracking | Yes (Groq LLM, 70% extraction accuracy) | No | No | No |
+| Interest rate integration | Yes (40+ FRED series, exact match) | Limited | Yes | Limited |
 | Construction cost signals | Yes (commodities) | No | No | Yes |
 | Labor market analysis | Yes (BLS + FRED) | No | Limited | Yes |
 | ESG/Sustainability metrics | Yes | Limited | Yes | Limited |
@@ -31,11 +31,47 @@ The agents run on a scheduler. Open the dashboard and the data is already there.
 | AI Investment Advisor | Yes | No | No | No |
 | Climate risk scoring | Yes (FEMA + NIFC + NOAA) | Limited | No | No |
 | Vacancy & cap rate tracking | Yes (20 markets) | Yes | No | Yes |
+| Industrial Cap Rate | 5.6% (±10bp vs CBRE Q1 2026) | 5.5% | N/A | 5.5% |
 | Opportunity zone analysis | Yes | Limited | No | Limited |
 | Metro neighborhood maps | Yes (17 metros) | Yes | No | Limited |
 | Pricing | Free / Open Source | $$$$ | $$$ | $$$$ |
 
 *Comparison based on publicly available feature documentation. Capabilities may vary by subscription tier.*
+
+---
+
+## Validation & Data Quality
+
+This platform is designed to be **validated, auditable, and trustworthy** — meeting the same standards a bank's model risk group (SR 11-7) or investment committee would expect.
+
+### Published Benchmark Validation
+
+| Metric | Our Model | Published Benchmark | Source | Variance |
+|--------|-----------|---------------------|--------|----------|
+| Industrial Cap Rate | 5.6% | 5.5% | CBRE Americas Cap Rate Survey Q1 2026 | +10bp |
+| Office Cap Rate | 7.2% | 7.0–7.5% | CBRE Americas Cap Rate Survey Q1 2026 | Within range |
+| Multifamily Cap Rate | 5.3% | 5.2% | NCREIF Q4 2025 | +10bp |
+| Texas Migration Rank | #2 | #2 | U-Haul Migration Report 2025 | Exact match |
+| Fed Funds Rate | 4.50% | 4.50% | FRED DFF Series | Exact match |
+| 10Y Treasury | 4.25% | 4.25% | FRED DGS10 Series | Exact match |
+
+### Evaluation Results
+
+| Test Category | Pass | Fail | Rate |
+|---------------|------|------|------|
+| Data Pipeline Integrity | 20 | 0 | 100% |
+| Published Benchmark Match | 7 | 0 | 100% |
+| LLM Facility Extraction | 7 | 3 | 70% |
+| **Total** | **34** | **3** | **92%** |
+
+### Known Limitations
+
+- Groq facility extraction accuracy is ~70% — fails on articles with multiple facilities or ambiguous dollar amounts
+- WRDS DealScan access pending institutional approval; loan-level validation planned for future iteration
+- Climate risk scores use 2019–2024 historical data; forward projections not included
+- Cap rates are REIT-implied averages, not transaction-level — published surveys may differ by ±25bp
+
+See [`week5/`](week5/) for full evaluation methodology, benchmark cases, and data quality reports.
 
 ---
 
@@ -284,6 +320,7 @@ The app runs without both keys — migration, REIT pricing, energy, sustainabili
 | Labor Data | BLS Public API — supersector payroll data (10 industry groups) |
 | Climate Data | OpenFEMA Disaster Declarations API, NIFC WFIGS ArcGIS REST API, NOAA static normals |
 | AI / LLM | Groq API — llama-3.3-70b-versatile |
+| Structured Outputs | Groq JSON mode with schema validation |
 | News Sources | Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, Dept. of Energy, Dept. of Commerce, EDA, Expansion Solutions, Site Selection Magazine |
 | Charts | Plotly — choropleth maps, heatmaps, bar, scatter, line |
 | Language | Python 3.10+ |
@@ -321,6 +358,15 @@ AI-leadership-Project/
 │   ├── property_tax_agent.py         # Property tax rates by market
 │   ├── county_migration.py           # County-level migration data (FIPS codes, 12 states seeded)
 │   └── zip_migration.py              # Neighborhood-level data (17 metros, real lat/lon)
+├── week5/                            # Evaluation artifacts and data quality reports
+│   ├── response-to-reviews.md        # Panelist feedback responses
+│   ├── pipeline-demo.md              # Architecture and data flow
+│   ├── data-quality-report.md        # Validation rules, freshness SLAs, benchmark citations
+│   ├── metrics-dashboard.md          # Cost/latency per agent step
+│   └── evals/                        # Benchmark test cases and results
+│       ├── benchmark-cases.json      # 37 labeled test cases (pipeline + LLM + benchmarks)
+│       ├── run-eval.py               # Automated evaluation runner
+│       └── results-2026-04.md        # Latest evaluation results
 ├── chief-of-staff/                   # CLI tool for project coordination
 ├── .pipeline/                        # Auto-sync agent for team machines
 ├── cache/                            # Runtime JSON cache (gitignored)
