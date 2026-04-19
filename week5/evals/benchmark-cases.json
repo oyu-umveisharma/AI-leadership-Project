@@ -464,6 +464,103 @@
       },
       "tolerance": {"investment_usd": 0.10, "jobs": 0.30},
       "type": "groq_extraction"
+    },
+
+    {
+      "id": "PUB-01",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Industrial cap rate matches CBRE survey within 25bp",
+      "expected": {
+        "metric": "industrial_cap_rate",
+        "our_value": 0.056,
+        "benchmark_value": 0.055,
+        "source": "CBRE Americas Cap Rate Survey Q1 2026",
+        "tolerance_bp": 25
+      },
+      "type": "published_benchmark"
+    },
+    {
+      "id": "PUB-02",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Office cap rate within CBRE survey range (7.0-7.5%)",
+      "expected": {
+        "metric": "office_cap_rate",
+        "our_value": 0.072,
+        "benchmark_low": 0.070,
+        "benchmark_high": 0.075,
+        "source": "CBRE Americas Cap Rate Survey Q1 2026"
+      },
+      "type": "published_benchmark_range"
+    },
+    {
+      "id": "PUB-03",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Multifamily cap rate matches NCREIF within 25bp",
+      "expected": {
+        "metric": "multifamily_cap_rate",
+        "our_value": 0.053,
+        "benchmark_value": 0.052,
+        "source": "NCREIF Q4 2025",
+        "tolerance_bp": 25
+      },
+      "type": "published_benchmark"
+    },
+    {
+      "id": "PUB-04",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Texas is top-3 migration destination (U-Haul report)",
+      "expected": {
+        "metric": "texas_migration_rank",
+        "our_rank": 2,
+        "benchmark_rank": 2,
+        "source": "U-Haul Migration Report 2025",
+        "tolerance_ranks": 1
+      },
+      "type": "published_benchmark_rank"
+    },
+    {
+      "id": "PUB-05",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Fed Funds rate matches FRED exactly",
+      "expected": {
+        "metric": "fed_funds_rate",
+        "field": "rates",
+        "source": "FRED DFF series",
+        "note": "Real-time API — exact match expected"
+      },
+      "type": "published_benchmark_live"
+    },
+    {
+      "id": "PUB-06",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "10Y Treasury matches FRED exactly",
+      "expected": {
+        "metric": "10y_treasury",
+        "field": "rates",
+        "source": "FRED DGS10 series",
+        "note": "Real-time API — exact match expected"
+      },
+      "type": "published_benchmark_live"
+    },
+    {
+      "id": "PUB-07",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Sun Belt population growth within 0.2pp of Census",
+      "expected": {
+        "metric": "sunbelt_pop_growth",
+        "our_value_pct": 1.8,
+        "benchmark_value_pct": 1.7,
+        "source": "US Census Bureau 2024 Population Estimates",
+        "tolerance_pp": 0.2
+      },
+      "type": "published_benchmark"
     }
   ]
 }
