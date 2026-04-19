@@ -369,17 +369,27 @@ Only include what is clearly stated in the articles above.
                 r1 = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": "You are a data extraction assistant. Return only valid JSON arrays."},
+                        {"role": "system", "content": "You are a data extraction assistant. Return a JSON object with key 'announcements' containing an array of facility objects. Only include what is explicitly stated in the articles — do not hallucinate details."},
                         {"role": "user", "content": p1},
                     ],
                     max_tokens=1400, temperature=0.1,
+                    response_format={"type": "json_object"},
                 )
                 raw1 = r1.choices[0].message.content.strip()
-                if raw1.startswith("```"):
-                    raw1 = raw1.split("```")[1]
-                    if raw1.startswith("json"):
-                        raw1 = raw1[4:]
-                results = _json.loads(raw1.strip())
+                parsed1 = _json.loads(raw1)
+                # Handle JSON object wrapper from structured output
+                if isinstance(parsed1, dict):
+                    results = parsed1.get("announcements", parsed1.get("facilities", []))
+                    if not isinstance(results, list):
+                        results = [parsed1] if parsed1.get("company") else []
+                else:
+                    results = parsed1 if isinstance(parsed1, list) else []
+                # Validate each record has required schema keys
+                valid = []
+                for rec in results:
+                    if isinstance(rec, dict) and rec.get("company"):
+                        valid.append(rec)
+                results = valid
             except Exception:
                 results = []
 
@@ -405,17 +415,22 @@ Include well-known examples such as:
             r2 = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "You are a corporate real estate analyst with deep knowledge of US facility announcements. Return only valid JSON arrays."},
+                    {"role": "system", "content": "You are a corporate real estate analyst with deep knowledge of US facility announcements. Return a JSON object with key 'announcements' containing an array of facility objects."},
                     {"role": "user", "content": p2},
                 ],
                 max_tokens=2400, temperature=0.2,
+                response_format={"type": "json_object"},
             )
             raw2 = r2.choices[0].message.content.strip()
-            if raw2.startswith("```"):
-                raw2 = raw2.split("```")[1]
-                if raw2.startswith("json"):
-                    raw2 = raw2[4:]
-            known = _json.loads(raw2.strip())
+            parsed2 = _json.loads(raw2)
+            if isinstance(parsed2, dict):
+                known = parsed2.get("announcements", parsed2.get("facilities", []))
+                if not isinstance(known, list):
+                    known = [parsed2] if parsed2.get("company") else []
+            else:
+                known = parsed2 if isinstance(parsed2, list) else []
+            # Validate records
+            known = [r for r in known if isinstance(r, dict) and r.get("company")]
         except Exception:
             known = []
 
