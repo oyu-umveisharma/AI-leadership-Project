@@ -6852,15 +6852,86 @@ with main_tab_monitor:
     # ── Session state for task actions ────────────────────────────────────────
     if "cos_action_done" not in st.session_state:
         st.session_state.cos_action_done = None
+    if "cos_resolve_msg" not in st.session_state:
+        st.session_state.cos_resolve_msg = None   # (type, message) tuple
 
     # Handle pending resolve/dismiss actions (must run before rendering table)
     if st.session_state.cos_action_done:
         _action, _tid = st.session_state.cos_action_done
-        if _action == "resolve":
+
+        if _action == "resolve_auto":
+            # Load task to determine autonomous action
+            _task_rec = next((t for t in _cos_load_tasks() if t["id"] == _tid), None)
+            if _task_rec:
+                _task_type  = _task_rec.get("type", "manual")
+                _task_agent = _task_rec.get("agent") or ""
+
+                if _task_type == "auto_fix" and _task_agent:
+                    # Restart the stale/broken agent in a background thread
+                    try:
+                        from src.cre_agents import force_run as _cos_force_run
+                        _cos_force_run(_task_agent)
+                        st.session_state.cos_resolve_msg = (
+                            "success",
+                            f"Agent **{_task_agent}** restarted — cache will refresh in the background.",
+                        )
+                    except Exception as _e:
+                        st.session_state.cos_resolve_msg = (
+                            "warning",
+                            f"Could not restart agent '{_task_agent}': {_e}. Task marked resolved anyway.",
+                        )
+
+                elif _task_type == "manual_review":
+                    # Re-run a CoS sweep to verify the underlying issue is cleared
+                    try:
+                        from src.chief_of_staff_agent import run_chief_of_staff as _cos_recheck
+                        _sweep = _cos_recheck(restart_fn=None, agent_status={})
+                        _still_issues = [
+                            i for i in _sweep.get("all_issues", [])
+                            if _task_agent and i.get("agent") == _task_agent
+                        ]
+                        if _still_issues:
+                            st.session_state.cos_resolve_msg = (
+                                "warning",
+                                f"Issue still detected for **{_task_agent}** — underlying problem may not be fixed yet. "
+                                "Task marked resolved; CoS will re-open it on next sweep if issue persists.",
+                            )
+                        else:
+                            st.session_state.cos_resolve_msg = (
+                                "success",
+                                f"Re-sweep confirmed: issue for **{_task_agent}** is cleared. Task resolved.",
+                            )
+                    except Exception as _e:
+                        st.session_state.cos_resolve_msg = (
+                            "info",
+                            f"Could not run verification sweep: {_e}. Task marked resolved.",
+                        )
+
+                else:
+                    # improvement / manual — nothing to automate
+                    st.session_state.cos_resolve_msg = (
+                        "info",
+                        "Task marked as resolved.",
+                    )
+
             _cos_resolve(_tid)
+
         elif _action == "dismiss":
             _cos_dismiss(_tid)
+            st.session_state.cos_resolve_msg = None
+
         st.session_state.cos_action_done = None
+
+    # Show resolve result message
+    if st.session_state.cos_resolve_msg:
+        _msg_type, _msg_text = st.session_state.cos_resolve_msg
+        if _msg_type == "success":
+            st.success(_msg_text)
+        elif _msg_type == "warning":
+            st.warning(_msg_text)
+        else:
+            st.info(_msg_text)
+        st.session_state.cos_resolve_msg = None
 
     _all_tasks = _cos_load_tasks()
     _open_tasks = [t for t in _all_tasks if t["status"] in ("open", "in_progress")]
@@ -6918,7 +6989,7 @@ with main_tab_monitor:
                 unsafe_allow_html=True)
 
             if _tc6.button("Resolve", key=f"cos_res{_sfx}", use_container_width=True):
-                st.session_state.cos_action_done = ("resolve", _tid)
+                st.session_state.cos_action_done = ("resolve_auto", _tid)
                 st.rerun()
 
             if _tc7.button("Dismiss", key=f"cos_dis{_sfx}", use_container_width=True):
