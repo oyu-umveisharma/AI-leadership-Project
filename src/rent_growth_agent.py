@@ -15,9 +15,8 @@ Benchmarks sourced from Zillow Research / CoStar Q1 2025 reports.
 import os
 import json
 import time
-import urllib.request
-import urllib.error
 import urllib.parse
+import requests as _req
 from datetime import datetime
 from pathlib import Path
 
@@ -102,9 +101,9 @@ def _fetch_single_fred_series(api_key: str, series_id: str, limit: int = 24) -> 
     })
     url = f"{FRED_BASE}?{params}"
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "cre-rent-growth-agent/1.0"})
-        with urllib.request.urlopen(req, timeout=12) as r:
-            data = json.loads(r.read())
+        resp = _req.get(url, headers={"User-Agent": "cre-rent-growth-agent/1.0"}, timeout=12)
+        resp.raise_for_status()
+        data = resp.json()
         obs = [
             {"date": o["date"], "value": float(o["value"])}
             for o in data.get("observations", [])

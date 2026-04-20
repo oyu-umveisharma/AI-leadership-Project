@@ -26,8 +26,8 @@ Schedule: every 6 hours
 
 import json
 import os
-import urllib.request
 import urllib.parse
+import requests as _req
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -66,8 +66,9 @@ def _fred_fetch(series_id: str, lookback_years: int = 3, retries: int = 3) -> li
     })
     for attempt in range(retries):
         try:
-            with urllib.request.urlopen(f"{FRED_BASE}?{params}", timeout=15) as resp:
-                data = json.loads(resp.read())
+            resp = _req.get(f"{FRED_BASE}?{params}", timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
             return [{"date": o["date"], "value": float(o["value"])}
                     for o in data.get("observations", []) if o["value"] not in (".", "")]
         except Exception as e:

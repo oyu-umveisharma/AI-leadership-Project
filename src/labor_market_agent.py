@@ -27,10 +27,10 @@ Schedule: every 6 hours
 
 import json
 import os
-import urllib.request
 import urllib.parse
 from datetime import datetime, timedelta
 from pathlib import Path
+import requests as _req
 
 import pandas as pd
 import yfinance as yf
@@ -113,9 +113,9 @@ def _fred_fetch(series_id: str, lookback_years: int = 2) -> list[dict]:
         "sort_order":       "asc",
     })
     try:
-        with urllib.request.urlopen(f"{FRED_BASE}?{params}", timeout=15) as resp:
-            data = json.loads(resp.read())
-        obs = data.get("observations", [])
+        r = _req.get(f"{FRED_BASE}?{params}", timeout=15)
+        r.raise_for_status()
+        obs = r.json().get("observations", [])
         return [{"date": o["date"], "value": float(o["value"])}
                 for o in obs if o["value"] not in (".", "")]
     except Exception as e:
@@ -162,20 +162,17 @@ def fetch_bls_sectors() -> list[dict]:
     """
     print("[LaborAgent] Fetching BLS sector payrolls ...")
     series_ids = list(BLS_SUPERSECTORS.keys())
-    payload = json.dumps({
+    payload = {
         "seriesid": series_ids,
         "startyear": str(datetime.now().year - 1),
         "endyear":   str(datetime.now().year),
-    }).encode()
+    }
     rows = []
     try:
-        req = urllib.request.Request(
-            BLS_BASE,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            data = json.loads(resp.read())
+        resp = _req.post(BLS_BASE, json=payload,
+                         headers={"Content-Type": "application/json"}, timeout=20)
+        resp.raise_for_status()
+        data = resp.json()
         for series in data.get("Results", {}).get("series", []):
             sid   = series["seriesID"]
             meta  = BLS_SUPERSECTORS.get(sid, {})
