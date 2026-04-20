@@ -1157,19 +1157,121 @@ def gauge_card(title: str, label: str, score: int, summary: str,
 
 
 
+# ── Chief of Staff alert banner ──────────────────────────────────────────────
+if "cos_banner_dismissed" not in st.session_state:
+    st.session_state.cos_banner_dismissed = False
+if "cos_navigate_monitor" not in st.session_state:
+    st.session_state.cos_navigate_monitor = False
+
+_cos_banner_cache = read_cache("chief_of_staff")
+_cos_banner_data  = _cos_banner_cache.get("data") or {}
+_cos_health       = _cos_banner_data.get("health_score", 100)
+_cos_critical     = _cos_banner_data.get("critical_count", 0)
+_cos_warnings     = _cos_banner_data.get("warning_count", 0)
+_cos_open_tasks   = _cos_banner_data.get("open_tasks", 0)
+_cos_actions      = _cos_banner_data.get("actions_taken", [])
+
+# Show banner if: any critical issues, OR 3+ warnings, OR health < 70
+_show_banner = (
+    not st.session_state.cos_banner_dismissed
+    and _cos_banner_data
+    and (_cos_critical > 0 or _cos_warnings >= 3 or _cos_health < 70)
+)
+
+if _show_banner:
+    if _cos_critical > 0:
+        _banner_bg    = "#2a0808"
+        _banner_border = "#f44336"
+        _banner_icon  = "&#9888;"
+        _banner_label = "CRITICAL"
+        _banner_color = "#f44336"
+    elif _cos_health < 70:
+        _banner_bg    = "#1a1208"
+        _banner_border = "#ff9800"
+        _banner_icon  = "&#9888;"
+        _banner_label = "WARNING"
+        _banner_color = "#ff9800"
+    else:
+        _banner_bg    = "#1a1208"
+        _banner_border = "#ff9800"
+        _banner_icon  = "&#9888;"
+        _banner_label = "WARNING"
+        _banner_color = "#ff9800"
+
+    _issue_parts = []
+    if _cos_critical > 0:
+        _issue_parts.append(f"<b style='color:#f44336;'>{_cos_critical} critical</b>")
+    if _cos_warnings > 0:
+        _issue_parts.append(f"<b style='color:#ff9800;'>{_cos_warnings} warnings</b>")
+    if _cos_actions:
+        _issue_parts.append(f"<b style='color:#4caf50;'>{len(_cos_actions)} auto-fixed</b>")
+    _issue_summary = " · ".join(_issue_parts) if _issue_parts else "issues detected"
+
+    _banner_col, _banner_btn_col, _banner_x_col = st.columns([6, 1.4, 0.5])
+
+    with _banner_col:
+        st.markdown(
+            f'<div style="background:{_banner_bg};border:1px solid {_banner_border};'
+            f'border-left:4px solid {_banner_border};border-radius:6px;'
+            f'padding:10px 16px;font-size:0.88rem;">'
+            f'<span style="color:{_banner_color};font-weight:700;letter-spacing:0.08em;">'
+            f'{_banner_icon} {_banner_label}</span>'
+            f'<span style="color:#a09880;margin:0 10px;">·</span>'
+            f'<span style="color:#e8dfc4;">Chief of Staff detected {_issue_summary} — '
+            f'platform health <b style="color:{_banner_color};">{_cos_health}/100</b>. '
+            f'{_cos_open_tasks} open task{"s" if _cos_open_tasks != 1 else ""}.</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    with _banner_btn_col:
+        if st.button("View in Monitor", key="cos_banner_goto", use_container_width=True):
+            st.session_state.cos_navigate_monitor = True
+            st.rerun()
+
+    with _banner_x_col:
+        if st.button("✕", key="cos_banner_dismiss", use_container_width=True):
+            st.session_state.cos_banner_dismissed = True
+            st.rerun()
+
+# Auto-navigate to System Monitor tab when banner "View in Monitor" clicked
+if st.session_state.get("cos_navigate_monitor"):
+    st.session_state.cos_navigate_monitor = False
+    components.html("""
+<script>
+(function() {
+  function clickMonitorTab() {
+    var doc = window.parent.document;
+    var tabs = doc.querySelectorAll('button[role="tab"]');
+    for (var i = 0; i < tabs.length; i++) {
+      if (tabs[i].innerText.trim() === 'System Monitor') {
+        tabs[i].click();
+        return true;
+      }
+    }
+    return false;
+  }
+  var attempts = 0;
+  var iv = setInterval(function() {
+    if (clickMonitorTab() || ++attempts > 30) clearInterval(iv);
+  }, 150);
+})();
+</script>
+""", height=0)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  MAIN TABS
 # ═══════════════════════════════════════════════════════════════════════════════
-main_tab_re, main_tab_energy, main_tab_macro, main_tab_advisor = st.tabs(["Real Estate", "Energy", "Macro Environment", "Investment Advisor"])
+main_tab_re, main_tab_energy, main_tab_macro, main_tab_advisor, main_tab_monitor = st.tabs(["Real Estate", "Energy", "Macro Environment", "Investment Advisor", "System Monitor"])
 
 with main_tab_re:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score, tab_climate = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score, tab_climate = st.tabs([
         "Migration Intelligence",
         "Pricing & Profit",
         "Company Predictions",
         "Cheapest Buildings",
         "Industry Announcements",
-        "System Monitor",
         "Vacancy Monitor",
         "Land & Development",
         "Cap Rate Monitor",
@@ -2591,126 +2693,8 @@ with main_tab_re:
 """)
 
 
-    with tab6:
-        st.markdown("#### Background Agent Monitor — Agent 4 runs every 30 minutes")
-        st.markdown(
-            "Agent 4 continuously verifies that all data sources are live, caches are fresh, "
-            "and APIs are reachable. This tab shows the live health dashboard."
-        )
-
-        # ── Agent Status ────────────────────────────────────────────────────────
-        section(" Agent Status")
-        status = get_status()
-
-        agent_labels = {
-            "migration":      ("Agent 1", "Population & Migration", "Every 6h"),
-            "pricing":        ("Agent 2", "REIT Pricing",           "Every 1h"),
-            "predictions":    ("Agent 3", "Company Predictions",    "Every 24h"),
-            "debugger":       ("Agent 4", "Debugger / Monitor",     "Every 30min"),
-            "news":           ("Agent 5", "Industry Announcements", "Every 4h"),
-            "rates":          ("Agent 6", "Interest Rate & Debt",   "Every 1h"),
-            "energy":         ("Agent 7", "Energy & Construction",  "Every 6h"),
-            "sustainability": ("Agent 8", "Sustainability & ESG",   "Every 6h"),
-        }
-
-        cols = st.columns(len(agent_labels))
-        for col, (agent_key, (num, name, freq)) in zip(cols, agent_labels.items()):
-            s = status.get(agent_key, {})
-            st_val = s.get("status", "idle")
-            runs   = s.get("runs", 0)
-            err    = s.get("last_error", None)
-            icon   = {"ok": "OK", "running": "...", "error": "ERR", "idle": "--"}.get(st_val, "?")
-            color  = {"ok": "status-ok", "running": "status-run", "error": "status-error", "idle": "status-idle"}.get(st_val, "")
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{num} · {freq}</div>
-              <div class="value">{icon}</div>
-              <div class="sub">{name}</div>
-              <div class="{color}" style="font-size:0.75rem;margin-top:4px;">{st_val.upper()} · {runs} runs</div>
-              {"<div style='color:#b71c1c;font-size:0.7rem;margin-top:4px;'> " + str(err)[:60] + "</div>" if err else ""}
-            </div>
-            """, unsafe_allow_html=True)
-
-        # ── Cache Ages ─────────────────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Cache Status")
-        cache_keys = [
-            ("migration",           "Every 6h",    7),
-            ("pricing",             "Every 1h",    2),
-            ("predictions",         "Every 24h",   25),
-            ("debugger",            "Every 30min", 1),
-            ("news",                "Every 4h",    5),
-            ("rates",               "Every 1h",    2),
-            ("energy_data",         "Every 6h",    7),
-            ("sustainability_data", "Every 6h",    7),
-        ]
-        c_cols = st.columns(len(cache_keys))
-        for col, (key, freq, max_h) in zip(c_cols, cache_keys):
-            c = read_cache(key)
-            age_label = cache_age_label(key)
-            stale = c.get("stale", True)
-            has_data = c["data"] is not None
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{key.title()} Cache</div>
-              <div class="value">{"OK" if has_data and not stale else ("STALE" if has_data else "NONE")}</div>
-              <div class="sub">{age_label}</div>
-              <div style="font-size:0.72rem;color:#888;margin-top:4px;">Refresh: {freq} · Max age: {max_h}h</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # ── Health Report from Debugger Agent ──────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Health Report — Agent 4 Output")
-
-        dbg_cache = read_cache("debugger")
-        if dbg_cache["data"]:
-            dbg = dbg_cache["data"]
-            checked = dbg.get("checked_at", "unknown")
-            st.caption(f"Last health check: {checked}")
-
-            issues  = dbg.get("issues", [])
-            healthy = dbg.get("healthy", [])
-
-            if healthy:
-                st.markdown("**Healthy systems:**")
-                for h in healthy:
-                    st.markdown(f"- {h}")
-
-            if issues:
-                st.markdown("**Issues detected:**")
-                for i in issues:
-                    st.markdown(f"- {i}")
-            elif healthy:
-                st.success("All systems healthy — no issues detected.")
-
-            # ── Agent sub-status from debugger ────────────────────────────────
-            agent_status_in_dbg = dbg.get("agent_status", {})
-            if agent_status_in_dbg:
-                st.markdown("<br>", unsafe_allow_html=True)
-                section(" Last Known Agent States (from Debugger)")
-                dbg_df = pd.DataFrame([
-                    {
-                        "Agent":    k,
-                        "Status":   v.get("status", "?"),
-                        "Last Run": v.get("last_run", "Never"),
-                        "Runs":     v.get("runs", 0),
-                        "Last Error": (v.get("last_error") or "")[:80],
-                    }
-                    for k, v in agent_status_in_dbg.items()
-                ])
-                st.dataframe(dbg_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("Debugger agent has not completed its first run yet. Refresh in 30 seconds.")
-
-        st.caption(
-            "All agents run independently in background threads managed by APScheduler. "
-            "Data is stored in JSON cache files and survives Streamlit reruns. "
-            "Requires GROQ_API_KEY in .env for Agent 3 predictions."
-        )
-
     # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB 7 — VACANCY RATE MONITOR
+    #  TAB 6 — VACANCY RATE MONITOR  (System Monitor moved to top-level tab)
     # ═══════════════════════════════════════════════════════════════════════════════
     with tab_vacancy:
         vac_cache = read_cache("vacancy")
@@ -6598,3 +6582,387 @@ with main_tab_advisor:
   </ul>
 </div>
 """, unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MAIN TAB — SYSTEM MONITOR
+# ═══════════════════════════════════════════════════════════════════════════════
+with main_tab_monitor:
+    st.markdown("""
+<div style="background:linear-gradient(135deg,#1a1208 0%,#2a1e08 100%);
+            border:1px solid #a07830; border-top:3px solid #d4a843;
+            border-radius:10px; padding:22px 36px; margin-bottom:20px;">
+  <div style="color:#d4a843;font-size:1.35rem;font-weight:700;letter-spacing:1px;">
+    System Monitor
+  </div>
+  <div style="color:#a09880;font-size:0.9rem;margin-top:5px;">
+    Live health dashboard for all 20 background agents — cache status, error logs, and API connectivity.
+    Agent 4 runs a health sweep every 30 minutes.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── Agent Status ──────────────────────────────────────────────────────────
+    section(" Agent Status")
+    _mon_status = get_status()
+
+    _mon_all_agents = {
+        "migration":       ("Agent 1",  "Population & Migration",    "6h"),
+        "pricing":         ("Agent 2",  "REIT Pricing",              "1h"),
+        "predictions":     ("Agent 3",  "Company Predictions",       "24h"),
+        "debugger":        ("Agent 4",  "Debugger / Monitor",        "30min"),
+        "news":            ("Agent 5",  "Industry Announcements",    "4h"),
+        "rates":           ("Agent 6",  "Interest Rate & Debt",      "1h"),
+        "energy":          ("Agent 7",  "Energy & Construction",     "6h"),
+        "sustainability":  ("Agent 8",  "Sustainability & ESG",      "6h"),
+        "labor_market":    ("Agent 9",  "Labor Market",              "6h"),
+        "gdp":             ("Agent 10", "GDP & Growth",              "6h"),
+        "inflation":       ("Agent 11", "Inflation",                 "6h"),
+        "credit":          ("Agent 12", "Credit & Capital Markets",  "6h"),
+        "vacancy":         ("Agent 13", "Vacancy Monitor",           "12h"),
+        "land_market":     ("Agent 14", "Land & Development",        "12h"),
+        "cap_rate":        ("Agent 15", "Cap Rate Monitor",          "6h"),
+        "rent_growth":     ("Agent 16", "Rent Growth",               "6h"),
+        "opportunity_zone":("Agent 17", "Opportunity Zones",         "24h"),
+        "distressed":      ("Agent 18", "CMBS & Distressed",         "6h"),
+        "market_score":    ("Agent 19", "Market Score",              "6h"),
+        "climate_risk":    ("Agent 20", "Climate Risk",              "24h"),
+    }
+
+    _mon_rows1 = list(_mon_all_agents.items())[:10]
+    _mon_rows2 = list(_mon_all_agents.items())[10:]
+
+    for _row_agents in [_mon_rows1, _mon_rows2]:
+        _mon_cols = st.columns(len(_row_agents))
+        for _mc, (_akey, (_anum, _aname, _afreq)) in zip(_mon_cols, _row_agents):
+            _s   = _mon_status.get(_akey, {})
+            _sv  = _s.get("status", "idle")
+            _runs = _s.get("runs", 0)
+            _err  = _s.get("last_error", None)
+            _icon  = {"ok": "OK", "running": "...", "error": "ERR", "idle": "--"}.get(_sv, "?")
+            _clscss = {"ok": "status-ok", "running": "status-run", "error": "status-error", "idle": "status-idle"}.get(_sv, "")
+            _mc.markdown(f"""
+<div class="metric-card">
+  <div class="label">{_anum} · {_afreq}</div>
+  <div class="value">{_icon}</div>
+  <div class="sub">{_aname}</div>
+  <div class="{_clscss}" style="font-size:0.72rem;margin-top:4px;">{_sv.upper()} · {_runs} runs</div>
+  {"<div style='color:#b71c1c;font-size:0.68rem;margin-top:4px;'>" + str(_err)[:55] + "</div>" if _err else ""}
+</div>
+""", unsafe_allow_html=True)
+        st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
+
+    # ── Cache Status ──────────────────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    section(" Cache Status")
+
+    _mon_cache_keys = [
+        ("migration",           "6h",    7),
+        ("pricing",             "1h",    2),
+        ("predictions",         "24h",   25),
+        ("debugger",            "30min", 1),
+        ("news",                "4h",    5),
+        ("rates",               "1h",    2),
+        ("energy_data",         "6h",    7),
+        ("sustainability_data", "6h",    7),
+        ("labor_market",        "6h",    7),
+        ("gdp_data",            "6h",    7),
+        ("inflation_data",      "6h",    7),
+        ("credit_data",         "6h",    7),
+        ("vacancy",             "12h",   13),
+        ("land_market",         "12h",   13),
+        ("cap_rate",            "6h",    7),
+        ("rent_growth",         "6h",    7),
+        ("opportunity_zone",    "24h",   25),
+        ("distressed",          "6h",    7),
+        ("market_score",        "6h",    7),
+        ("climate_risk",        "24h",   25),
+    ]
+
+    _cc_rows = [_mon_cache_keys[:10], _mon_cache_keys[10:]]
+    for _cc_row in _cc_rows:
+        _cc_cols = st.columns(len(_cc_row))
+        for _cc, (_ckey, _cfreq, _max_h) in zip(_cc_cols, _cc_row):
+            _cd = read_cache(_ckey)
+            _ca = cache_age_label(_ckey)
+            _stale    = _cd.get("stale", True)
+            _has_data = _cd.get("data") is not None
+            _cstatus  = "OK" if _has_data and not _stale else ("STALE" if _has_data else "NONE")
+            _ccolor   = "#4caf50" if _cstatus == "OK" else ("#ff9800" if _cstatus == "STALE" else "#f44336")
+            _cc.markdown(f"""
+<div class="metric-card">
+  <div class="label">{_ckey.replace('_',' ').title()}</div>
+  <div class="value" style="color:{_ccolor};font-size:1.1rem;">{_cstatus}</div>
+  <div class="sub">{_ca}</div>
+  <div style="font-size:0.68rem;color:#5a4820;margin-top:4px;">/{_cfreq} · max {_max_h}h</div>
+</div>
+""", unsafe_allow_html=True)
+        st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
+
+    # ── Health Report from Debugger Agent ─────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    section(" Health Report — Agent 4 Output")
+
+    _dbg_cache = read_cache("debugger")
+    if _dbg_cache["data"]:
+        _dbg      = _dbg_cache["data"]
+        _dbg_time = _dbg.get("checked_at", "unknown")
+        st.caption(f"Last health check: {_dbg_time}")
+
+        _dbg_issues  = _dbg.get("issues", [])
+        _dbg_healthy = _dbg.get("healthy", [])
+
+        if _dbg_healthy:
+            st.markdown("**Healthy systems:**")
+            for _h in _dbg_healthy:
+                st.markdown(f"- {_h}")
+
+        if _dbg_issues:
+            st.markdown("**Issues detected:**")
+            for _i in _dbg_issues:
+                st.markdown(f"- {_i}")
+        elif _dbg_healthy:
+            st.success("All systems healthy — no issues detected.")
+
+        _dbg_agent_status = _dbg.get("agent_status", {})
+        if _dbg_agent_status:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Last Known Agent States (from Debugger)")
+            _dbg_df = pd.DataFrame([
+                {
+                    "Agent":      k,
+                    "Status":     v.get("status", "?"),
+                    "Last Run":   v.get("last_run", "Never"),
+                    "Runs":       v.get("runs", 0),
+                    "Last Error": (v.get("last_error") or "")[:80],
+                }
+                for k, v in _dbg_agent_status.items()
+            ])
+            st.dataframe(_dbg_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("Debugger agent has not completed its first run yet. Refresh in 30 seconds.")
+
+    st.caption(
+        "All agents run independently in background threads managed by APScheduler. "
+        "Data is stored in JSON cache files and survives Streamlit reruns. "
+        "Requires GROQ_API_KEY in .env for Agent 3 predictions and Investment Advisor narrative."
+    )
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  CHIEF OF STAFF — OVERSIGHT PANEL
+    # ══════════════════════════════════════════════════════════════════════════
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+<div style="background:linear-gradient(135deg,#1a1208 0%,#2a1e08 100%);
+            border:1px solid #a07830; border-top:3px solid #d4a843;
+            border-radius:10px; padding:18px 28px; margin-bottom:16px;">
+  <div style="color:#d4a843;font-size:1.15rem;font-weight:700;letter-spacing:1px;">
+    Chief of Staff — Autonomous Oversight
+  </div>
+  <div style="color:#a09880;font-size:0.87rem;margin-top:4px;">
+    Runs every 5 minutes. Checks staleness, sanity, and cross-agent consistency.
+    Auto-restarts stale agents and maintains an actionable task list.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    from src.chief_of_staff_agent import (
+        resolve_task as _cos_resolve,
+        dismiss_task as _cos_dismiss,
+        add_manual_task as _cos_add_task,
+        _load_tasks as _cos_load_tasks,
+    )
+
+    _cos_cache = read_cache("chief_of_staff")
+    _cos_data  = _cos_cache.get("data") or {}
+    _cos_ts    = _cos_cache.get("updated_at", "")
+
+    # ── Health score + summary cards ──────────────────────────────────────────
+    if _cos_data:
+        _hs  = _cos_data.get("health_score", 0)
+        _hs_color = ("#4caf50" if _hs >= 80 else "#ff9800" if _hs >= 55 else "#f44336")
+
+        _cos_c1, _cos_c2, _cos_c3, _cos_c4, _cos_c5 = st.columns(5)
+        for _cc, (_lbl, _val, _clr) in zip(
+            [_cos_c1, _cos_c2, _cos_c3, _cos_c4, _cos_c5],
+            [
+                ("Platform Health",   f"{_hs}/100",                                    _hs_color),
+                ("Critical Issues",   str(_cos_data.get("critical_count", 0)),          "#f44336" if _cos_data.get("critical_count", 0) > 0 else "#4caf50"),
+                ("Warnings",          str(_cos_data.get("warning_count", 0)),           "#ff9800" if _cos_data.get("warning_count", 0) > 0 else "#4caf50"),
+                ("Open Tasks",        str(_cos_data.get("open_tasks", 0)),              "#d4a843"),
+                ("Actions Taken",     str(len(_cos_data.get("actions_taken", []))),     "#e8dfc4"),
+            ]
+        ):
+            _cc.markdown(
+                f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                f'<div class="value" style="color:{_clr};font-size:1.5rem;">{_val}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        if _cos_ts:
+            st.caption(f"Last sweep: {_cos_ts[:16].replace('T', ' ')} UTC · Next run in ~5 min")
+
+        # ── Actions taken this sweep ──────────────────────────────────────────
+        _cos_actions = _cos_data.get("actions_taken", [])
+        if _cos_actions:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Actions Taken This Sweep")
+            for _act in _cos_actions:
+                st.markdown(
+                    f'<div style="background:#0d2a12;border-left:3px solid #4caf50;border-radius:4px;'
+                    f'padding:8px 14px;margin:4px 0;color:#a5d6a7;font-size:0.88rem;">'
+                    f'{_act}</div>',
+                    unsafe_allow_html=True,
+                )
+
+        # ── All issues detected ────────────────────────────────────────────────
+        _all_issues = _cos_data.get("all_issues", [])
+        if _all_issues:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(f" Issues Detected ({len(_all_issues)} total)")
+
+            _sev_colors = {"critical": "#f44336", "warning": "#ff9800", "info": "#64b5f6"}
+            _sev_bg     = {"critical": "#2a0a0a", "warning": "#1a1208", "info": "#0a1a2a"}
+
+            for _iss in _all_issues:
+                _sev = _iss.get("severity", "info")
+                _clr = _sev_colors.get(_sev, "#e8dfc4")
+                _bg  = _sev_bg.get(_sev, "#16140a")
+                st.markdown(
+                    f'<div style="background:{_bg};border-left:3px solid {_clr};border-radius:4px;'
+                    f'padding:8px 14px;margin:4px 0;font-size:0.87rem;">'
+                    f'<span style="color:{_clr};font-weight:600;text-transform:uppercase;'
+                    f'font-size:0.72rem;letter-spacing:0.08em;">{_sev}</span>'
+                    f'<span style="color:#6a5228;font-size:0.72rem;margin-left:8px;">'
+                    f'[{_iss.get("agent", "")}]</span><br>'
+                    f'<span style="color:#e8dfc4;">{_iss.get("message", "")}</span></div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.success("No issues detected in the last sweep — platform is healthy.")
+
+    else:
+        st.info("Chief of Staff agent is completing its first sweep. Refresh in ~30 seconds.")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  TASK LIST
+    # ══════════════════════════════════════════════════════════════════════════
+    st.markdown("<br>", unsafe_allow_html=True)
+    section(" Task List")
+
+    # ── Session state for task actions ────────────────────────────────────────
+    if "cos_action_done" not in st.session_state:
+        st.session_state.cos_action_done = None
+
+    # Handle pending resolve/dismiss actions (must run before rendering table)
+    if st.session_state.cos_action_done:
+        _action, _tid = st.session_state.cos_action_done
+        if _action == "resolve":
+            _cos_resolve(_tid)
+        elif _action == "dismiss":
+            _cos_dismiss(_tid)
+        st.session_state.cos_action_done = None
+
+    _all_tasks = _cos_load_tasks()
+    _open_tasks = [t for t in _all_tasks if t["status"] in ("open", "in_progress")]
+    _done_tasks = [t for t in _all_tasks if t["status"] in ("resolved", "dismissed")]
+
+    _prio_colors = {"critical": "#f44336", "high": "#ff9800", "medium": "#ffeb3b", "low": "#9e9e9e"}
+    _type_labels = {"auto_fix": "Auto Fix", "manual_review": "Review", "improvement": "Improve", "manual": "Manual"}
+
+    if _open_tasks:
+        # Column headers
+        st.markdown("""
+<div style="display:grid;grid-template-columns:60px 70px 80px 1fr 90px 90px 90px;
+            gap:8px;padding:6px 10px;background:#16140a;border-radius:4px;
+            font-size:0.68rem;color:#6a5228;text-transform:uppercase;letter-spacing:0.08em;
+            margin-bottom:4px;">
+  <div>ID</div><div>Priority</div><div>Type</div><div>Task</div>
+  <div>Agent</div><div style="text-align:center;">Resolve</div><div style="text-align:center;">Dismiss</div>
+</div>
+""", unsafe_allow_html=True)
+
+        for _t in _open_tasks:
+            _tid    = _t["id"]
+            _prio   = _t.get("priority", "medium")
+            _pclr   = _prio_colors.get(_prio, "#9e9e9e")
+            _ttype  = _type_labels.get(_t.get("type", ""), _t.get("type", ""))
+            _agent  = _t.get("agent") or "—"
+            _title  = _t.get("title", "")
+            _desc   = _t.get("description", "")
+            _status = _t.get("status", "open")
+            _sfx    = f"_{_tid}"
+
+            _tc1, _tc2, _tc3, _tc4, _tc5, _tc6, _tc7 = st.columns([0.7, 0.8, 0.9, 5, 1.1, 1, 1])
+
+            _tc1.markdown(
+                f'<div style="font-family:monospace;font-size:0.78rem;color:#5a4820;padding-top:8px;">'
+                f'#{_tid}</div>', unsafe_allow_html=True)
+
+            _tc2.markdown(
+                f'<div style="color:{_pclr};font-weight:600;font-size:0.78rem;'
+                f'text-transform:uppercase;padding-top:8px;">{_prio}</div>',
+                unsafe_allow_html=True)
+
+            _tc3.markdown(
+                f'<div style="color:#a09880;font-size:0.78rem;padding-top:8px;">{_ttype}</div>',
+                unsafe_allow_html=True)
+
+            with _tc4:
+                st.markdown(
+                    f'<div style="font-size:0.88rem;color:#e8dfc4;font-weight:500;">{_title}</div>'
+                    f'<div style="font-size:0.77rem;color:#6a5228;margin-top:2px;">{_desc[:120]}{"..." if len(_desc)>120 else ""}</div>',
+                    unsafe_allow_html=True)
+
+            _tc5.markdown(
+                f'<div style="font-size:0.78rem;color:#a09880;padding-top:8px;">{_agent}</div>',
+                unsafe_allow_html=True)
+
+            if _tc6.button("Resolve", key=f"cos_res{_sfx}", use_container_width=True):
+                st.session_state.cos_action_done = ("resolve", _tid)
+                st.rerun()
+
+            if _tc7.button("Dismiss", key=f"cos_dis{_sfx}", use_container_width=True):
+                st.session_state.cos_action_done = ("dismiss", _tid)
+                st.rerun()
+
+            st.markdown("<div style='height:2px;background:#1e1a0a;margin:2px 0;'></div>",
+                        unsafe_allow_html=True)
+
+    else:
+        st.success("No open tasks — platform is operating normally.")
+
+    # ── Resolved / dismissed (collapsed) ─────────────────────────────────────
+    if _done_tasks:
+        with st.expander(f"Resolved / Dismissed ({len(_done_tasks)})"):
+            _done_rows = []
+            for _t in sorted(_done_tasks, key=lambda x: x.get("resolved_at") or "", reverse=True):
+                _done_rows.append({
+                    "ID":          _t["id"],
+                    "Status":      _t["status"].title(),
+                    "Priority":    _t.get("priority", "").title(),
+                    "Title":       _t.get("title", ""),
+                    "Agent":       _t.get("agent") or "—",
+                    "Resolved At": (_t.get("resolved_at") or "")[:16].replace("T", " "),
+                })
+            st.dataframe(pd.DataFrame(_done_rows), use_container_width=True, hide_index=True)
+
+    # ── Manual task creation ──────────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    section(" Add Task Manually")
+
+    with st.form("cos_add_task_form", clear_on_submit=True):
+        _mt_col1, _mt_col2 = st.columns([4, 1])
+        _mt_title = _mt_col1.text_input("Task title", placeholder="e.g. Review cap rate data source for Houston")
+        _mt_prio  = _mt_col2.selectbox("Priority", ["medium", "high", "low", "critical"])
+        _mt_desc  = st.text_area("Description (optional)", height=80,
+                                  placeholder="Describe what needs to be done and why.")
+        _mt_submit = st.form_submit_button("Add Task", use_container_width=True)
+
+        if _mt_submit and _mt_title.strip():
+            _cos_add_task(
+                title=_mt_title.strip(),
+                description=_mt_desc.strip(),
+                priority=_mt_prio,
+            )
+            st.success(f"Task added: {_mt_title.strip()}")
+            st.rerun()
