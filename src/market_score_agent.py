@@ -174,6 +174,25 @@ def _land_scores(land_data: dict) -> dict:
     return result
 
 
+def _climate_penalties(climate_data: dict) -> dict:
+    """Return {market: penalty_points} — higher climate risk reduces composite score.
+
+    Penalty formula: max(0, (climate_score - 60) * 0.20), capped at 10 points.
+    Applied only for markets with Severe/Extreme climate exposure (score >= 60).
+    """
+    result = {mkt: 0.0 for mkt in SCORED_MARKETS}
+    states = climate_data.get("states", {})
+    if not states:
+        return result
+    for mkt, abbr in _MARKET_STATE.items():
+        state_info = states.get(abbr, {})
+        cs = state_info.get("composite_score", 0.0)
+        if cs >= 60:
+            penalty = min(10.0, (cs - 60) * 0.20)
+            result[mkt] = round(penalty, 1)
+    return result
+
+
 def _macro_score(rate_data: dict, credit_data: dict) -> float:
     """Single national macro score (same for all markets)."""
     # Rate environment: lower 10Y = better for CRE
@@ -201,21 +220,23 @@ def run_market_score_agent() -> dict:
     Returns ranked list with factor breakdowns.
     """
     # Load all caches
-    mig_data    = _read_cache("migration")
-    vac_data    = _read_cache("vacancy")
-    rent_data   = _read_cache("rent_growth")
-    cap_data    = _read_cache("cap_rate")
-    land_data   = _read_cache("vacancy")   # LAND_AVAILABILITY in vacancy cache
-    rate_data   = _read_cache("rates")
-    credit_data = _read_cache("credit_data")
+    mig_data      = _read_cache("migration")
+    vac_data      = _read_cache("vacancy")
+    rent_data     = _read_cache("rent_growth")
+    cap_data      = _read_cache("cap_rate")
+    land_data     = _read_cache("vacancy")   # LAND_AVAILABILITY in vacancy cache
+    rate_data     = _read_cache("rates")
+    credit_data   = _read_cache("credit_data")
+    climate_data  = _read_cache("climate_risk")
 
     # Compute per-factor scores
-    mig_scores  = _migration_scores(mig_data)
-    vac_scores  = _vacancy_scores(vac_data)
-    rent_scores = _rent_scores(rent_data)
-    cap_scores  = _cap_rate_scores(cap_data)
-    land_scores = _land_scores(vac_data)   # land_availability lives in vacancy cache
-    macro_s     = _macro_score(rate_data, credit_data)
+    mig_scores      = _migration_scores(mig_data)
+    vac_scores      = _vacancy_scores(vac_data)
+    rent_scores     = _rent_scores(rent_data)
+    cap_scores      = _cap_rate_scores(cap_data)
+    land_scores     = _land_scores(vac_data)   # land_availability lives in vacancy cache
+    macro_s         = _macro_score(rate_data, credit_data)
+    climate_penalty = _climate_penalties(climate_data)
 
     # Weights
     W = {
@@ -239,7 +260,7 @@ def run_market_score_agent() -> dict:
             "macro":     macro_s,
         }
 
-        composite = round(
+        raw = round(
             factors["migration"] * W["migration"] +
             factors["vacancy"]   * W["vacancy"]   +
             factors["rent"]      * W["rent"]       +
@@ -249,14 +270,18 @@ def run_market_score_agent() -> dict:
             factors["migration"] * W.get("labor", 0.15),  # labor proxy via migration
             1
         )
+        penalty  = climate_penalty.get(mkt, 0.0)
+        composite = round(max(0.0, raw - penalty), 1)
 
         rankings.append({
-            "market":    mkt,
-            "state":     _MARKET_STATE.get(mkt, ""),
-            "composite": composite,
-            "grade":     _grade(composite),
-            "factors":   factors,
-            "rank":      0,  # filled in below
+            "market":          mkt,
+            "state":           _MARKET_STATE.get(mkt, ""),
+            "composite":       composite,
+            "raw_composite":   raw,
+            "climate_penalty": penalty,
+            "grade":           _grade(composite),
+            "factors":         factors,
+            "rank":            0,  # filled in below
         })
 
     rankings.sort(key=lambda x: x["composite"], reverse=True)
