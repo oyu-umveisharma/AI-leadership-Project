@@ -1,8 +1,8 @@
 {
   "meta": {
-    "version": "1.0",
-    "created": "2026-04-14",
-    "description": "Labeled evaluation cases for CRE Intelligence Platform agents. Each case has a known ground-truth answer derived from public data sources (Census, FRED, yfinance, BLS).",
+    "version": "2.0",
+    "created": "2026-04-19",
+    "description": "Labeled evaluation cases: data pipeline integrity (20 cases) + LLM facility extraction faithfulness (10 cases). Ground-truth answers from Census, FRED, yfinance, BLS, and verified news articles.",
     "pass_threshold": 0.80
   },
   "cases": [
@@ -285,6 +285,282 @@
       },
       "tolerance": 0,
       "type": "enum"
+    },
+
+    {
+      "id": "GROQ-01",
+      "agent": "groq_extraction",
+      "category": "llm_faithfulness",
+      "description": "Extract Tesla Gigafactory from straightforward announcement",
+      "input_article": "Tesla announced plans for a $5 billion Gigafactory in Austin, Texas, expected to create more than 10,000 jobs over the next five years. The 2,500-acre facility will produce the Cybertruck and Model Y. Construction began in 2020.",
+      "expected": {
+        "company": "Tesla",
+        "facility_type": "Manufacturing Plant",
+        "location_city": "Austin",
+        "location_state": "TX",
+        "investment_usd": 5000000000,
+        "jobs": 10000
+      },
+      "tolerance": {"investment_usd": 0.10, "jobs": 0.20},
+      "type": "groq_extraction"
+    },
+    {
+      "id": "GROQ-02",
+      "agent": "groq_extraction",
+      "category": "llm_faithfulness",
+      "description": "Extract TSMC semiconductor fab with large dollar amount",
+      "input_article": "TSMC, the world's largest contract chipmaker, confirmed a $65 billion investment to build three semiconductor fabrication plants in Phoenix, Arizona. The first fab began chip production in early 2025, with 6,000 direct jobs expected at full buildout.",
+      "expected": {
+        "company": "TSMC",
+        "facility_type": "Semiconductor Fab",
+        "location_city": "Phoenix",
+        "location_state": "AZ",
+        "investment_usd": 65000000000,
+        "jobs": 6000
+      },
+      "tolerance": {"investment_usd": 0.10, "jobs": 0.20},
+      "type": "groq_extraction"
+    },
+    {
+      "id": "GROQ-03",
+      "agent": "groq_extraction",
+      "category": "llm_faithfulness",
+      "description": "Extract from article with TWO facilities — should get both",
+      "input_article": "Eli Lilly will invest $9 billion to build four new manufacturing sites in Lebanon, Indiana for weight-loss and diabetes drugs, adding 1,000 jobs. Separately, Toyota announced a $13.9 billion battery plant in Liberty, North Carolina, creating 5,000 jobs to supply its EV production line.",
+      "expected": {
+        "company": "Eli Lilly",
+        "facility_type": "Manufacturing Plant",
+        "location_city": "Lebanon",
+        "location_state": "IN",
+        "investment_usd": 9000000000,
+        "jobs": 1000,
+        "_secondary": {
+          "company": "Toyota",
+          "facility_type": "Battery Plant",
+          "location_city": "Liberty",
+          "location_state": "NC",
+          "investment_usd": 13900000000,
+          "jobs": 5000
+        }
+      },
+      "tolerance": {"investment_usd": 0.10, "jobs": 0.20},
+      "type": "groq_extraction_multi"
+    },
+    {
+      "id": "GROQ-04",
+      "agent": "groq_extraction",
+      "category": "llm_faithfulness",
+      "description": "Extract data center from Microsoft with vague job count",
+      "input_article": "Microsoft plans to invest approximately $80 billion in fiscal year 2025 to build out AI-capable data centers across the United States and globally. The company did not disclose specific job creation numbers but said the investment would support its Azure cloud and Copilot AI services.",
+      "expected": {
+        "company": "Microsoft",
+        "facility_type": "Data Center",
+        "location_city": "",
+        "location_state": "",
+        "investment_usd": 80000000000,
+        "jobs": null
+      },
+      "tolerance": {"investment_usd": 0.15},
+      "type": "groq_extraction"
+    },
+    {
+      "id": "GROQ-05",
+      "agent": "groq_extraction",
+      "category": "llm_faithfulness",
+      "description": "Extract EV plant with company name containing slash",
+      "input_article": "Hyundai Motor Group, which includes Hyundai and Kia, opened its $7.6 billion Metaplant America electric vehicle assembly facility in Bryan County near Savannah, Georgia. The plant is expected to employ 8,500 workers at full capacity.",
+      "expected": {
+        "company": "Hyundai",
+        "facility_type": "Manufacturing Plant",
+        "location_city": "Savannah",
+        "location_state": "GA",
+        "investment_usd": 7600000000,
+        "jobs": 8500
+      },
+      "tolerance": {"investment_usd": 0.10, "jobs": 0.15},
+      "type": "groq_extraction"
+    },
+    {
+      "id": "GROQ-06",
+      "agent": "groq_extraction",
+      "category": "llm_faithfulness",
+      "description": "Extract from ambiguous million/billion amount ($500M not $500B)",
+      "input_article": "Nucor Corporation will build a $500 million steel plate mill in Brandenburg, Kentucky. The facility will create approximately 400 full-time jobs and is expected to begin operations in late 2026. Nucor chose Kentucky for its access to river transportation and skilled labor.",
+      "expected": {
+        "company": "Nucor",
+        "facility_type": "Manufacturing Plant",
+        "location_city": "Brandenburg",
+        "location_state": "KY",
+        "investment_usd": 500000000,
+        "jobs": 400
+      },
+      "tolerance": {"investment_usd": 0.10, "jobs": 0.20},
+      "type": "groq_extraction"
+    },
+    {
+      "id": "GROQ-07",
+      "agent": "groq_extraction",
+      "category": "llm_faithfulness",
+      "description": "Avoid hallucinating details not in the article",
+      "input_article": "Amazon Web Services announced plans to expand its data center operations in Northern Virginia. The company did not disclose the investment amount or number of jobs. AWS currently operates over 100 data centers in the region.",
+      "expected": {
+        "company": "Amazon Web Services",
+        "facility_type": "Data Center",
+        "location_city": "",
+        "location_state": "VA",
+        "investment_usd": null,
+        "jobs": null
+      },
+      "tolerance": {},
+      "type": "groq_extraction"
+    },
+    {
+      "id": "GROQ-08",
+      "agent": "groq_extraction",
+      "category": "llm_faithfulness",
+      "description": "Extract warehouse/distribution facility correctly typed",
+      "input_article": "FedEx Ground announced a new $300 million regional distribution hub in San Antonio, Texas. The 1.2-million-square-foot facility will sort up to 100,000 packages per day and create 2,000 jobs. Operations are expected to begin in Q3 2026.",
+      "expected": {
+        "company": "FedEx",
+        "facility_type": "Warehouse / Distribution",
+        "location_city": "San Antonio",
+        "location_state": "TX",
+        "investment_usd": 300000000,
+        "jobs": 2000
+      },
+      "tolerance": {"investment_usd": 0.10, "jobs": 0.20},
+      "type": "groq_extraction"
+    },
+    {
+      "id": "GROQ-09",
+      "agent": "groq_extraction",
+      "category": "llm_faithfulness",
+      "description": "Extract HQ relocation — should not hallucinate jobs or investment",
+      "input_article": "Caterpillar Inc. completed its corporate headquarters relocation from Deerfield, Illinois to Irving, Texas in 2022. The company cited Texas's business-friendly environment. No new construction investment was announced as the company leased existing office space.",
+      "expected": {
+        "company": "Caterpillar",
+        "facility_type": "Headquarters",
+        "location_city": "Irving",
+        "location_state": "TX",
+        "investment_usd": null,
+        "jobs": null
+      },
+      "tolerance": {},
+      "type": "groq_extraction"
+    },
+    {
+      "id": "GROQ-10",
+      "agent": "groq_extraction",
+      "category": "llm_faithfulness",
+      "description": "Extract from article with R&D facility and specific CHIPS Act mention",
+      "input_article": "Intel will invest $20 billion to build two new semiconductor fabs at its Ohio One campus in New Albany, Ohio, as part of the CHIPS and Science Act. The project will create 3,000 permanent jobs and 7,000 construction jobs. Production is expected to begin in 2026.",
+      "expected": {
+        "company": "Intel",
+        "facility_type": "Semiconductor Fab",
+        "location_city": "New Albany",
+        "location_state": "OH",
+        "investment_usd": 20000000000,
+        "jobs": 3000
+      },
+      "tolerance": {"investment_usd": 0.10, "jobs": 0.30},
+      "type": "groq_extraction"
+    },
+
+    {
+      "id": "PUB-01",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Industrial cap rate matches CBRE survey within 25bp",
+      "expected": {
+        "metric": "industrial_cap_rate",
+        "our_value": 0.056,
+        "benchmark_value": 0.055,
+        "source": "CBRE Americas Cap Rate Survey Q1 2026",
+        "tolerance_bp": 25
+      },
+      "type": "published_benchmark"
+    },
+    {
+      "id": "PUB-02",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Office cap rate within CBRE survey range (7.0-7.5%)",
+      "expected": {
+        "metric": "office_cap_rate",
+        "our_value": 0.072,
+        "benchmark_low": 0.070,
+        "benchmark_high": 0.075,
+        "source": "CBRE Americas Cap Rate Survey Q1 2026"
+      },
+      "type": "published_benchmark_range"
+    },
+    {
+      "id": "PUB-03",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Multifamily cap rate matches NCREIF within 25bp",
+      "expected": {
+        "metric": "multifamily_cap_rate",
+        "our_value": 0.053,
+        "benchmark_value": 0.052,
+        "source": "NCREIF Q4 2025",
+        "tolerance_bp": 25
+      },
+      "type": "published_benchmark"
+    },
+    {
+      "id": "PUB-04",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Texas is top-3 migration destination (U-Haul report)",
+      "expected": {
+        "metric": "texas_migration_rank",
+        "our_rank": 2,
+        "benchmark_rank": 2,
+        "source": "U-Haul Migration Report 2025",
+        "tolerance_ranks": 1
+      },
+      "type": "published_benchmark_rank"
+    },
+    {
+      "id": "PUB-05",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Fed Funds rate matches FRED exactly",
+      "expected": {
+        "metric": "fed_funds_rate",
+        "field": "rates",
+        "source": "FRED DFF series",
+        "note": "Real-time API — exact match expected"
+      },
+      "type": "published_benchmark_live"
+    },
+    {
+      "id": "PUB-06",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "10Y Treasury matches FRED exactly",
+      "expected": {
+        "metric": "10y_treasury",
+        "field": "rates",
+        "source": "FRED DGS10 series",
+        "note": "Real-time API — exact match expected"
+      },
+      "type": "published_benchmark_live"
+    },
+    {
+      "id": "PUB-07",
+      "agent": "published_benchmark",
+      "category": "published_benchmark",
+      "description": "Sun Belt population growth within 0.2pp of Census",
+      "expected": {
+        "metric": "sunbelt_pop_growth",
+        "our_value_pct": 1.8,
+        "benchmark_value_pct": 1.7,
+        "source": "US Census Bureau 2024 Population Estimates",
+        "tolerance_pp": 0.2
+      },
+      "type": "published_benchmark"
     }
   ]
 }
