@@ -18,6 +18,15 @@ Usage:
   cos follow-up list [--filter open|overdue|done|all]
   cos follow-up done <id>               Mark a follow-up complete
   cos weekly                            Weekly digest
+
+  cos platform status                   Platform health, issues, agent status
+  cos platform tasks [--filter open|all] List CoS task list
+  cos platform resolve <id>             Mark a task resolved
+  cos platform dismiss <id>             Mark a task dismissed
+  cos platform add "<title>"            Add a manual task
+      --desc     "description"
+      --priority critical|high|medium|low
+  cos platform sweep                    Run a full oversight sweep now
 """
 
 import sys
@@ -29,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from modules import briefing, triage, meeting, decisions, followups, weekly
 from modules import llm
+from modules import platform as platform_mod
 
 
 def _print_help():
@@ -87,6 +97,31 @@ def main():
     # weekly
     sub.add_parser("weekly", help="Weekly progress digest")
 
+    # platform
+    p_plat = sub.add_parser("platform", help="Platform oversight — health, tasks, sweep")
+    plat_sub = p_plat.add_subparsers(dest="plat_command", metavar="<subcommand>")
+
+    plat_sub.add_parser("status",  help="Platform health score and issue summary")
+
+    p_pt = plat_sub.add_parser("tasks", help="List CoS tasks")
+    p_pt.add_argument("--filter", default="open", choices=["open", "all"],
+                      help="Filter tasks (default: open)")
+
+    p_pr = plat_sub.add_parser("resolve", help="Mark a task resolved")
+    p_pr.add_argument("id", help="Task ID (e.g. a1b2c3d4)")
+
+    p_pd = plat_sub.add_parser("dismiss", help="Dismiss a task")
+    p_pd.add_argument("id", help="Task ID")
+
+    p_pa = plat_sub.add_parser("add", help="Add a manual task")
+    p_pa.add_argument("title", help="Task title")
+    p_pa.add_argument("--desc",     default="", help="Optional description")
+    p_pa.add_argument("--priority", default="medium",
+                      choices=["critical", "high", "medium", "low"],
+                      help="Priority (default: medium)")
+
+    plat_sub.add_parser("sweep", help="Run a full oversight sweep immediately")
+
     # ── Parse ──────────────────────────────────────────────────────────────────
     args = parser.parse_args()
 
@@ -138,6 +173,23 @@ def main():
 
     elif args.command == "weekly":
         weekly.run()
+
+    elif args.command == "platform":
+        if not args.plat_command:
+            print("Usage: cos platform <status|tasks|resolve|dismiss|add|sweep>")
+            sys.exit(1)
+        if args.plat_command == "status":
+            platform_mod.status()
+        elif args.plat_command == "tasks":
+            platform_mod.tasks(filter_by=args.filter)
+        elif args.plat_command == "resolve":
+            platform_mod.resolve(args.id)
+        elif args.plat_command == "dismiss":
+            platform_mod.dismiss(args.id)
+        elif args.plat_command == "add":
+            platform_mod.add(args.title, args.desc, args.priority)
+        elif args.plat_command == "sweep":
+            platform_mod.sweep()
 
 
 if __name__ == "__main__":
