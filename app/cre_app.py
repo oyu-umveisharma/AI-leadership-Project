@@ -2422,8 +2422,8 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
         _show_tab_header(
             "buildings",
             "Agent 3 sources the lowest-price commercial listings in the states with the highest "
-            "migration and business growth scores — identifying acquisition opportunities before demand peaks. "
-            "Updates every 24 hours alongside company predictions.",
+            "migration and business growth scores. **Agent 21 (RentCast)** overlays live property data "
+            "when API key is configured (free tier: 50 calls/month). Updates every 24 hours.",
             "predictions",
         )
 
@@ -2434,6 +2434,38 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
         pdata4   = cache4["data"]
         listings = pdata4.get("listings", {})
         top3_abbr = pdata4.get("top3_abbr", [])
+
+        # ── Overlay RentCast live data if available ──────────────────────────
+        _rc_cache = read_cache("rentcast")
+        _rc_data = _rc_cache.get("data") or {}
+        _rc_listings = _rc_data.get("listings", {})
+        _rc_sources = _rc_data.get("source_states", {})
+        _rc_live_count = _rc_data.get("live_listing_count", 0)
+        _rc_remaining = _rc_data.get("api_calls_remaining", 0)
+        _rc_has_key = _rc_data.get("has_api_key", False)
+
+        # Merge RentCast listings into the main listings dict (RentCast takes priority)
+        for abbr, rc_list in _rc_listings.items():
+            if rc_list:
+                listings[abbr] = rc_list
+                if abbr not in top3_abbr:
+                    top3_abbr.append(abbr)
+
+        # Show RentCast API status strip
+        if _rc_has_key:
+            _rc_used = _rc_data.get("api_calls_used", 0)
+            _live_states = [k for k, v in _rc_sources.items() if v == "live"]
+            if _rc_live_count > 0:
+                st.markdown(
+                    f'<div style="background:#1b5e20;color:#fff;padding:6px 14px;border-radius:6px;'
+                    f'font-size:0.82rem;margin-bottom:12px;display:inline-block;">'
+                    f'<b>LIVE DATA</b> &nbsp; {_rc_live_count} listings from RentCast API '
+                    f'&middot; {_rc_used}/50 calls used this month '
+                    f'&middot; Live states: {", ".join(_live_states)}'
+                    f'</div>', unsafe_allow_html=True)
+            else:
+                st.caption(f"RentCast API configured — {_rc_remaining} calls remaining this month. "
+                           f"Showing cached/mock data until next agent run.")
 
         # On-demand: generate listings for user's target state if not already cached
         _user_abbr_b = st.session_state.user_intent.get("state_abbr")
@@ -2558,11 +2590,15 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
 
                     # Highlight if city matches
                     _is_city_match = _user_city4 and _user_city4.lower() in (listing.get("city", "") or "").lower()
-                    _border_clr = "#1b5e20" if _is_city_match else GOLD
+                    _is_live = listing.get("_source") == "rentcast"
+                    _border_clr = "#1b5e20" if _is_city_match or _is_live else GOLD
+                    _live_badge = ('<span style="background:#1b5e20;color:#fff;padding:2px 8px;'
+                                   'border-radius:4px;font-size:0.7rem;font-weight:700;'
+                                   'margin-left:8px;vertical-align:middle;">LIVE DATA</span>') if _is_live else ""
 
                     st.markdown(f"""
                     <div class="listing-card" style="border-left-color:{_border_clr};">
-                      <div class="l-price">{price_fmt}</div>
+                      <div class="l-price">{price_fmt}{_live_badge}</div>
                       <div class="l-address">{addr_fmt}</div>
                       <div style="margin:4px 0;">
                         <span class="l-tag">{pt_fmt}</span>
