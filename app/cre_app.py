@@ -1160,16 +1160,15 @@ def gauge_card(title: str, label: str, score: int, summary: str,
 # ═══════════════════════════════════════════════════════════════════════════════
 #  MAIN TABS
 # ═══════════════════════════════════════════════════════════════════════════════
-main_tab_re, main_tab_energy, main_tab_macro, main_tab_advisor = st.tabs(["Real Estate", "Energy", "Macro Environment", "Investment Advisor"])
+main_tab_re, main_tab_advisor, main_tab_energy, main_tab_macro, main_tab_about = st.tabs(["Real Estate", "Investment Advisor", "Energy", "Macro Environment", "About"])
 
 with main_tab_re:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score, tab_climate = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score, tab_climate = st.tabs([
         "Migration Intelligence",
         "Pricing & Profit",
         "Company Predictions",
         "Cheapest Buildings",
         "Industry Announcements",
-        "System Monitor",
         "Vacancy Monitor",
         "Land & Development",
         "Cap Rate Monitor",
@@ -2615,12 +2614,42 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
         ndata = cache_news["data"]
 
         # ── KPI strip ─────────────────────────────────────────────────────────
-        c1, c2, c3 = st.columns(3)
+        c1, c2, c3, c4 = st.columns(4)
         c1.markdown(metric_card("Articles Found", str(ndata.get("article_count", 0)), "Facility announcements"), unsafe_allow_html=True)
-        c2.markdown(metric_card("Sources Checked", str(ndata.get("sources_checked", 0)), "News + gov feeds"), unsafe_allow_html=True)
+        c2.markdown(metric_card("Verified / High", str(ndata.get("verified_count", 0)), "Independent sources only"), unsafe_allow_html=True)
+        c3.markdown(metric_card("Sources Checked", str(ndata.get("sources_checked", 0)), "Incl. Bloomberg + Reuters"), unsafe_allow_html=True)
         fetched = ndata.get("fetched_at", "")
         fetched_label = datetime.fromisoformat(fetched).strftime("%b %d, %Y %I:%M %p") if fetched else "N/A"
-        c3.markdown(metric_card("Last Scan", fetched_label, "Updates every 4 hours"), unsafe_allow_html=True)
+        c4.markdown(metric_card("Last Scan", fetched_label, "Updates every 4 hours"), unsafe_allow_html=True)
+
+        # ── Credibility breakdown bar ──────────────────────────────────────
+        cred_bk = ndata.get("credibility_breakdown", {})
+        tier_bk = ndata.get("tier_breakdown", {})
+        if cred_bk:
+            _total_art = max(sum(cred_bk.values()), 1)
+            _cred_colors = {"VERIFIED": "#4caf50", "HIGH": "#8bc34a", "MODERATE": "#ff9800", "LOW": "#f44336"}
+            _bars_parts = []
+            _label_parts = []
+            for lbl, cnt in cred_bk.items():
+                if cnt > 0:
+                    clr = _cred_colors.get(lbl, "#555")
+                    _bars_parts.append(
+                        f'<div title="{lbl}: {cnt}" style="flex:{cnt};background:{clr};'
+                        f'height:8px;border-radius:2px;"></div>'
+                    )
+                    _label_parts.append(
+                        f'<span style="color:{clr};font-size:11px;">&#9632; {lbl} {cnt}</span>'
+                    )
+            _bars   = "".join(_bars_parts)
+            _labels = " &nbsp;".join(_label_parts)
+            st.markdown(f"""
+<div style="background:#16140a;border:1px solid #2a2208;border-radius:6px;padding:10px 16px;margin-bottom:16px;">
+  <div style="font-size:11px;color:#6a5228;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">
+    Source Credibility Breakdown
+  </div>
+  <div style="display:flex;gap:3px;margin-bottom:8px;">{_bars}</div>
+  <div>{_labels}</div>
+</div>""", unsafe_allow_html=True)
 
         # ── AI Summary ────────────────────────────────────────────────────────
         section(" Agent 5 — AI Investment Brief: Facility Announcements")
@@ -2641,30 +2670,58 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
         if raw:
             section(f" Raw Announcement Feed ({len(raw)} articles)")
 
-            feed_type_filter = st.selectbox(
+            _fcol1, _fcol2 = st.columns(2)
+            feed_type_filter = _fcol1.selectbox(
                 "Filter by source type",
                 options=["All", "news", "industry", "press", "government"],
                 key="news_filter",
             )
+            cred_filter = _fcol2.selectbox(
+                "Minimum credibility",
+                options=["All", "MODERATE", "HIGH", "VERIFIED"],
+                key="news_cred_filter",
+            )
 
-            _ft_badge_colors = {
-                "government": ("#0d1a2a", "#4a8abf"),
-                "industry":   ("#0d2a12", "#4a9e58"),
-                "press":      ("#1e0d2a", "#8a5abf"),
-                "news":       ("#2a1208", "#d4a843"),
+            _cred_min_map = {"All": 0, "MODERATE": 45, "HIGH": 65, "VERIFIED": 80}
+            _cred_min_score = _cred_min_map.get(cred_filter, 0)
+
+            _cred_badge_style = {
+                "VERIFIED": "background:#0d1a0d;color:#4caf50;border:1px solid #2d5a2d;",
+                "HIGH":     "background:#121a0d;color:#8bc34a;border:1px solid #3a5a1a;",
+                "MODERATE": "background:#1a1200;color:#ff9800;border:1px solid #5a4000;",
+                "LOW":      "background:#1a0d0d;color:#f44336;border:1px solid #5a1a1a;",
             }
+            _tier_badge_style = {
+                1: "background:#0d1a0d;color:#4caf50;",
+                2: "background:#0d1a2a;color:#4a8abf;",
+                3: "background:#0d2a12;color:#4a9e58;",
+                4: "background:#2a1a0d;color:#bf8a4a;",
+            }
+            _tier_labels = {1: "Independent News", 2: "Government", 3: "Trade Press", 4: "Press Release"}
+            _left_colors = {"VERIFIED": "#4caf50", "HIGH": "#8bc34a", "MODERATE": "#ff9800", "LOW": "#f44336"}
 
+            shown = 0
             for art in raw:
                 if feed_type_filter != "All" and art.get("feed_type") != feed_type_filter:
                     continue
-                ft    = art.get("feed_type", "news")
-                link  = art.get("link", "#")
-                title = art.get("title", "No title")
-                desc  = art.get("description", "")[:300]
-                src   = art.get("source", "")
-                date  = art.get("pub_date", "")[:22]
+                if art.get("credibility_score", 0) < _cred_min_score:
+                    continue
 
-                _bg, _clr = _ft_badge_colors.get(ft, ("#2a2208", "#d4a843"))
+                tier       = art.get("tier", 4)
+                link       = art.get("link", "#")
+                title      = art.get("title", "No title")
+                desc       = art.get("description", "")[:300]
+                src        = art.get("source", "")
+                cred_lbl   = art.get("credibility_label", "LOW")
+                cred_score = art.get("credibility_score", 0)
+                confirms   = art.get("confirming_sources", [])
+                age_days   = art.get("age_days")
+
+                _cred_sty  = _cred_badge_style.get(cred_lbl, _cred_badge_style["LOW"])
+                _tier_sty  = _tier_badge_style.get(tier, "background:#2a2208;color:#d4a843;")
+                _tier_lbl  = _tier_labels.get(tier, "Unknown")
+                _age_lbl   = f"{age_days}d ago" if age_days is not None else ""
+                _left_clr  = _left_colors.get(cred_lbl, "#d4a843")
 
                 _title_html = (
                     f'<a href="{link}" target="_blank" style="color:#d4a843;font-weight:600;'
@@ -2672,173 +2729,70 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                     if link and link != "#"
                     else f'<span style="color:#d4a843;font-weight:600;font-size:15px;">{title}</span>'
                 )
-
-                _src_badge = (
+                _cred_badge = (
                     f'<span style="font-size:10px;padding:2px 8px;border-radius:4px;'
-                    f'background:{_bg};color:{_clr};letter-spacing:0.08em;text-transform:uppercase;'
-                    f'font-weight:600;">{ft}</span>'
+                    f'{_cred_sty}letter-spacing:0.08em;font-weight:700;">'
+                    f'{cred_lbl} {cred_score}</span>'
                 )
-                _src_label = (
-                    f'<span style="font-size:11px;color:#6a5228;">{src}</span>'
-                    if src else ""
+                _tier_badge = (
+                    f'<span style="font-size:10px;padding:2px 8px;border-radius:4px;'
+                    f'{_tier_sty}letter-spacing:0.06em;">{_tier_lbl}</span>'
                 )
-                _date_label = (
-                    f'<span style="font-size:11px;color:#4a3e18;">{date}</span>'
-                    if date else ""
-                )
+                _confirm_badge = (
+                    f'<span style="font-size:10px;padding:2px 8px;border-radius:4px;'
+                    f'background:#0a1a0a;color:#66bb6a;border:1px solid #1a4a1a;" '
+                    f'title="Also reported by: {", ".join(confirms)}">'
+                    f'&#10003; {len(confirms)} confirming source{"s" if len(confirms)!=1 else ""}'
+                    f'</span>'
+                ) if confirms else ""
+                _src_label  = f'<span style="font-size:11px;color:#6a5228;">{src}</span>' if src else ""
+                _date_label = f'<span style="font-size:11px;color:#4a3e18;">{_age_lbl}</span>' if _age_lbl else ""
 
                 st.markdown(f"""
 <div style="background:#171309;border:1px solid #2a2208;border-radius:10px;
-            padding:16px 18px;margin:8px 0;border-left:3px solid #d4a843;">
+            padding:16px 18px;margin:8px 0;border-left:3px solid {_left_clr};">
   <div style="margin-bottom:10px;">{_title_html}</div>
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-    {_src_badge}
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+    {_cred_badge}
+    {_tier_badge}
+    {_confirm_badge}
     {_src_label}
-    {'<span style="color:#2a2208;">·</span>' if src and date else ""}
     {_date_label}
   </div>
   <div style="font-size:13px;color:#8a7040;line-height:1.6;">{desc}</div>
 </div>""", unsafe_allow_html=True)
+                shown += 1
+
+            if shown == 0:
+                st.info("No articles match the current filters.")
 
         st.caption(
-            "Sources: Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, "
-            "US Dept of Energy, US Dept of Commerce, EDA, Expansion Solutions, Site Selection Magazine."
+            "Sources: Bloomberg, Reuters, AP News, Manufacturing.net, IndustryWeek, "
+            "PR Newswire, Business Wire, US Dept of Energy, US Dept of Commerce, "
+            "EDA, Expansion Solutions, Site Selection Magazine."
         )
 
-        with st.expander("How This Is Calculated"):
+        with st.expander("How Credibility Is Scored"):
             st.markdown("""
-**News Relevance Scoring:**
+**Source Tiers (base score):**
+- **Tier 1 — Independent News** (85 base): Bloomberg, Reuters, AP News — independently reported journalism
+- **Tier 2 — Government** (80 base): DOE, Commerce Dept, EDA — official announcements
+- **Tier 3 — Trade Press** (65 base): Manufacturing.net, IndustryWeek, Site Selection — credible industry reporting
+- **Tier 4 — Press Releases** (30 base): PR Newswire, Business Wire — company self-published, unverified
 
-- Articles are pulled from 10+ RSS feeds covering manufacturing, government, and industry press.
-- Each article is filtered by CRE-relevant keywords: *plant, warehouse, data center, headquarters, facility, expansion, construction*.
-- Articles matching multiple keywords or mentioning specific investment amounts are ranked higher.
-- AI extraction (Groq LLM) identifies structured fields: company, location, investment size, job count, facility type, and CRE impact.
+**Credibility Bonuses:**
+- Dollar amount disclosed: +10 pts · Jobs count: +5 pts · Location named: +5 pts · Timeline given: +5 pts
+- Confirmed by 1 other independent source: +10 pts · Confirmed by 2+: +20 pts
 
-**Facility Type Classification:** Manufacturing, Data Center, Warehouse/Distribution, Office/HQ, Training Center, Mixed-Use.
+**Age Penalty:** >7 days: −10 pts · >14 days: −20 pts · >30 days: filtered out entirely
 
-**Data Source:** Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, Dept. of Energy, Dept. of Commerce, EDA, Expansion Solutions, Site Selection Magazine.
+**Labels:** VERIFIED (80+) · HIGH (65+) · MODERATE (45+) · LOW (<45)
+
+The Groq AI brief only uses MODERATE+ articles — press releases not confirmed by independent sources are excluded.
 
 **Update Frequency:** Company Predictions via Agent 3 (every 24h), Industry Announcements via Agent 5 (every 4h).
 """)
 
-
-    with tab6:
-        st.markdown("#### Background Agent Monitor — Agent 4 runs every 30 minutes")
-        st.markdown(
-            "Agent 4 continuously verifies that all data sources are live, caches are fresh, "
-            "and APIs are reachable. This tab shows the live health dashboard."
-        )
-
-        # ── Agent Status ────────────────────────────────────────────────────────
-        section(" Agent Status")
-        status = get_status()
-
-        agent_labels = {
-            "migration":      ("Agent 1", "Population & Migration", "Every 6h"),
-            "pricing":        ("Agent 2", "REIT Pricing",           "Every 1h"),
-            "predictions":    ("Agent 3", "Company Predictions",    "Every 24h"),
-            "debugger":       ("Agent 4", "Debugger / Monitor",     "Every 30min"),
-            "news":           ("Agent 5", "Industry Announcements", "Every 4h"),
-            "rates":          ("Agent 6", "Interest Rate & Debt",   "Every 1h"),
-            "energy":         ("Agent 7", "Energy & Construction",  "Every 6h"),
-            "sustainability": ("Agent 8", "Sustainability & ESG",   "Every 6h"),
-        }
-
-        cols = st.columns(len(agent_labels))
-        for col, (agent_key, (num, name, freq)) in zip(cols, agent_labels.items()):
-            s = status.get(agent_key, {})
-            st_val = s.get("status", "idle")
-            runs   = s.get("runs", 0)
-            err    = s.get("last_error", None)
-            icon   = {"ok": "OK", "running": "...", "error": "ERR", "idle": "--"}.get(st_val, "?")
-            color  = {"ok": "status-ok", "running": "status-run", "error": "status-error", "idle": "status-idle"}.get(st_val, "")
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{num} · {freq}</div>
-              <div class="value">{icon}</div>
-              <div class="sub">{name}</div>
-              <div class="{color}" style="font-size:0.75rem;margin-top:4px;">{st_val.upper()} · {runs} runs</div>
-              {"<div style='color:#b71c1c;font-size:0.7rem;margin-top:4px;'> " + str(err)[:60] + "</div>" if err else ""}
-            </div>
-            """, unsafe_allow_html=True)
-
-        # ── Cache Ages ─────────────────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Cache Status")
-        cache_keys = [
-            ("migration",           "Every 6h",    7),
-            ("pricing",             "Every 1h",    2),
-            ("predictions",         "Every 24h",   25),
-            ("debugger",            "Every 30min", 1),
-            ("news",                "Every 4h",    5),
-            ("rates",               "Every 1h",    2),
-            ("energy_data",         "Every 6h",    7),
-            ("sustainability_data", "Every 6h",    7),
-        ]
-        c_cols = st.columns(len(cache_keys))
-        for col, (key, freq, max_h) in zip(c_cols, cache_keys):
-            c = read_cache(key)
-            age_label = cache_age_label(key)
-            stale = c.get("stale", True)
-            has_data = c["data"] is not None
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{key.title()} Cache</div>
-              <div class="value">{"OK" if has_data and not stale else ("STALE" if has_data else "NONE")}</div>
-              <div class="sub">{age_label}</div>
-              <div style="font-size:0.72rem;color:#888;margin-top:4px;">Refresh: {freq} · Max age: {max_h}h</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # ── Health Report from Debugger Agent ──────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Health Report — Agent 4 Output")
-
-        dbg_cache = read_cache("debugger")
-        if dbg_cache["data"]:
-            dbg = dbg_cache["data"]
-            checked = dbg.get("checked_at", "unknown")
-            st.caption(f"Last health check: {checked}")
-
-            issues  = dbg.get("issues", [])
-            healthy = dbg.get("healthy", [])
-
-            if healthy:
-                st.markdown("**Healthy systems:**")
-                for h in healthy:
-                    st.markdown(f"- {h}")
-
-            if issues:
-                st.markdown("**Issues detected:**")
-                for i in issues:
-                    st.markdown(f"- {i}")
-            elif healthy:
-                st.success("All systems healthy — no issues detected.")
-
-            # ── Agent sub-status from debugger ────────────────────────────────
-            agent_status_in_dbg = dbg.get("agent_status", {})
-            if agent_status_in_dbg:
-                st.markdown("<br>", unsafe_allow_html=True)
-                section(" Last Known Agent States (from Debugger)")
-                dbg_df = pd.DataFrame([
-                    {
-                        "Agent":    k,
-                        "Status":   v.get("status", "?"),
-                        "Last Run": v.get("last_run", "Never"),
-                        "Runs":     v.get("runs", 0),
-                        "Last Error": (v.get("last_error") or "")[:80],
-                    }
-                    for k, v in agent_status_in_dbg.items()
-                ])
-                st.dataframe(dbg_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("Debugger agent has not completed its first run yet. Refresh in 30 seconds.")
-
-        st.caption(
-            "All agents run independently in background threads managed by APScheduler. "
-            "Data is stored in JSON cache files and survives Streamlit reruns. "
-            "Requires GROQ_API_KEY in .env for Agent 3 predictions."
-        )
 
     # ═══════════════════════════════════════════════════════════════════════════════
     #  TAB 7 — VACANCY RATE MONITOR
@@ -2891,52 +2845,99 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
 
         if mkt_rows:
             vac_df = pd.DataFrame(mkt_rows)
-
-            # Pivot for heatmap
-            pivot = vac_df.pivot_table(
+            pivot  = vac_df.pivot_table(
                 index="market", columns="property_type", values="vacancy_rate"
             ).round(1)
 
-            fig_heat = go.Figure(go.Heatmap(
-                z=pivot.values,
-                x=pivot.columns.tolist(),
-                y=pivot.index.tolist(),
-                colorscale=[
-                    [0.0,  "#1b5e20"],
-                    [0.3,  "#66bb6a"],
-                    [0.55, "#fff9c4"],
-                    [0.75, "#ef5350"],
-                    [1.0,  "#7f0000"],
-                ],
-                zmin=0, zmax=28,
-                text=[[f"{v:.1f}%" for v in row] for row in pivot.values],
-                texttemplate="%{text}",
-                textfont=dict(size=11, color="#0d0b04"),
-                hoverongaps=False,
-                hovertemplate="<b>%{y}</b><br>%{x}: %{z:.1f}%<extra></extra>",
-                colorbar=dict(
-                    title=dict(text="Vacancy %", font=dict(color="#c8b890", size=11)),
-                    tickfont=dict(color="#c8b890", size=10),
-                    thickness=14,
-                    bgcolor="#1a1208",
-                    bordercolor="#3a3a2a",
-                ),
-            ))
-            fig_heat.update_layout(
-                plot_bgcolor="#0d0b04", paper_bgcolor="#1a1208",
-                margin=dict(t=20, b=20, l=180, r=20),
-                height=620,
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-                xaxis=dict(side="top", tickfont=dict(color="#c8b890", size=12)),
-                yaxis=dict(tickfont=dict(color="#c8b890", size=11)),
+            # Order columns: Office, Industrial, Retail, Multifamily (whichever exist)
+            _vac_col_order = ["Office", "Industrial", "Retail", "Multifamily", "Mixed-Use"]
+            _vac_cols = [c for c in _vac_col_order if c in pivot.columns] + \
+                        [c for c in pivot.columns if c not in _vac_col_order]
+
+            def _vac_cell_color(v: float) -> str:
+                """Low vacancy = teal/green (tight). High vacancy = orange/red (soft)."""
+                _stops = [
+                    ( 2.0, (26,  122, 106)),   # deep teal  — very tight
+                    ( 5.0, (45,  150,  64)),   # green
+                    ( 8.0, (106, 176,  24)),   # lime-green
+                    (12.0, (168, 162,  24)),   # yellow-lime
+                    (16.0, (212, 148,  28)),   # gold
+                    (20.0, (212, 100,  28)),   # orange
+                    (26.0, (200,  50,  30)),   # red-orange
+                ]
+                if v <= _stops[0][0]:
+                    return "rgb(%d,%d,%d)" % _stops[0][1]
+                if v >= _stops[-1][0]:
+                    return "rgb(%d,%d,%d)" % _stops[-1][1]
+                for _i in range(len(_stops) - 1):
+                    _lv, _lc = _stops[_i]
+                    _hv, _hc = _stops[_i + 1]
+                    if _lv <= v <= _hv:
+                        _t = (v - _lv) / (_hv - _lv)
+                        return "rgb(%d,%d,%d)" % (
+                            int(_lc[0] + _t * (_hc[0] - _lc[0])),
+                            int(_lc[1] + _t * (_hc[1] - _lc[1])),
+                            int(_lc[2] + _t * (_hc[2] - _lc[2])),
+                        )
+                return "rgb(150,150,150)"
+
+            # Header row
+            _vhdr_cells = "".join(
+                f'<th style="padding:10px 8px 14px;color:#c8a040;font-size:0.78rem;'
+                f'font-weight:700;letter-spacing:0.08em;text-align:center;'
+                f'border-bottom:1px solid #2a2410;">{c.upper()}</th>'
+                for c in _vac_cols
             )
-            st.plotly_chart(fig_heat, use_container_width=True,
-                            config={"displayModeBar": False})
-            st.caption(
-                "Green = tight market (low vacancy, strong demand). "
-                "Red = soft market (high vacancy, excess supply). "
-                "Office and Multifamily face the most pressure heading into 2025."
+            _vhdr = (
+                f'<tr><th style="padding:10px 8px 14px;border-bottom:1px solid #2a2410;"></th>'
+                f'{_vhdr_cells}</tr>'
             )
+
+            # Data rows
+            _vrows_html = ""
+            for _mkt in pivot.index:
+                _vcells = (
+                    f'<td style="padding:7px 12px 7px 0;text-align:right;color:#c8b890;'
+                    f'font-size:0.88rem;white-space:nowrap;border-bottom:1px solid #1e1c0e;">'
+                    f'{_mkt}</td>'
+                )
+                for _col in _vac_cols:
+                    _val = pivot.loc[_mkt, _col] if _col in pivot.columns else None
+                    import numpy as _np
+                    if _val is not None and not (_np.isnan(_val) if hasattr(_val, '__float__') else False) and float(_val) > 0:
+                        _bg = _vac_cell_color(float(_val))
+                        _vcells += (
+                            f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;">'
+                            f'<div style="background:{_bg};border-radius:7px;padding:9px 0;'
+                            f'text-align:center;color:#fff;font-size:0.92rem;font-weight:600;'
+                            f'letter-spacing:0.04em;min-width:80px;">{float(_val):.1f}%</div></td>'
+                        )
+                    else:
+                        _vcells += (
+                            f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;">'
+                            f'<div style="text-align:center;color:#4a4530;font-size:0.92rem;">—</div></td>'
+                        )
+                _vrows_html += f"<tr>{_vcells}</tr>"
+
+            _vac_hm_html = f"""
+<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+  <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:20px;">
+    <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">VACANCY RATE HEATMAP</div>
+    <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">All markets × property types &mdash; CBRE / JLL / CoStar Q1 2025</div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
+      <thead>{_vhdr}</thead>
+      <tbody>{_vrows_html}</tbody>
+    </table>
+  </div>
+  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">
+    Teal/green = tight market (low vacancy, strong demand) &nbsp;·&nbsp; Gold/orange/red = soft market (excess supply)
+    &nbsp;·&nbsp; Source: CBRE / JLL / CoStar Q1 2025 &nbsp;·&nbsp; Not financial advice.
+  </div>
+</div>
+"""
+            st.markdown(_vac_hm_html, unsafe_allow_html=True)
 
         # ── Market Detail Table ──────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
@@ -2944,36 +2945,58 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
 
         if mkt_rows:
             detail_df = pd.DataFrame(mkt_rows)
-            detail_df["trend_label"] = detail_df["trend"].map(
-                lambda t: f"{TREND_ARROW[t]} {t.title()}"
-            )
-            detail_df["vs_national_fmt"] = detail_df["vs_national"].apply(
-                lambda x: f"{x:+.1f}pp"
-            )
-            detail_df = detail_df.rename(columns={
-                "market": "Market", "property_type": "Property Type",
-                "vacancy_rate": "Vacancy %", "trend_label": "Trend",
-                "vs_national_fmt": "vs. National",
-            })[["Market", "Property Type", "Vacancy %", "Trend", "vs. National"]]
 
-            def _color_vs(val):
-                try:
-                    v = float(val.replace("pp", "").replace("+", ""))
-                    if v < -2:   return "color: #66bb6a"
-                    elif v > 2:  return "color: #ef5350"
-                    else:        return "color: #d4a843"
-                except Exception:
-                    return ""
+            # Build header
+            _md_headers = ["MARKET", "PROPERTY TYPE", "VACANCY %", "TREND", "VS. NATIONAL"]
+            _md_hcells = "".join(
+                f'<th style="padding:12px 16px 14px;color:#c8a040;font-size:0.78rem;'
+                f'font-weight:700;letter-spacing:0.09em;text-align:{"left" if i < 2 else "right"};'
+                f'border-bottom:1px solid #2a2410;">{h}</th>'
+                for i, h in enumerate(_md_headers)
+            )
 
-            st.dataframe(
-                detail_df.style.applymap(_color_vs, subset=["vs. National"]),
-                use_container_width=True, hide_index=True,
-            )
-            st.caption(
-                "vs. National = difference in percentage points from the national average "
-                "for that property type. Negative (green) = tighter than average. "
-                "Positive (red) = looser than average."
-            )
+            # Build rows
+            _md_rows_html = ""
+            for _, _row in detail_df.iterrows():
+                _trend_str  = f"{TREND_ARROW[_row['trend']]} {_row['trend'].title()}"
+                _trend_c    = TREND_COLOR[_row["trend"]]
+                _vs         = float(_row.get("vs_national", 0) or 0)
+                _vs_str     = f"{_vs:+.1f}pp"
+                _vs_c       = "#66bb6a" if _vs < -2 else ("#ef5350" if _vs > 2 else "#c8a040")
+                _vac_val    = float(_row["vacancy_rate"])
+                _row_style  = "border-bottom:1px solid #1e1c0e;"
+                _td         = f'style="padding:12px 16px;{_row_style}'
+                _md_rows_html += (
+                    f'<tr>'
+                    f'<td {_td}text-align:left;color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_row["market"]}</td>'
+                    f'<td {_td}text-align:left;color:#a09070;font-size:0.87rem;">{_row["property_type"]}</td>'
+                    f'<td {_td}text-align:right;color:#c8a040;font-size:0.92rem;font-weight:600;letter-spacing:0.05em;">{_vac_val:.1f}%</td>'
+                    f'<td {_td}text-align:right;color:{_trend_c};font-size:0.87rem;">{_trend_str}</td>'
+                    f'<td {_td}text-align:right;color:{_vs_c};font-size:0.87rem;font-weight:600;">{_vs_str}</td>'
+                    f'</tr>'
+                )
+
+            _md_html = f"""
+<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+  <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:20px;">
+    <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">MARKET DETAIL — VACANCY VS. NATIONAL AVERAGE</div>
+    <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Vacancy rate &amp; trend by market and property type &mdash; CBRE / JLL / CoStar Q1 2025</div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
+      <thead><tr>{_md_hcells}</tr></thead>
+      <tbody>{_md_rows_html}</tbody>
+    </table>
+  </div>
+  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">
+    vs. National = pp difference from property-type national average &nbsp;·&nbsp;
+    <span style="color:#66bb6a;">Green</span> = tighter than avg &nbsp;·&nbsp;
+    <span style="color:#ef5350;">Red</span> = looser than avg &nbsp;·&nbsp;
+    Not financial advice.
+  </div>
+</div>
+"""
+            st.markdown(_md_html, unsafe_allow_html=True)
 
         # ── Absorption Rate ──────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
@@ -3128,10 +3151,75 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
 
             # Detail table
             st.markdown("<br>", unsafe_allow_html=True)
-            section(" Land Market Detail Table")
-            _la_display = _la_df.copy()
-            _la_display["Avg $/Acre"] = _la_display["Avg $/Acre"].apply(lambda v: f"${v:,}")
-            st.dataframe(_la_display, use_container_width=True, hide_index=True)
+
+            _LND_C = {"Industrial": "#2bbfb0", "Mixed-Use": "#a09040", "Residential": "#a07830"}
+
+            # Legend dots
+            _legend_html = " &nbsp;&nbsp; ".join(
+                f'<span style="display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;color:#c8b890;">'
+                f'<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{c};"></span>{lbl}</span>'
+                for lbl, c in _LND_C.items()
+            )
+
+            # Header
+            _lnd_hdrs = ["MARKET", "INDUSTRIAL", "MIXED-USE", "RESIDENTIAL", "TOTAL (AC)", "MIX"]
+            _lnd_aligns = ["left", "right", "right", "right", "right", "left"]
+            _lnd_hcells = "".join(
+                f'<th style="padding:12px 14px 14px;color:#c8a040;font-size:0.78rem;font-weight:700;'
+                f'letter-spacing:0.09em;text-align:{_lnd_aligns[i]};border-bottom:1px solid #2a2410;">{h}</th>'
+                for i, h in enumerate(_lnd_hdrs)
+            )
+
+            # Rows
+            _lnd_rows_html = ""
+            for _, _lr in _la_df.iterrows():
+                _ind = int(_lr["Industrial (ac)"])
+                _mix = int(_lr["Mixed-Use (ac)"])
+                _res = int(_lr["Residential (ac)"])
+                _tot = _ind + _mix + _res or 1
+                _i_pct = _ind / _tot * 100
+                _m_pct = _mix / _tot * 100
+                _r_pct = _res / _tot * 100
+                _bar = (
+                    f'<div style="display:flex;height:10px;border-radius:4px;overflow:hidden;min-width:80px;">'
+                    f'<div style="width:{_i_pct:.1f}%;background:{_LND_C["Industrial"]};"></div>'
+                    f'<div style="width:{_m_pct:.1f}%;background:{_LND_C["Mixed-Use"]};margin:0 1px;"></div>'
+                    f'<div style="width:{_r_pct:.1f}%;background:{_LND_C["Residential"]};"></div>'
+                    f'</div>'
+                )
+                _sep = "border-bottom:1px solid #1e1c0e;"
+                _lnd_rows_html += (
+                    f'<tr>'
+                    f'<td style="padding:13px 14px;{_sep}color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_lr["Market"]}</td>'
+                    f'<td style="padding:13px 14px;{_sep}text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_ind:,}</td>'
+                    f'<td style="padding:13px 14px;{_sep}text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_mix:,}</td>'
+                    f'<td style="padding:13px 14px;{_sep}text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_res:,}</td>'
+                    f'<td style="padding:13px 14px;{_sep}text-align:right;color:#c8a040;font-size:0.9rem;font-weight:700;letter-spacing:0.04em;">{_tot:,}</td>'
+                    f'<td style="padding:13px 14px;{_sep}min-width:100px;">{_bar}</td>'
+                    f'</tr>'
+                )
+
+            _lnd_table_html = f"""
+<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+  <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:18px;">
+    <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">LAND MARKET DETAIL TABLE</div>
+    <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Developable acreage, pricing &amp; pipeline activity &mdash; CoStar / CBRE Q1 2025</div>
+  </div>
+  <div style="margin-bottom:16px;">{_legend_html}</div>
+  <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
+      <thead><tr>{_lnd_hcells}</tr></thead>
+      <tbody>{_lnd_rows_html}</tbody>
+    </table>
+  </div>
+  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">
+    Acreage = entitled or shovel-ready developable land actively available &nbsp;·&nbsp;
+    MIX bar shows Industrial / Mixed-Use / Residential proportion &nbsp;·&nbsp;
+    Source: CoStar Land / CBRE Q1 2025 &nbsp;·&nbsp; Not financial advice.
+  </div>
+</div>
+"""
+            st.markdown(_lnd_table_html, unsafe_allow_html=True)
             st.caption(
                 "Entitlement timeline = estimated months from land purchase to permitted/shovel-ready status. "
                 "Markets like New York and Los Angeles require 3-5 years; Sun Belt typically 12-20 months."
@@ -3505,30 +3593,102 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                 _ms_col.markdown(metric_card(_ms_lbl, f"{_ms_pct}%{_ms_extra}", "weight"), unsafe_allow_html=True)
 
             # ── Top 10 factor breakdown table ─────────────────────────────────
-            section(" Market Factor Breakdown — Top 10")
-            _ms_table = []
-            for r in _ms_rankings[:10]:
-                f = r["factors"]
-                _ms_table.append({
-                    "Rank": r["rank"], "Market": r["market"],
-                    "Score": r["composite"], "Grade": r["grade"],
-                    "Migration": round(f.get("migration", 0)),
-                    "Vacancy":   round(f.get("vacancy", 0)),
-                    "Rent":      round(f.get("rent", 0)),
-                    "Cap Rate":  round(f.get("cap_rate", 0)),
-                    "Land":      round(f.get("land", 0)),
-                    "Macro":     round(f.get("macro", 0)),
-                })
-            st.dataframe(
-                pd.DataFrame(_ms_table).set_index("Rank"),
-                use_container_width=True,
-                height=380,
+            _FACTOR_COLS = [
+                ("Migration", "migration", "#2bbfb0"),
+                ("Vacancy",   "vacancy",   "#c8a040"),
+                ("Rent",      "rent",      "#c8a040"),
+                ("Cap Rate",  "cap_rate",  "#c8a040"),
+                ("Land",      "land",      "#c8a040"),
+                ("Macro",     "macro",     "#c8a040"),
+            ]
+
+            # Header
+            _mfb_fcols_hdr = "".join(
+                f'<th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;'
+                f'letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;">{lbl.upper()}</th>'
+                for lbl, _, _ in _FACTOR_COLS
             )
-            st.caption(
-                "Composite = weighted sum across 7 factors (0–100 each). "
-                "Grade: A ≥ 80, B+ ≥ 70, B ≥ 60, C+ ≥ 50, C ≥ 40, D < 40. "
-                "Agent 18 aggregates live caches from all other agents. Q1 2025 benchmarks. Not financial advice."
-            )
+            _mfb_hdr = f"""
+<tr>
+  <th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;width:30px;">#</th>
+  <th style="padding:10px 14px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:left;border-bottom:1px solid #2a2410;">MARKET</th>
+  <th style="padding:10px 14px 14px;border-bottom:1px solid #2a2410;width:100px;"></th>
+  <th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:right;border-bottom:1px solid #2a2410;">SCORE</th>
+  <th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;">GRADE</th>
+  {_mfb_fcols_hdr}
+</tr>"""
+
+            # Grade badge colors
+            def _grade_badge(g):
+                _gc = {"A": "#2bbfb0", "B+": "#c8a040", "B": "#7a6830", "C+": "#6a5828", "C": "#4a3820", "D": "#3a2010"}.get(g, "#3a3020")
+                _tc = "#fff" if g in ("A",) else "#c8b870"
+                return (
+                    f'<span style="display:inline-block;background:{_gc};color:{_tc};'
+                    f'font-size:0.78rem;font-weight:700;padding:3px 10px;border-radius:5px;'
+                    f'letter-spacing:0.04em;">{g}</span>'
+                )
+
+            # Rows
+            _mfb_rows = ""
+            for _ri, _rr in enumerate(_ms_rankings[:10]):
+                _f   = _rr["factors"]
+                _sc  = float(_rr["composite"])
+                _sep = "border-bottom:1px solid #1e1c0e;"
+
+                # Mini score bar (80px track)
+                _bar_fill = min(_sc / 100 * 80, 80)
+                _score_bar = (
+                    f'<div style="width:80px;height:6px;background:#2a2410;border-radius:3px;overflow:hidden;">'
+                    f'<div style="width:{_bar_fill:.1f}px;height:6px;background:#c8a040;border-radius:3px;"></div>'
+                    f'</div>'
+                )
+
+                # Factor cells: value + mini underbar
+                _fcells = ""
+                for _, _fkey, _fcolor in _FACTOR_COLS:
+                    _fv = float(_f.get(_fkey, 0) or 0)
+                    _fw = min(_fv / 100 * 44, 44)
+                    _fcells += (
+                        f'<td style="padding:12px 10px;{_sep}text-align:center;">'
+                        f'<div style="font-size:1rem;font-weight:700;color:{_fcolor};letter-spacing:0.02em;">{round(_fv)}</div>'
+                        f'<div style="margin:4px auto 0;width:44px;height:3px;background:#2a2410;border-radius:2px;">'
+                        f'<div style="width:{_fw:.1f}px;height:3px;background:{_fcolor};border-radius:2px;"></div></div>'
+                        f'</td>'
+                    )
+
+                _rank_c = "#c8a040" if _ri < 3 else "#7a7050"
+                _mfb_rows += (
+                    f'<tr>'
+                    f'<td style="padding:12px 10px;{_sep}text-align:center;color:{_rank_c};font-size:0.88rem;">{_rr["rank"]}</td>'
+                    f'<td style="padding:12px 14px;{_sep}color:#c8b870;font-size:0.95rem;font-weight:600;white-space:nowrap;">{_rr["market"]}</td>'
+                    f'<td style="padding:12px 14px;{_sep}vertical-align:middle;">{_score_bar}</td>'
+                    f'<td style="padding:12px 10px;{_sep}text-align:right;color:#c8a040;font-size:1.05rem;font-weight:700;letter-spacing:0.02em;">{_sc:.1f}</td>'
+                    f'<td style="padding:12px 10px;{_sep}text-align:center;">{_grade_badge(_rr["grade"])}</td>'
+                    f'{_fcells}'
+                    f'</tr>'
+                )
+
+            _mfb_html = f"""
+<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+  <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:16px;">
+    <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">MARKET FACTOR BREAKDOWN &mdash; TOP 10</div>
+    <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Composite investment score by market &mdash; CoStar / CBRE Q1 2025</div>
+  </div>
+  <div style="font-size:0.78rem;color:#7a7050;font-style:italic;margin-bottom:18px;">
+    Factor scores out of 100. Migration is the primary differentiator across markets.
+  </div>
+  <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
+      <thead>{_mfb_hdr}</thead>
+      <tbody>{_mfb_rows}</tbody>
+    </table>
+  </div>
+  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">
+    Scores are composite index values. Not financial advice.
+  </div>
+</div>
+"""
+            st.markdown(_mfb_html, unsafe_allow_html=True)
 
     # ═══════════════════════════════════════════════════════════════════════════════
     #  TAB — CAP RATE MONITOR
@@ -3620,29 +3780,89 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
             # ── Market cap rate heatmap ───────────────────────────────────────
             section(" Market Cap Rate Heatmap (All Markets × Property Types)")
             if _cap_mktcaps:
-                _hm_markets = list(_cap_mktcaps.keys())
-                _hm_ptypes  = ["Office", "Industrial", "Retail", "Multifamily"]
-                _hm_matrix  = [[_cap_mktcaps[m].get(p, 0) for p in _hm_ptypes] for m in _hm_markets]
-                fig_cap = go.Figure(go.Heatmap(
-                    z=_hm_matrix, x=_hm_ptypes, y=_hm_markets,
-                    colorscale=[[0, "#1b4332"], [0.5, "#d4a843"], [1, "#7f1d1d"]],
-                    text=[[f"{v:.1f}%" for v in row] for row in _hm_matrix],
-                    texttemplate="%{text}",
-                    showscale=True,
-                    hovertemplate="<b>%{y}</b> · %{x}<br>Cap Rate: %{z:.1f}%<extra></extra>",
-                ))
-                fig_cap.update_layout(
-                    plot_bgcolor="#0d0b04", paper_bgcolor="#0d0b04",
-                    font=dict(family="Source Sans Pro", color="#c8b890"),
-                    margin=dict(l=160, r=40, t=20, b=40), height=560,
-                    xaxis=dict(color="#8a7040"), yaxis=dict(color="#8a7040"),
+                _hm_ptypes = ["Office", "Industrial", "Retail", "Multifamily"]
+
+                def _cap_cell_color(v: float) -> str:
+                    """Teal (low) → green → lime → gold → orange (high)."""
+                    _stops = [
+                        (3.5, (26,  122, 106)),
+                        (4.5, (29,  140,  94)),
+                        (5.0, (45,  150,  64)),
+                        (5.5, (74,  160,  32)),
+                        (6.0, (120, 168,  24)),
+                        (6.5, (168, 168,  24)),
+                        (7.0, (212, 160,  32)),
+                        (7.5, (212, 120,  32)),
+                        (8.5, (212,  72,  32)),
+                    ]
+                    if v <= _stops[0][0]:
+                        return "rgb(%d,%d,%d)" % _stops[0][1]
+                    if v >= _stops[-1][0]:
+                        return "rgb(%d,%d,%d)" % _stops[-1][1]
+                    for _i in range(len(_stops) - 1):
+                        _lv, _lc = _stops[_i]
+                        _hv, _hc = _stops[_i + 1]
+                        if _lv <= v <= _hv:
+                            _t = (v - _lv) / (_hv - _lv)
+                            return "rgb(%d,%d,%d)" % (
+                                int(_lc[0] + _t * (_hc[0] - _lc[0])),
+                                int(_lc[1] + _t * (_hc[1] - _lc[1])),
+                                int(_lc[2] + _t * (_hc[2] - _lc[2])),
+                            )
+                    return "rgb(150,150,150)"
+
+                # Build header row
+                _hm_header_cells = "".join(
+                    f'<th style="padding:10px 8px 14px;color:#c8a040;font-size:0.78rem;'
+                    f'font-weight:700;letter-spacing:0.08em;text-align:center;'
+                    f'border-bottom:1px solid #2a2410;">{p.upper()}</th>'
+                    for p in _hm_ptypes
                 )
-                st.plotly_chart(fig_cap, use_container_width=True)
-                st.caption(
-                    "Green = lower cap rate (more expensive / compressed yield). "
-                    "Red = higher cap rate (cheaper entry / better yield). "
-                    "Source: CoStar / CBRE Q1 2025. Not financial advice."
+                _hm_header = (
+                    f'<tr><th style="padding:10px 8px 14px;border-bottom:1px solid #2a2410;"></th>'
+                    f'{_hm_header_cells}</tr>'
                 )
+
+                # Build data rows
+                _hm_rows_html = ""
+                for _mkt, _mdata in _cap_mktcaps.items():
+                    _cells = f'<td style="padding:7px 12px 7px 0;text-align:right;color:#c8b890;font-size:0.88rem;white-space:nowrap;border-bottom:1px solid #1e1c0e;">{_mkt}</td>'
+                    for _pt in _hm_ptypes:
+                        _val = _mdata.get(_pt)
+                        if _val and _val > 0:
+                            _bg  = _cap_cell_color(float(_val))
+                            _cells += (
+                                f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;">'
+                                f'<div style="background:{_bg};border-radius:7px;padding:9px 0;'
+                                f'text-align:center;color:#fff;font-size:0.92rem;font-weight:600;'
+                                f'letter-spacing:0.04em;min-width:80px;">{_val:.1f}%</div></td>'
+                            )
+                        else:
+                            _cells += (
+                                f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;">'
+                                f'<div style="text-align:center;color:#4a4530;font-size:0.92rem;">—</div></td>'
+                            )
+                    _hm_rows_html += f"<tr>{_cells}</tr>"
+
+                _hm_html = f"""
+<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+  <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:20px;">
+    <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">MARKET CAP RATE HEATMAP</div>
+    <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">All markets × property types &mdash; CoStar / CBRE Q1 2025</div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
+      <thead>{_hm_header}</thead>
+      <tbody>{_hm_rows_html}</tbody>
+    </table>
+  </div>
+  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">
+    Teal/green = compressed yield (premium pricing) &nbsp;·&nbsp; Gold/orange = higher yield (cheaper entry)
+    &nbsp;·&nbsp; Source: CoStar / CBRE Q1 2025 &nbsp;·&nbsp; Not financial advice.
+  </div>
+</div>
+"""
+                st.markdown(_hm_html, unsafe_allow_html=True)
 
             # ── Property-type analyst notes ───────────────────────────────────
             section(" Analyst Notes")
@@ -3893,21 +4113,100 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
 
             # ── State incentive programs table ────────────────────────────────
             section(" State CRE Tax Incentive Programs")
-            _oz_si_rows = []
-            for _oz_st, _oz_si in _oz_state_inc.items():
-                _oz_si_rows.append({
-                    "State":    _oz_st,
-                    "Program":  _oz_si["program"],
-                    "Benefit":  _oz_si["benefit"],
-                    "CRE Types": ", ".join(_oz_si["cre_types"]),
-                    "Cap":      _oz_si["cap"],
-                })
-            if _oz_si_rows:
-                st.dataframe(pd.DataFrame(_oz_si_rows).set_index("State"), use_container_width=True, height=460)
-            st.caption(
-                "Source: IRS Revenue Ruling 2018-29, HUD Opportunity Zone designations, "
-                "state economic development agencies. Not financial or legal advice. Consult a tax advisor."
-            )
+            if _oz_state_inc:
+                # CRE type chip styles
+                _TI_CHIP = {
+                    "Industrial":   ("border:1px solid #2bbfb0;background:#0d2420;color:#2bbfb0;"),
+                    "Office":       ("border:1px solid #6080c0;background:#0d1828;color:#8aabdf;"),
+                    "Multifamily":  ("border:1px solid #9070c0;background:#1a0d28;color:#b090d8;"),
+                    "Mixed-Use":    ("border:1px solid #c8a040;background:#1a1408;color:#c8a040;"),
+                    "Retail":       ("border:1px solid #60a850;background:#0d1a08;color:#80c868;"),
+                    "Data Center":  ("border:1px solid #7090b8;background:#0d1218;color:#90b0d8;"),
+                }
+                _chip_css = "display:inline-block;padding:2px 9px;border-radius:5px;font-size:0.75rem;font-weight:600;margin:2px 3px 2px 0;white-space:nowrap;"
+
+                # Collect all unique types for filter
+                _all_types = sorted({t for v in _oz_state_inc.values() for t in v["cre_types"]})
+                _filter_opts = ["All Types"] + _all_types
+
+                # Filter widget
+                st.markdown(
+                    "<style>.stRadio > div{display:flex;flex-wrap:wrap;gap:8px;}"
+                    ".stRadio label{background:#1e1c10;border:1px solid #3a3420;border-radius:8px;"
+                    "padding:7px 18px;color:#c8a040;font-size:0.8rem;font-weight:700;"
+                    "letter-spacing:0.07em;cursor:pointer;margin:0!important;}"
+                    ".stRadio label:has(input:checked){background:#2a2410;border-color:#c8a040;}"
+                    "</style>",
+                    unsafe_allow_html=True,
+                )
+                _ti_filter = st.radio(
+                    "Filter by property type",
+                    _filter_opts,
+                    horizontal=True,
+                    label_visibility="collapsed",
+                    key="ti_filter",
+                )
+
+                # Filter data
+                _ti_filtered = {
+                    k: v for k, v in _oz_state_inc.items()
+                    if _ti_filter == "All Types" or _ti_filter in v["cre_types"]
+                }
+                _ti_count = len(_ti_filtered)
+
+                # Header
+                _ti_sep = "border-bottom:1px solid #2a2410;"
+                _ti_hcells = "".join(
+                    f'<th style="padding:11px 14px 13px;color:#c8a040;font-size:0.76rem;font-weight:700;'
+                    f'letter-spacing:0.09em;text-align:{al};{_ti_sep}">{h}</th>'
+                    for h, al in [("STATE","center"),("PROGRAM","left"),("BENEFIT","left"),("CRE TYPES","left"),("CAP","left")]
+                )
+
+                # Rows
+                _ti_rows_html = ""
+                for _ti_abbr, _ti_si in _ti_filtered.items():
+                    _ti_fallback = _TI_CHIP["Mixed-Use"]
+                    _ti_type_chips = "".join(
+                        f'<span style="{_chip_css}{_TI_CHIP.get(t, _ti_fallback)}">{t}</span>'
+                        for t in _ti_si["cre_types"]
+                    )
+                    _row_sep = "border-bottom:1px solid #1e1c0e;"
+                    _ti_rows_html += (
+                        f'<tr>'
+                        f'<td style="padding:14px 10px;{_row_sep}text-align:center;vertical-align:top;">'
+                        f'<span style="display:inline-block;background:#2a2410;border:1px solid #3a3020;'
+                        f'color:#c8a040;font-size:0.8rem;font-weight:700;padding:5px 10px;border-radius:5px;'
+                        f'letter-spacing:0.06em;">{_ti_abbr}</span></td>'
+                        f'<td style="padding:14px 14px;{_row_sep}vertical-align:top;color:#c8b870;'
+                        f'font-size:0.92rem;font-weight:600;min-width:180px;max-width:220px;">{_ti_si["program"]}</td>'
+                        f'<td style="padding:14px 14px;{_row_sep}vertical-align:top;color:#9a9070;'
+                        f'font-size:0.86rem;min-width:180px;max-width:240px;line-height:1.5;">{_ti_si["benefit"]}</td>'
+                        f'<td style="padding:14px 14px;{_row_sep}vertical-align:top;min-width:160px;">{_ti_type_chips}</td>'
+                        f'<td style="padding:14px 14px;{_row_sep}vertical-align:top;color:#c8a040;'
+                        f'font-size:0.86rem;font-family:monospace;white-space:nowrap;min-width:140px;">{_ti_si["cap"]}</td>'
+                        f'</tr>'
+                    )
+
+                _ti_html = f"""
+<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+  <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:20px;">
+    <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">STATE CRE TAX INCENTIVE PROGRAMS</div>
+    <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Federal &amp; state-level incentives by property type &mdash; IRS / State Policy 2024&ndash;25</div>
+  </div>
+  <div style="font-size:0.8rem;color:#7a7050;margin-bottom:16px;">Showing {_ti_count} program{"s" if _ti_count != 1 else ""}</div>
+  <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
+      <thead><tr>{_ti_hcells}</tr></thead>
+      <tbody>{_ti_rows_html}</tbody>
+    </table>
+  </div>
+  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">
+    Source: IRS, HUD Opportunity Zone designations, state economic development agencies.
+    Not financial or legal advice. Consult a tax advisor.
+  </div>
+</div>
+"""
+                st.markdown(_ti_html, unsafe_allow_html=True)
 
 
     # ═══════════════════════════════════════════════════════════════════════════════
@@ -6163,50 +6462,6 @@ The cycle phase is determined by combining multiple indicators:
 **Data Source:** FRED (corporate spreads, VIX, lending surveys), updated every 6 hours via Agent 12.
 """)
 
-    # ── Meet the Team ─────────────────────────────────────────────────────────
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("""
-<div style="background:#1a1208; border:1px solid #a07830; border-top:3px solid #d4a843;
-            border-radius:8px; padding:32px 36px; margin-top:24px;">
-  <div style="text-align:center; margin-bottom:24px;">
-    <span style="color:#d4a843; font-size:1.3rem; font-weight:700; letter-spacing:2px;
-                 text-transform:uppercase;">Meet the Team</span>
-    <div style="color:#a09880; font-size:0.85rem; margin-top:4px;">
-      MGMT 690: AI Leadership &nbsp;&middot;&nbsp; Purdue Daniels School of Business
-    </div>
-  </div>
-  <div style="display:flex; justify-content:center; gap:24px; flex-wrap:wrap;">
-    <div style="background:#1e1a0a; border:1px solid #a07830; border-radius:8px;
-                padding:20px 28px; text-align:center; min-width:160px;">
-      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
-      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Aayman Afzal</div>
-      <a href="https://www.linkedin.com/in/aayman-afzal" target="_blank"
-         style="color:#d4a843; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
-    </div>
-    <div style="background:#1e1a0a; border:1px solid #a07830; border-radius:8px;
-                padding:20px 28px; text-align:center; min-width:160px;">
-      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
-      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Ajinkya Kodnikar</div>
-      <a href="https://www.linkedin.com/in/ajinkya-kodnikar" target="_blank"
-         style="color:#d4a843; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
-    </div>
-    <div style="background:#1e1a0a; border:1px solid #a07830; border-radius:8px;
-                padding:20px 28px; text-align:center; min-width:160px;">
-      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
-      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Oyu Amar</div>
-      <a href="https://www.linkedin.com/in/oyu-amar/" target="_blank"
-         style="color:#d4a843; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
-    </div>
-    <div style="background:#1e1a0a; border:1px solid #a07830; border-radius:8px;
-                padding:20px 28px; text-align:center; min-width:160px;">
-      <div style="font-size:2rem; margin-bottom:8px;">&#128100;</div>
-      <div style="color:#e8dfc4; font-weight:700; font-size:1rem;">Ricardo Ruiz</div>
-      <a href="https://www.linkedin.com/in/ricardoruizjr" target="_blank"
-         style="color:#d4a843; font-size:0.78rem; text-decoration:none;">LinkedIn</a>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  MAIN TAB — INVESTMENT ADVISOR
@@ -6271,10 +6526,17 @@ with main_tab_advisor:
         do_parse = st.button("Analyze Prompt", key="adv_btn_parse", use_container_width=True)
 
     if do_parse and prompt_input.strip():
-        parsed = parse_prompt(prompt_input.strip())
-        st.session_state.adv_parsed = parsed
-        st.session_state.adv_show_followup = bool(parsed["missing_fields"])
-        st.session_state.adv_result = None
+        try:
+            parsed = parse_prompt(prompt_input.strip())
+            st.session_state.adv_parsed = parsed
+            st.session_state.adv_show_followup = bool(parsed["missing_fields"])
+            st.session_state.adv_result = None
+            if not parsed.get("missing_fields"):
+                st.success("Prompt analyzed — all fields detected. Click **Generate Recommendation** to proceed.")
+            else:
+                st.info(f"Prompt analyzed — {len(parsed['missing_fields'])} field(s) need clarification below.")
+        except Exception as _pe:
+            st.error(f"Could not parse prompt: {_pe}")
 
     # ── Follow-up inputs for missing fields ───────────────────────────────────
     followup_values = {}
@@ -6729,3 +6991,523 @@ with main_tab_advisor:
   </ul>
 </div>
 """, unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MAIN TAB — ABOUT
+# ═══════════════════════════════════════════════════════════════════════════════
+with main_tab_about:
+    tab_about_team, tab_about_monitor = st.tabs(["Meet the Team", "System Monitor"])
+
+    # ── Meet the Team ─────────────────────────────────────────────────────────
+    with tab_about_team:
+        import base64 as _b64
+
+        # ── Team config — drop a photo file in app/assets/team/ named exactly
+        #    as the "photo" field below (e.g. aayman.jpg) and it auto-appears.
+        #    Supported formats: jpg, jpeg, png, webp
+        _TEAM = [
+            {
+                "name":     "Aayman Afzal",
+                "role":     "MSF Candidate",
+                "linkedin": "https://www.linkedin.com/in/aayman-afzal",
+                "photo":    "aayman.jpg",
+            },
+            {
+                "name":     "Ajinkya Kodnikar",
+                "role":     "MSF Candidate",
+                "linkedin": "https://www.linkedin.com/in/ajinkyakodnikar",
+                "photo":    "ajinkya.jpg",
+            },
+            {
+                "name":     "Oyu Amar",
+                "role":     "MSF Candidate",
+                "linkedin": "https://www.linkedin.com/in/oyu-amar/",
+                "photo":    "oyu.jpg",
+            },
+            {
+                "name":     "Ricardo Ruiz",
+                "role":     "MSF Candidate",
+                "linkedin": "https://www.linkedin.com/in/ricardo-ruiz1",
+                "photo":    "ricardo.jpg",
+            },
+        ]
+
+        from pathlib import Path as _Path
+        _ASSETS_DIR = _Path(__file__).parent / "assets" / "team"
+
+        def _photo_html(filename: str) -> str:
+            """Return an <img> tag if the photo file exists, else a fallback avatar."""
+            for ext in [filename, filename.replace(".jpg", ".jpeg"),
+                        filename.replace(".jpg", ".png"), filename.replace(".jpg", ".webp")]:
+                p = _ASSETS_DIR / ext
+                if p.exists():
+                    mime = "image/jpeg" if ext.endswith((".jpg", ".jpeg")) else (
+                           "image/png" if ext.endswith(".png") else "image/webp")
+                    data = _b64.b64encode(p.read_bytes()).decode()
+                    return (
+                        f'<img src="data:{mime};base64,{data}" '
+                        f'style="width:96px;height:96px;border-radius:50%;'
+                        f'object-fit:cover;border:2px solid #a07830;margin-bottom:10px;" />'
+                    )
+            return '<div style="font-size:3rem;margin-bottom:10px;">&#128100;</div>'
+
+        st.markdown("""
+<div style="background:linear-gradient(135deg,#1a1208 0%,#2a1e08 100%);
+            border:1px solid #a07830; border-top:3px solid #d4a843;
+            border-radius:10px; padding:28px 36px; margin-bottom:28px;">
+  <div style="color:#d4a843;font-size:1.45rem;font-weight:700;letter-spacing:1px;">
+    CRE Intelligence Platform
+  </div>
+  <div style="color:#a09880;font-size:0.92rem;margin-top:6px;max-width:720px;">
+    Built by the Purdue Daniels School of Business MSF cohort for MGMT 690: AI Leadership.
+    A real-time commercial real estate intelligence system powered by 20 background agents,
+    live market data, and AI-driven investment analysis.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        st.markdown("""
+<div style="text-align:center; margin-bottom:20px;">
+  <span style="color:#d4a843; font-size:1.3rem; font-weight:700; letter-spacing:2px;
+               text-transform:uppercase;">Meet the Team</span>
+  <div style="color:#a09880; font-size:0.85rem; margin-top:6px;">
+    MGMT 690: AI Leadership &nbsp;&middot;&nbsp; Purdue Daniels School of Business &nbsp;&middot;&nbsp; MSF Program
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        # Render each card in its own column so HTML is isolated per st.markdown call
+        _tm_cols = st.columns(len(_TEAM), gap="medium")
+        for _col, _tm in zip(_tm_cols, _TEAM):
+            _photo = _photo_html(_tm["photo"])
+            _col.markdown(
+                f'<div style="background:#1e1a0a;border:1px solid #a07830;border-radius:8px;'
+                f'padding:24px 16px;text-align:center;">'
+                f'{_photo}'
+                f'<div style="color:#e8dfc4;font-weight:700;font-size:0.95rem;margin-bottom:4px;">{_tm["name"]}</div>'
+                f'<div style="color:#6a5228;font-size:0.75rem;margin-bottom:10px;">{_tm["role"]}</div>'
+                f'<a href="{_tm["linkedin"]}" target="_blank" '
+                f'style="color:#d4a843;font-size:0.8rem;text-decoration:none;">&#128279; LinkedIn</a>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Platform Overview")
+        _ov_cols = st.columns(3)
+        _ov_cols[0].markdown(metric_card("Background Agents", "20", "Auto-updating data sources"), unsafe_allow_html=True)
+        _ov_cols[1].markdown(metric_card("Data Sources", "30+", "APIs, RSS feeds, government data"), unsafe_allow_html=True)
+        _ov_cols[2].markdown(metric_card("Update Frequency", "30 min", "Fastest agent refresh cycle"), unsafe_allow_html=True)
+
+        st.markdown("""
+<div style="background:#16140a;border:1px solid #2a2208;border-radius:8px;
+            padding:20px 24px;margin-top:16px;color:#a09880;font-size:0.9rem;line-height:1.8;">
+  <div style="color:#d4a843;font-weight:600;margin-bottom:10px;">What This Platform Does</div>
+  The CRE Intelligence Platform continuously monitors 20+ commercial real estate market signals —
+  population migration, REIT pricing, interest rates, labor markets, inflation, GDP, credit conditions,
+  cap rates, rent growth, vacancy, climate risk, and more — and synthesizes them into actionable
+  investment intelligence. The AI Investment Advisor combines all live data to score every US metro
+  market and generate personalized investment briefs in plain English.
+</div>
+""", unsafe_allow_html=True)
+
+    # ── System Monitor ────────────────────────────────────────────────────────
+    with tab_about_monitor:
+        st.markdown("#### Background Agent Monitor")
+        st.markdown(
+            "20 agents run continuously in background threads, writing to JSON cache files. "
+            "Data survives Streamlit reruns. Agents restart automatically if the app restarts."
+        )
+
+        section(" Agent Status")
+        _about_status = get_status()
+
+        _about_agent_labels = {
+            "migration":       ("Agent 1",  "Population & Migration",    "Every 6h"),
+            "pricing":         ("Agent 2",  "REIT Pricing",              "Every 1h"),
+            "predictions":     ("Agent 3",  "Company Predictions",       "Every 24h"),
+            "debugger":        ("Agent 4",  "Debugger / Monitor",        "Every 30min"),
+            "news":            ("Agent 5",  "Industry Announcements",    "Every 4h"),
+            "rates":           ("Agent 6",  "Interest Rate & Debt",      "Every 1h"),
+            "energy":          ("Agent 7",  "Energy & Construction",     "Every 6h"),
+            "sustainability":  ("Agent 8",  "Sustainability & ESG",      "Every 6h"),
+            "labor_market":    ("Agent 9",  "Labor Market & Demand",     "Every 6h"),
+            "gdp":             ("Agent 10", "GDP & Economic Growth",     "Every 6h"),
+            "inflation":       ("Agent 11", "Inflation Monitor",         "Every 6h"),
+            "credit":          ("Agent 12", "Credit & Capital Markets",  "Every 6h"),
+            "vacancy":         ("Agent 13", "Vacancy Monitor",           "Every 12h"),
+            "climate_risk":    ("Agent 14", "Climate Risk",              "Every 24h"),
+            "cap_rate":        ("Agent 15", "Cap Rate Monitor",          "Every 6h"),
+            "rent_growth":     ("Agent 16", "Rent Growth",               "Every 6h"),
+            "land_market":     ("Agent 17", "Land & Development",        "Every 12h"),
+            "opportunity_zone":("Agent 18", "Opportunity Zones",         "Every 24h"),
+            "distressed":      ("Agent 19", "CMBS & Distressed",         "Every 6h"),
+            "market_score":    ("Agent 20", "Market Score Composite",    "Every 6h"),
+            "manager":         ("Manager",  "System Health Supervisor",  "Every 15min"),
+        }
+
+        _cache_key_map = {
+            "credit": "credit_data", "energy": "energy_data",
+            "gdp": "gdp_data", "inflation": "inflation_data",
+            "sustainability": "sustainability_data",
+            "manager": "manager_report",
+        }
+
+        _about_rows = []
+        for _ak, (_anum, _aname, _afreq) in _about_agent_labels.items():
+            _as  = _about_status.get(_ak, {})
+            _mem_status = _as.get("status", "")   # in-memory (resets on restart)
+            _ar  = _as.get("runs", 0)
+            _ae  = _as.get("last_error") or ""
+            _ck  = _cache_key_map.get(_ak, _ak)
+            _cache_age = cache_age_label(_ck)
+            _cc  = read_cache(_ck)
+            _has_data = _cc.get("data") is not None
+            _is_stale = _cc.get("stale", False)
+
+            # Derive status: cache truth takes precedence over stale in-memory flags
+            if _mem_status == "running":
+                _ast = "RUNNING"                    # always trust live running signal
+            elif _has_data and not _is_stale:
+                _ast = "OK"                         # fresh cache = healthy regardless of past errors
+            elif _mem_status == "error" and (_is_stale or not _has_data):
+                _ast = "ERROR"                      # error + bad cache = real problem
+            elif _has_data and _is_stale:
+                _ast = "STALE"
+            else:
+                _ast = "MISSING"
+
+            _about_rows.append({
+                "key":      _ak,
+                "label":    _aname,
+                "num":      _anum,
+                "name":     _aname,
+                "schedule": _afreq,
+                "status":   _ast,
+                "runs":     _ar,
+                "cache_age":_cache_age,
+                "has_data": _has_data,
+                "error":    _ae[:60] if _ae else "",
+            })
+
+        # ── KPI summary strip ──────────────────────────────────────────────────
+        _n_total   = len(_about_rows)
+        _n_ok      = sum(1 for r in _about_rows if r["status"] in ("OK", "RUNNING"))
+        _n_error   = sum(1 for r in _about_rows if r["status"] == "ERROR")
+        _n_cached  = sum(1 for r in _about_rows if r["has_data"])
+        _health_pct = round(_n_cached / _n_total * 100)
+
+        _kpi_cols = st.columns(4)
+        for _kc, (_kl, _kv, _kc2) in zip(_kpi_cols, [
+            ("Total Agents",    str(_n_total),              "#c8a040"),
+            ("Active / OK",     str(_n_ok),                 "#4caf50"),
+            ("Errors",          str(_n_error),              "#f44336" if _n_error else "#4caf50"),
+            ("Cache Health",    f"{_health_pct}%",          "#4caf50" if _health_pct >= 80 else "#ff9800"),
+        ]):
+            _kc.markdown(
+                f'<div class="metric-card"><div class="label">{_kl}</div>'
+                f'<div class="value" style="color:{_kc2};font-size:1.6rem;font-weight:700;">{_kv}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Chart row: runs bar + status donut ────────────────────────────────
+        _ch_left, _ch_right = st.columns([2, 1], gap="large")
+
+        with _ch_left:
+            _status_color_map = {
+                "OK":      "#4caf50",
+                "RUNNING": "#ff9800",
+                "ERROR":   "#f44336",
+                "STALE":   "#d4a843",
+                "MISSING": "#f44336",
+                "IDLE":    "#555544",
+            }
+            _bar_labels  = [r["label"] for r in _about_rows]
+            _bar_runs    = [max(r["runs"], 1) for r in _about_rows]   # min 1 so bar is visible
+            _bar_colors  = [_status_color_map.get(r["status"], "#555544") for r in _about_rows]
+            _bar_hover   = [
+                f"<b>{r['label']}</b><br>Runs: {r['runs']}<br>Status: {r['status']}<br>Schedule: {r['schedule']}<br>Cache: {r['cache_age']}<extra></extra>"
+                for r in _about_rows
+            ]
+
+            _fig_runs = go.Figure(go.Bar(
+                y=_bar_labels,
+                x=_bar_runs,
+                orientation="h",
+                marker=dict(color=_bar_colors, opacity=0.88),
+                text=[str(r["runs"]) for r in _about_rows],
+                textposition="outside",
+                textfont=dict(color="#c8b890", size=10),
+                hovertemplate=_bar_hover,
+            ))
+            _fig_runs.update_layout(
+                title=dict(text="Agent Run Count", font=dict(color="#c8a040", size=13), x=0),
+                plot_bgcolor="#0d0b04", paper_bgcolor="#13110a",
+                margin=dict(t=36, b=20, l=200, r=60),
+                height=560,
+                xaxis=dict(
+                    title="Total Runs Since Last Restart",
+                    title_font=dict(color="#7a7050", size=11),
+                    tickfont=dict(color="#c8b890", size=10),
+                    gridcolor="#1e1c0e",
+                ),
+                yaxis=dict(tickfont=dict(color="#c8b890", size=10), autorange="reversed"),
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(_fig_runs, use_container_width=True, config={"displayModeBar": False})
+
+        with _ch_right:
+            _status_counts = {"OK": 0, "RUNNING": 0, "STALE": 0, "ERROR": 0, "MISSING": 0}
+            for r in _about_rows:
+                _s = r["status"] if r["status"] in _status_counts else "OK"
+                _status_counts[_s] += 1
+            # Drop zero-count entries so donut isn't cluttered
+            _status_counts = {k: v for k, v in _status_counts.items() if v > 0}
+
+            _donut_labels = list(_status_counts.keys())
+            _donut_vals   = list(_status_counts.values())
+            _donut_colors = [_status_color_map[s] for s in _donut_labels]
+
+            _fig_donut = go.Figure(go.Pie(
+                labels=_donut_labels,
+                values=_donut_vals,
+                hole=0.62,
+                marker=dict(colors=_donut_colors, line=dict(color="#0d0b04", width=2)),
+                textfont=dict(color="#c8b890", size=12),
+                hovertemplate="<b>%{label}</b><br>%{value} agents<br>%{percent}<extra></extra>",
+            ))
+            _fig_donut.add_annotation(
+                text=f"<b>{_health_pct}%</b><br><span style='font-size:10px'>Healthy</span>",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(color="#c8a040", size=16),
+            )
+            _fig_donut.update_layout(
+                title=dict(text="Status Breakdown", font=dict(color="#c8a040", size=13), x=0),
+                plot_bgcolor="#0d0b04", paper_bgcolor="#13110a",
+                margin=dict(t=36, b=20, l=10, r=10),
+                height=300,
+                legend=dict(font=dict(color="#c8b890", size=11), bgcolor="rgba(0,0,0,0)",
+                            orientation="h", y=-0.08),
+                font=dict(family="Source Sans Pro"),
+            )
+            st.plotly_chart(_fig_donut, use_container_width=True, config={"displayModeBar": False})
+
+            # ── Cache data presence bar ────────────────────────────────────────
+            _cache_labels  = [r["num"] for r in _about_rows]
+            _cache_present = [1 if r["has_data"] else 0 for r in _about_rows]
+            _cache_colors  = ["#4caf50" if v else "#f44336" for v in _cache_present]
+
+            _fig_cache = go.Figure(go.Bar(
+                x=_cache_labels,
+                y=_cache_present,
+                marker=dict(color=_cache_colors, opacity=0.85),
+                hovertemplate=[
+                    f"<b>{r['label']}</b><br>Cache: {'OK' if r['has_data'] else 'MISSING'}<br>{r['cache_age']}<extra></extra>"
+                    for r in _about_rows
+                ],
+            ))
+            _fig_cache.update_layout(
+                title=dict(text="Cache Data Present", font=dict(color="#c8a040", size=13), x=0),
+                plot_bgcolor="#0d0b04", paper_bgcolor="#13110a",
+                margin=dict(t=36, b=40, l=10, r=10),
+                height=220,
+                xaxis=dict(tickfont=dict(color="#c8b890", size=9), tickangle=-45),
+                yaxis=dict(visible=False),
+                font=dict(family="Source Sans Pro"),
+                showlegend=False,
+            )
+            st.plotly_chart(_fig_cache, use_container_width=True, config={"displayModeBar": False})
+
+        # ── Agent Leadership Tree ─────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Agent Leadership Tree")
+
+        _td = {r["key"]: r for r in _about_rows}
+
+        def _get_nd(k):
+            r = _td.get(k, {})
+            return {
+                "name":   r.get("name", k.title()),
+                "sched":  r.get("schedule", "\u2014"),
+                "runs":   r.get("runs", 0),
+                "status": r.get("status", "MISSING"),
+                "age":    r.get("cache_age", "\u2014"),
+            }
+
+        def _svg_node(x, y, w, h, fill, stroke, title, sub1, status, age, ts=14, rr=12):
+            sc = {"OK": "#4caf50", "RUNNING": "#ff9800", "ERROR": "#f44336",
+                  "STALE": "#d4a843", "MISSING": "#888"}.get(status, "#888")
+            cx = x + w // 2
+            return (
+                f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rr}" ry="{rr}" '
+                f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
+                f'<text x="{cx}" y="{y + int(h * 0.34)}" text-anchor="middle" '
+                f'fill="{stroke}" font-size="{ts}" font-weight="700" font-family="sans-serif">{title}</text>'
+                f'<text x="{cx}" y="{y + int(h * 0.56)}" text-anchor="middle" '
+                f'fill="#7a7060" font-size="11" font-family="sans-serif">{sub1}</text>'
+                f'<text x="{cx}" y="{y + int(h * 0.76)}" text-anchor="middle" '
+                f'fill="{sc}" font-size="11" font-family="sans-serif">\u25cf {status} \u00b7 {age}</text>'
+            )
+
+        _lc = "#7a5a20"
+        _dbg = _get_nd("debugger")
+        _prc = _get_nd("pricing")
+        _rat = _get_nd("rates")
+        _nws = _get_nd("news")
+        _mig = _get_nd("migration")
+        _eng = _get_nd("energy")
+        _prd = _get_nd("predictions")
+
+        # Pre-build node SVG strings (T1 amber, T2 teal, T3 gray, T4 purple)
+        _s_t1  = _svg_node(305, 20,  290, 100, "#3d1e00", "#c07820",
+                           _dbg["name"],
+                           f"{_dbg['sched']} \u00b7 {_dbg['runs']} runs",
+                           _dbg["status"], _dbg["age"], ts=15)
+        _s_t2l = _svg_node(80,  203, 280, 100, "#062020", "#1a8878",
+                           _prc["name"],
+                           f"{_prc['sched']} \u00b7 {_prc['runs']} runs",
+                           _prc["status"], _prc["age"])
+        _s_t2r = _svg_node(560, 203, 280, 100, "#062020", "#1a8878",
+                           _rat["name"],
+                           f"{_rat['sched']} \u00b7 {_rat['runs']} runs",
+                           _rat["status"], _rat["age"])
+        _s_t3l = _svg_node(10,  383, 240, 100, "#181810", "#4a4838",
+                           _nws["name"],
+                           f"{_nws['sched']} \u00b7 {_nws['runs']} runs",
+                           _nws["status"], _nws["age"], ts=12)
+        _s_t3m = _svg_node(335, 383, 230, 100, "#181810", "#4a4838",
+                           _mig["name"],
+                           f"{_mig['sched']} \u00b7 {_mig['runs']} runs",
+                           _mig["status"], _mig["age"], ts=12)
+        _s_t3r = _svg_node(650, 383, 235, 100, "#181810", "#4a4838",
+                           _eng["name"],
+                           f"{_eng['sched']} \u00b7 {_eng['runs']} runs",
+                           _eng["status"], _eng["age"], ts=12)
+        _s_t4  = _svg_node(305, 538, 290, 90,  "#160820", "#5040a0",
+                           _prd["name"],
+                           f"{_prd['sched']} \u00b7 {_prd['runs']} runs",
+                           _prd["status"], _prd["age"])
+
+        _tree_svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 660" width="100%"'
+            ' style="max-width:900px;display:block;margin:0 auto;">'
+            # T1 → T2 connectors
+            f'<line x1="450" y1="120" x2="450" y2="168" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="220" y1="168" x2="700" y2="168" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="220" y1="168" x2="220" y2="203" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="700" y1="168" x2="700" y2="203" stroke="{_lc}" stroke-width="2"/>'
+            # T2L → T3L + T3M connectors
+            f'<line x1="220" y1="303" x2="220" y2="343" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="130" y1="343" x2="450" y2="343" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="130" y1="343" x2="130" y2="383" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="450" y1="343" x2="450" y2="383" stroke="{_lc}" stroke-width="2"/>'
+            # T2R → T3R connector
+            f'<line x1="700" y1="303" x2="700" y2="343" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="700" y1="343" x2="767" y2="343" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="767" y1="343" x2="767" y2="383" stroke="{_lc}" stroke-width="2"/>'
+            # T3 → T4 converge connectors
+            f'<line x1="130" y1="483" x2="130" y2="520" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="450" y1="483" x2="450" y2="520" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="767" y1="483" x2="767" y2="520" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="130" y1="520" x2="767" y2="520" stroke="{_lc}" stroke-width="2"/>'
+            f'<line x1="450" y1="520" x2="450" y2="538" stroke="{_lc}" stroke-width="2"/>'
+            # Nodes (drawn after lines so they appear on top)
+            f'{_s_t1}{_s_t2l}{_s_t2r}{_s_t3l}{_s_t3m}{_s_t3r}{_s_t4}'
+            # Legend
+            '<rect x="220" y="636" width="13" height="13" rx="3" fill="#3d1e00" stroke="#c07820" stroke-width="1"/>'
+            '<text x="238" y="647" fill="#6a6050" font-size="11" font-family="sans-serif">Infrastructure</text>'
+            '<rect x="355" y="636" width="13" height="13" rx="3" fill="#062020" stroke="#1a8878" stroke-width="1"/>'
+            '<text x="373" y="647" fill="#6a6050" font-size="11" font-family="sans-serif">Real-time</text>'
+            '<rect x="455" y="636" width="13" height="13" rx="3" fill="#181810" stroke="#4a4838" stroke-width="1"/>'
+            '<text x="473" y="647" fill="#6a6050" font-size="11" font-family="sans-serif">Periodic</text>'
+            '<rect x="545" y="636" width="13" height="13" rx="3" fill="#160820" stroke="#5040a0" stroke-width="1"/>'
+            '<text x="563" y="647" fill="#6a6050" font-size="11" font-family="sans-serif">Synthesis</text>'
+            '</svg>'
+        )
+        st.markdown(
+            f'<div style="background:#13110a;border-radius:10px;padding:24px 28px;margin-bottom:12px;">'
+            f'{_tree_svg}</div>',
+            unsafe_allow_html=True,
+        )
+
+        # ── Styled agent status table ──────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Agent Detail")
+
+        _st_hcells = "".join(
+            f'<th style="padding:10px 12px 13px;color:#c8a040;font-size:0.76rem;font-weight:700;'
+            f'letter-spacing:0.09em;text-align:{al};border-bottom:1px solid #2a2410;">{h}</th>'
+            for h, al in [("AGENT","left"),("SCHEDULE","center"),("STATUS","center"),
+                          ("RUNS","right"),("CACHE AGE","right"),("LAST ERROR","left")]
+        )
+        _st_rows_html = ""
+        for _r in _about_rows:
+            _sc   = _status_color_map.get(_r["status"], "#888")
+            _sep  = "border-bottom:1px solid #1e1c0e;"
+            _dot  = f'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{_sc};margin-right:6px;vertical-align:middle;"></span>'
+            _st_rows_html += (
+                f'<tr>'
+                f'<td style="padding:10px 12px;{_sep}color:#c8b890;font-size:0.88rem;white-space:nowrap;">{_r["label"]}</td>'
+                f'<td style="padding:10px 12px;{_sep}text-align:center;color:#7a7050;font-size:0.82rem;">{_r["schedule"]}</td>'
+                f'<td style="padding:10px 12px;{_sep}text-align:center;">'
+                f'{_dot}<span style="color:{_sc};font-size:0.82rem;font-weight:700;">{_r["status"]}</span></td>'
+                f'<td style="padding:10px 12px;{_sep}text-align:right;color:#c8a040;font-size:0.88rem;">{_r["runs"]}</td>'
+                f'<td style="padding:10px 12px;{_sep}text-align:right;color:#a09070;font-size:0.82rem;white-space:nowrap;">{_r["cache_age"]}</td>'
+                f'<td style="padding:10px 12px;{_sep}color:#ef5350;font-size:0.8rem;">{_r["error"]}</td>'
+                f'</tr>'
+            )
+
+        _sm_html = f"""
+<div style="background:#13110a;border-radius:10px;padding:24px 28px 16px;margin-bottom:8px;">
+  <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
+      <thead><tr>{_st_hcells}</tr></thead>
+      <tbody>{_st_rows_html}</tbody>
+    </table>
+  </div>
+</div>
+"""
+        st.markdown(_sm_html, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Cache Health")
+        _cache_check_keys = [
+            ("migration",           "Every 6h"),
+            ("pricing",             "Every 1h"),
+            ("rates",               "Every 1h"),
+            ("energy_data",         "Every 6h"),
+            ("credit_data",         "Every 6h"),
+            ("gdp_data",            "Every 6h"),
+            ("inflation_data",      "Every 6h"),
+            ("labor_market",        "Every 6h"),
+            ("cap_rate",            "Every 6h"),
+            ("rent_growth",         "Every 6h"),
+            ("vacancy",             "Every 12h"),
+            ("climate_risk",        "Every 24h"),
+            ("market_score",        "Every 6h"),
+            ("opportunity_zone",    "Every 24h"),
+            ("news",                "Every 4h"),
+        ]
+        _cc_cols = st.columns(5)
+        for _ci, (_ck, _cf) in enumerate(_cache_check_keys):
+            _cc = read_cache(_ck)
+            _has = _cc["data"] is not None
+            _stale = _cc.get("stale", True)
+            _label = "OK" if _has and not _stale else ("STALE" if _has else "MISSING")
+            _clr   = "#4caf50" if _label == "OK" else ("#ff9800" if _label == "STALE" else "#f44336")
+            _cc_cols[_ci % 5].markdown(
+                f'<div class="metric-card">'
+                f'<div class="label" style="font-size:0.72rem;">{_ck.replace("_", " ").title()}</div>'
+                f'<div class="value" style="color:{_clr};font-size:1rem;">{_label}</div>'
+                f'<div class="sub">{cache_age_label(_ck)}</div>'
+                f'<div style="font-size:0.68rem;color:#555;margin-top:2px;">{_cf}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.caption(
+            "All agents run in APScheduler background threads. Caches are JSON files in cache/. "
+            "Status reflects the in-memory agent_status dict — resets on app restart."
+        )

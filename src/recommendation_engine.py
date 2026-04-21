@@ -291,7 +291,10 @@ def parse_prompt(text: str) -> dict:
 
     if not result["budget"]:
         for m in re.finditer(r'\$?([\d,.]+)\s*(m|million|b|billion|k|thousand)?', t):
-            num = float(m.group(1).replace(",", ""))
+            _raw = m.group(1).replace(",", "").strip(".")
+            if not _raw or _raw == ".":
+                continue
+            num = float(_raw)
             suffix = (m.group(2) or "").lower()
             if suffix in ("m", "million"):     num *= 1_000_000
             elif suffix in ("b", "billion"):   num *= 1_000_000_000

@@ -719,6 +719,22 @@ def run_distressed_agent():
         _set_status("distressed", "error", str(e))
 
 
+# ── Manager Agent · System Health & Self-Healing ─────────────────────────────
+
+def run_manager_agent_job():
+    _set_status("manager", "running")
+    try:
+        from src.manager_agent import run_manager_agent
+        result = run_manager_agent()
+        import json as _json
+        (CACHE_DIR / "manager_report.json").write_text(
+            _json.dumps({"updated_at": datetime.now().isoformat(), "data": result}, default=str)
+        )
+        _set_status("manager", "ok")
+    except Exception as e:
+        _set_status("manager", "error", str(e))
+
+
 # ── Agent 18 · Market Opportunity Score ──────────────────────────────────────
 
 def run_market_score_agent():
@@ -779,6 +795,7 @@ def start_scheduler():
         _scheduler.add_job(run_distressed_agent,       IntervalTrigger(hours=6),      id="distressed",       replace_existing=True)
         _scheduler.add_job(run_market_score_agent,     IntervalTrigger(hours=6),      id="market_score",     replace_existing=True)
         _scheduler.add_job(run_climate_risk_agent,     IntervalTrigger(hours=24),     id="climate_risk",     replace_existing=True)
+        _scheduler.add_job(run_manager_agent_job,       IntervalTrigger(minutes=15),   id="manager",          replace_existing=True)
 
         _scheduler.start()
 
@@ -788,7 +805,7 @@ def start_scheduler():
                    run_labor_market_agent, run_gdp_agent, run_inflation_agent, run_credit_markets_agent,
                    run_vacancy_agent, run_land_market_agent, run_cap_rate_agent, run_rent_growth_agent,
                    run_opportunity_zone_agent, run_distressed_agent, run_market_score_agent,
-                   run_climate_risk_agent]:
+                   run_climate_risk_agent, run_manager_agent_job]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -815,6 +832,7 @@ def force_run(agent_name: str):
         "opportunity_zone": run_opportunity_zone_agent,
         "distressed":       run_distressed_agent,
         "market_score":     run_market_score_agent,
+        "manager":          run_manager_agent_job,
         "climate_risk":     run_climate_risk_agent,
     }
     fn = agents.get(agent_name)
