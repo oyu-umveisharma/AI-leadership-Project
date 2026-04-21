@@ -7320,7 +7320,7 @@ with main_tab_about:
             )
             st.plotly_chart(_fig_cache, use_container_width=True, config={"displayModeBar": False})
 
-        # ── Agent Leadership Tree ─────────────────────────────────────────────
+        # ── Agent Leadership Tree (all 21 agents, 6 tiers) ───────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
         section(" Agent Leadership Tree")
 
@@ -7336,98 +7336,159 @@ with main_tab_about:
                 "age":    r.get("cache_age", "\u2014"),
             }
 
-        def _svg_node(x, y, w, h, fill, stroke, title, sub1, status, age, ts=14, rr=12):
+        def _svg_node(x, y, w, h, fill, stroke, title, sub1, status, age, ts=11, rr=10):
             sc = {"OK": "#4caf50", "RUNNING": "#ff9800", "ERROR": "#f44336",
                   "STALE": "#d4a843", "MISSING": "#888"}.get(status, "#888")
             cx = x + w // 2
+            # Split long titles onto 2 lines at nearest word boundary to middle
+            if len(title) > 16 and " " in title:
+                mid = len(title) // 2
+                sl = title.rfind(" ", 0, mid)
+                sr = title.find(" ", mid)
+                if sl == -1:   split = sr
+                elif sr == -1: split = sl
+                else:          split = sl if (mid - sl) <= (sr - mid) else sr
+                l1, l2 = title[:split], title[split + 1:]
+                ttl_svg = (
+                    f'<text x="{cx}" y="{y + int(h * 0.28)}" text-anchor="middle" fill="{stroke}" '
+                    f'font-size="{ts}" font-weight="700" font-family="sans-serif">{l1}</text>'
+                    f'<text x="{cx}" y="{y + int(h * 0.46)}" text-anchor="middle" fill="{stroke}" '
+                    f'font-size="{ts}" font-weight="700" font-family="sans-serif">{l2}</text>'
+                )
+                sub_y, st_y = y + int(h * 0.66), y + int(h * 0.84)
+            else:
+                ttl_svg = (
+                    f'<text x="{cx}" y="{y + int(h * 0.38)}" text-anchor="middle" fill="{stroke}" '
+                    f'font-size="{ts}" font-weight="700" font-family="sans-serif">{title}</text>'
+                )
+                sub_y, st_y = y + int(h * 0.60), y + int(h * 0.80)
             return (
                 f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rr}" ry="{rr}" '
                 f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
-                f'<text x="{cx}" y="{y + int(h * 0.34)}" text-anchor="middle" '
-                f'fill="{stroke}" font-size="{ts}" font-weight="700" font-family="sans-serif">{title}</text>'
-                f'<text x="{cx}" y="{y + int(h * 0.56)}" text-anchor="middle" '
-                f'fill="#7a7060" font-size="11" font-family="sans-serif">{sub1}</text>'
-                f'<text x="{cx}" y="{y + int(h * 0.76)}" text-anchor="middle" '
-                f'fill="{sc}" font-size="11" font-family="sans-serif">\u25cf {status} \u00b7 {age}</text>'
+                + ttl_svg +
+                f'<text x="{cx}" y="{sub_y}" text-anchor="middle" fill="#6a6050" '
+                f'font-size="9" font-family="sans-serif">{sub1}</text>'
+                f'<text x="{cx}" y="{st_y}" text-anchor="middle" fill="{sc}" '
+                f'font-size="9" font-family="sans-serif">\u25cf {status} \u00b7 {age}</text>'
             )
 
-        _lc = "#7a5a20"
-        _dbg = _get_nd("debugger")
-        _prc = _get_nd("pricing")
-        _rat = _get_nd("rates")
-        _nws = _get_nd("news")
-        _mig = _get_nd("migration")
-        _eng = _get_nd("energy")
-        _prd = _get_nd("predictions")
+        def _bus(upper_cx, lower_cx, y_top, y_bot, lc):
+            """Vertical stubs + horizontal bus between two tiers."""
+            yb = (y_top + y_bot) // 2
+            all_x = sorted(set(upper_cx) | set(lower_cx))
+            segs = [f'<line x1="{min(all_x)}" y1="{yb}" x2="{max(all_x)}" y2="{yb}" '
+                    f'stroke="{lc}" stroke-width="1.5"/>']
+            for x in upper_cx:
+                segs.append(f'<line x1="{x}" y1="{y_top}" x2="{x}" y2="{yb}" '
+                             f'stroke="{lc}" stroke-width="1.5"/>')
+            for x in lower_cx:
+                segs.append(f'<line x1="{x}" y1="{yb}" x2="{x}" y2="{y_bot}" '
+                             f'stroke="{lc}" stroke-width="1.5"/>')
+            return "".join(segs)
 
-        # Pre-build node SVG strings (T1 amber, T2 teal, T3 gray, T4 purple)
-        _s_t1  = _svg_node(305, 20,  290, 100, "#3d1e00", "#c07820",
-                           _dbg["name"],
-                           f"{_dbg['sched']} \u00b7 {_dbg['runs']} runs",
-                           _dbg["status"], _dbg["age"], ts=15)
-        _s_t2l = _svg_node(80,  203, 280, 100, "#062020", "#1a8878",
-                           _prc["name"],
-                           f"{_prc['sched']} \u00b7 {_prc['runs']} runs",
-                           _prc["status"], _prc["age"])
-        _s_t2r = _svg_node(560, 203, 280, 100, "#062020", "#1a8878",
-                           _rat["name"],
-                           f"{_rat['sched']} \u00b7 {_rat['runs']} runs",
-                           _rat["status"], _rat["age"])
-        _s_t3l = _svg_node(10,  383, 240, 100, "#181810", "#4a4838",
-                           _nws["name"],
-                           f"{_nws['sched']} \u00b7 {_nws['runs']} runs",
-                           _nws["status"], _nws["age"], ts=12)
-        _s_t3m = _svg_node(335, 383, 230, 100, "#181810", "#4a4838",
-                           _mig["name"],
-                           f"{_mig['sched']} \u00b7 {_mig['runs']} runs",
-                           _mig["status"], _mig["age"], ts=12)
-        _s_t3r = _svg_node(650, 383, 235, 100, "#181810", "#4a4838",
-                           _eng["name"],
-                           f"{_eng['sched']} \u00b7 {_eng['runs']} runs",
-                           _eng["status"], _eng["age"], ts=12)
-        _s_t4  = _svg_node(305, 538, 290, 90,  "#160820", "#5040a0",
-                           _prd["name"],
-                           f"{_prd['sched']} \u00b7 {_prd['runs']} runs",
-                           _prd["status"], _prd["age"])
+        # ── Layout constants ──────────────────────────────────────────────────
+        _NW, _NH = 138, 65          # node width / height
+        # 5-node tier: margin=61, step=150 → centers 130,280,430,580,730
+        _CX5 = [130, 280, 430, 580, 730]
+        _NX5 = [61,  211, 361, 511, 661]
+        # 2-node tier aligned with T3 positions 1 and 3
+        _CX2 = [280, 580]
+        _NX2 = [211, 511]
+        # Tier Y-tops (T1..T6) with 45px gaps
+        _LY  = [10, 120, 230, 340, 450, 560]
+        _TB  = [y + _NH for y in _LY]   # tier bottoms
+        _lc  = "#5a4818"
+
+        # ── Tier color pairs (fill, stroke) ───────────────────────────────────
+        _CA = ("#3a1a00", "#b87020")   # amber     — T1 Infrastructure
+        _CT = ("#051e1e", "#1a7870")   # teal      — T2 Real-time
+        _CG = ("#161610", "#404038")   # gray      — T3 Periodic
+        _CB = ("#080c18", "#283060")   # dark blue — T4 Macro
+        _CO = ("#101808", "#405020")   # olive     — T5 CRE Metrics
+        _CP = ("#140820", "#483890")   # purple    — T6 Synthesis
+
+        # ── Fetch live data for all 21 agents ─────────────────────────────────
+        _nds = {k: _get_nd(k) for k in [
+            "manager", "debugger",
+            "pricing", "rates",
+            "news", "migration", "energy", "sustainability", "labor_market",
+            "gdp", "inflation", "credit", "vacancy", "climate_risk",
+            "cap_rate", "rent_growth", "land_market", "opportunity_zone", "distressed",
+            "market_score", "predictions",
+        ]}
+
+        def _n(key, x, y, fill, stroke, ts=11):
+            nd = _nds[key]
+            return _svg_node(x, y, _NW, _NH, fill, stroke,
+                             nd["name"],
+                             f"{nd['sched']} \u00b7 {nd['runs']} runs",
+                             nd["status"], nd["age"], ts=ts)
+
+        # ── Build all 21 node SVGs ─────────────────────────────────────────────
+        _svg_nodes = (
+            # T1 — Infrastructure (amber, 2 nodes)
+            _n("manager",          _NX2[0], _LY[0], *_CA, ts=12) +
+            _n("debugger",         _NX2[1], _LY[0], *_CA, ts=12) +
+            # T2 — Real-time (teal, 2 nodes)
+            _n("pricing",          _NX2[0], _LY[1], *_CT) +
+            _n("rates",            _NX2[1], _LY[1], *_CT) +
+            # T3 — Periodic/Contextual (gray, 5 nodes)
+            _n("news",             _NX5[0], _LY[2], *_CG) +
+            _n("migration",        _NX5[1], _LY[2], *_CG) +
+            _n("energy",           _NX5[2], _LY[2], *_CG) +
+            _n("sustainability",   _NX5[3], _LY[2], *_CG) +
+            _n("labor_market",     _NX5[4], _LY[2], *_CG) +
+            # T4 — Macro (dark blue, 5 nodes)
+            _n("gdp",              _NX5[0], _LY[3], *_CB) +
+            _n("inflation",        _NX5[1], _LY[3], *_CB) +
+            _n("credit",           _NX5[2], _LY[3], *_CB) +
+            _n("vacancy",          _NX5[3], _LY[3], *_CB) +
+            _n("climate_risk",     _NX5[4], _LY[3], *_CB) +
+            # T5 — CRE Metrics (olive, 5 nodes)
+            _n("cap_rate",         _NX5[0], _LY[4], *_CO) +
+            _n("rent_growth",      _NX5[1], _LY[4], *_CO) +
+            _n("land_market",      _NX5[2], _LY[4], *_CO) +
+            _n("opportunity_zone", _NX5[3], _LY[4], *_CO) +
+            _n("distressed",       _NX5[4], _LY[4], *_CO) +
+            # T6 — Synthesis (purple, 2 nodes)
+            _n("market_score",     _NX2[0], _LY[5], *_CP, ts=12) +
+            _n("predictions",      _NX2[1], _LY[5], *_CP, ts=12)
+        )
+
+        # ── Build connector lines (bus-style between each tier) ───────────────
+        _svg_lines = (
+            _bus(_CX2, _CX2, _TB[0], _LY[1], _lc) +   # T1 → T2  (same 2 centers)
+            _bus(_CX2, _CX5, _TB[1], _LY[2], _lc) +   # T2 → T3  (fan out)
+            _bus(_CX5, _CX5, _TB[2], _LY[3], _lc) +   # T3 → T4
+            _bus(_CX5, _CX5, _TB[3], _LY[4], _lc) +   # T4 → T5
+            _bus(_CX5, _CX2, _TB[4], _LY[5], _lc)     # T5 → T6  (fan in)
+        )
+
+        # ── Legend ────────────────────────────────────────────────────────────
+        _leg_items = [
+            (_CA, "Infrastructure"), (_CT, "Real-time"),  (_CG, "Periodic"),
+            (_CB, "Macro"),          (_CO, "CRE Metrics"), (_CP, "Synthesis"),
+        ]
+        _leg_svg = ""
+        _lx = 100
+        for (_lf, _ls), _ll in _leg_items:
+            _leg_svg += (
+                f'<rect x="{_lx}" y="640" width="11" height="11" rx="2" '
+                f'fill="{_lf}" stroke="{_ls}" stroke-width="1"/>'
+                f'<text x="{_lx + 15}" y="650" fill="#6a6050" font-size="10" '
+                f'font-family="sans-serif">{_ll}</text>'
+            )
+            _lx += 15 + int(len(_ll) * 6.5) + 18
 
         _tree_svg = (
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 660" width="100%"'
-            ' style="max-width:900px;display:block;margin:0 auto;">'
-            # T1 → T2 connectors
-            f'<line x1="450" y1="120" x2="450" y2="168" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="220" y1="168" x2="700" y2="168" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="220" y1="168" x2="220" y2="203" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="700" y1="168" x2="700" y2="203" stroke="{_lc}" stroke-width="2"/>'
-            # T2L → T3L + T3M connectors
-            f'<line x1="220" y1="303" x2="220" y2="343" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="130" y1="343" x2="450" y2="343" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="130" y1="343" x2="130" y2="383" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="450" y1="343" x2="450" y2="383" stroke="{_lc}" stroke-width="2"/>'
-            # T2R → T3R connector
-            f'<line x1="700" y1="303" x2="700" y2="343" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="700" y1="343" x2="767" y2="343" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="767" y1="343" x2="767" y2="383" stroke="{_lc}" stroke-width="2"/>'
-            # T3 → T4 converge connectors
-            f'<line x1="130" y1="483" x2="130" y2="520" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="450" y1="483" x2="450" y2="520" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="767" y1="483" x2="767" y2="520" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="130" y1="520" x2="767" y2="520" stroke="{_lc}" stroke-width="2"/>'
-            f'<line x1="450" y1="520" x2="450" y2="538" stroke="{_lc}" stroke-width="2"/>'
-            # Nodes (drawn after lines so they appear on top)
-            f'{_s_t1}{_s_t2l}{_s_t2r}{_s_t3l}{_s_t3m}{_s_t3r}{_s_t4}'
-            # Legend
-            '<rect x="220" y="636" width="13" height="13" rx="3" fill="#3d1e00" stroke="#c07820" stroke-width="1"/>'
-            '<text x="238" y="647" fill="#6a6050" font-size="11" font-family="sans-serif">Infrastructure</text>'
-            '<rect x="355" y="636" width="13" height="13" rx="3" fill="#062020" stroke="#1a8878" stroke-width="1"/>'
-            '<text x="373" y="647" fill="#6a6050" font-size="11" font-family="sans-serif">Real-time</text>'
-            '<rect x="455" y="636" width="13" height="13" rx="3" fill="#181810" stroke="#4a4838" stroke-width="1"/>'
-            '<text x="473" y="647" fill="#6a6050" font-size="11" font-family="sans-serif">Periodic</text>'
-            '<rect x="545" y="636" width="13" height="13" rx="3" fill="#160820" stroke="#5040a0" stroke-width="1"/>'
-            '<text x="563" y="647" fill="#6a6050" font-size="11" font-family="sans-serif">Synthesis</text>'
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 665" width="100%"'
+            ' style="display:block;margin:0 auto;">'
+            + _svg_lines + _svg_nodes + _leg_svg +
             '</svg>'
         )
         st.markdown(
-            f'<div style="background:#13110a;border-radius:10px;padding:24px 28px;margin-bottom:12px;">'
+            f'<div style="background:#13110a;border-radius:10px;padding:20px 24px;'
+            f'margin-bottom:12px;overflow-x:auto;">'
             f'{_tree_svg}</div>',
             unsafe_allow_html=True,
         )
