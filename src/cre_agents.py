@@ -178,6 +178,7 @@ _agent_status = {
     "vacancy":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "property_tax":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "climate_risk":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "chief_of_staff":  {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
 def get_status() -> dict:
@@ -761,6 +762,20 @@ def run_climate_risk_agent():
         _set_status("climate_risk", "error", str(e))
 
 
+def run_chief_of_staff_agent():
+    _set_status("chief_of_staff", "running")
+    try:
+        from src.chief_of_staff_agent import run_chief_of_staff
+        result = run_chief_of_staff(
+            restart_fn=force_run,
+            agent_status=get_status(),
+        )
+        write_cache("chief_of_staff", result)
+        _set_status("chief_of_staff", "ok")
+    except Exception as e:
+        _set_status("chief_of_staff", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -796,6 +811,7 @@ def start_scheduler():
         _scheduler.add_job(run_market_score_agent,     IntervalTrigger(hours=6),      id="market_score",     replace_existing=True)
         _scheduler.add_job(run_climate_risk_agent,     IntervalTrigger(hours=24),     id="climate_risk",     replace_existing=True)
         _scheduler.add_job(run_manager_agent_job,       IntervalTrigger(minutes=15),   id="manager",          replace_existing=True)
+        _scheduler.add_job(run_chief_of_staff_agent,   IntervalTrigger(minutes=5),    id="chief_of_staff",   replace_existing=True)
 
         _scheduler.start()
 
@@ -805,7 +821,7 @@ def start_scheduler():
                    run_labor_market_agent, run_gdp_agent, run_inflation_agent, run_credit_markets_agent,
                    run_vacancy_agent, run_land_market_agent, run_cap_rate_agent, run_rent_growth_agent,
                    run_opportunity_zone_agent, run_distressed_agent, run_market_score_agent,
-                   run_climate_risk_agent, run_manager_agent_job]:
+                   run_climate_risk_agent, run_manager_agent_job, run_chief_of_staff_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -834,6 +850,7 @@ def force_run(agent_name: str):
         "market_score":     run_market_score_agent,
         "manager":          run_manager_agent_job,
         "climate_risk":     run_climate_risk_agent,
+        "chief_of_staff":   run_chief_of_staff_agent,
     }
     fn = agents.get(agent_name)
     if fn:
