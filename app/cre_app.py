@@ -102,6 +102,8 @@ if "adv_navigate" not in st.session_state:
     st.session_state.adv_navigate = False
 if "recent_searches" not in st.session_state:
     st.session_state.recent_searches = []
+if "nav_to_tab" not in st.session_state:
+    st.session_state.nav_to_tab = None
 
 # US state name/abbreviation lookup
 _US_STATES = {
@@ -1201,7 +1203,26 @@ if not st.session_state.onboarding_complete:
         with _bc:
             submitted = st.form_submit_button("Analyze")
         if submitted and user_input:
-            if _is_advisor_query(user_input):
+            _NAV_KEYWORDS = {
+                "team":                "About",
+                "meet the team":       "About",
+                "about":               "About",
+                "our team":            "About",
+                "system monitor":      "About",
+                "monitor":             "About",
+                "investment advisor":  "Investment Advisor",
+                "advisor":             "Investment Advisor",
+                "energy":              "Energy",
+                "macro":               "Macro Environment",
+                "economy":             "Macro Environment",
+                "gdp":                 "Macro Environment",
+            }
+            _ui = user_input.lower().strip()
+            _nav = next((v for k, v in _NAV_KEYWORDS.items() if k == _ui or _ui == k), None)
+            if _nav:
+                st.session_state.nav_to_tab = _nav
+                _complete_onboarding()   # no raw_input → won't pollute recent searches
+            elif _is_advisor_query(user_input):
                 _complete_onboarding(raw_input=user_input)
                 st.session_state.adv_home_prompt   = user_input
                 st.session_state.adv_auto_generate = True
@@ -1853,6 +1874,28 @@ def gauge_card(title: str, label: str, score: int, summary: str,
 #  MAIN TABS
 # ═══════════════════════════════════════════════════════════════════════════════
 main_tab_re, main_tab_advisor, main_tab_energy, main_tab_macro, main_tab_about = st.tabs(["Real Estate", "Investment Advisor", "Energy", "Macro Environment", "About"])
+
+# ── Auto-navigate to requested tab via JS click ───────────────────────────────
+if st.session_state.get("nav_to_tab"):
+    _target_tab = st.session_state.nav_to_tab
+    st.session_state.nav_to_tab = None
+    st.components.v1.html(f"""
+    <script>
+      (function() {{
+        function clickTab() {{
+          var tabs = window.parent.document.querySelectorAll('[data-testid="stTab"] button, button[role="tab"]');
+          for (var i = 0; i < tabs.length; i++) {{
+            if (tabs[i].textContent.trim().toLowerCase().includes('{_target_tab.lower()}')) {{
+              tabs[i].click();
+              return;
+            }}
+          }}
+        }}
+        setTimeout(clickTab, 300);
+        setTimeout(clickTab, 700);
+      }})();
+    </script>
+    """, height=0)
 
 with main_tab_re:
     tab1, tab2, tab3, tab4, tab5, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score, tab_climate = st.tabs([
