@@ -1063,6 +1063,35 @@ def metric_card(label, value, sub=""):
       {"<div class='sub'>" + sub + "</div>" if sub else ""}
     </div>"""
 
+def _active_pt() -> str | None:
+    """Return the active property type focus (e.g. 'Multifamily') or None."""
+    return st.session_state.user_intent.get("property_type")
+
+
+# Maps user_intent property_type → column/key names used in each tab
+_PT_VAC_COL  = {"Industrial": "Industrial", "Multifamily": "Multifamily",
+                "Office": "Office", "Retail": "Retail"}
+_PT_CAP_COL  = {"Industrial": "Industrial", "Multifamily": "Multifamily",
+                "Office": "Office", "Retail": "Retail"}
+_PT_RG_LBL   = {"Multifamily": "Multifamily", "Industrial": "Industrial PSF",
+                "Office": "Office PSF", "Retail": "Retail PSF"}
+_PT_RG_KEY   = {"Multifamily": "multifamily", "Industrial": "industrial_psf",
+                "Office": "office_psf", "Retail": "retail_psf"}
+
+
+def _pt_focus_banner(pt: str | None):
+    """Show a subtle banner when a property type focus is active."""
+    if pt:
+        st.markdown(
+            f'<div style="background:#1a1500;border:1px solid #3a3010;border-radius:6px;'
+            f'padding:7px 14px;margin-bottom:10px;font-size:0.82rem;color:#c8a040;">'
+            f'Focus: <b>{pt}</b> &nbsp;·&nbsp; '
+            f'<span style="color:#6a5228;">Relevant columns highlighted — update focus via the chat bar below</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+
 def stale_banner(cache_key: str):
     c = read_cache(cache_key)
     if c["data"] is None:
@@ -2422,8 +2451,8 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
         _show_tab_header(
             "buildings",
             "Agent 3 sources the lowest-price commercial listings in the states with the highest "
-            "migration and business growth scores — identifying acquisition opportunities before demand peaks. "
-            "Updates every 24 hours alongside company predictions.",
+            "migration and business growth scores. **Agent 21 (RentCast)** overlays live property data "
+            "when API key is configured (free tier: 50 calls/month). Updates every 24 hours.",
             "predictions",
         )
 
@@ -2434,6 +2463,38 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
         pdata4   = cache4["data"]
         listings = pdata4.get("listings", {})
         top3_abbr = pdata4.get("top3_abbr", [])
+
+        # ── Overlay RentCast live data if available ──────────────────────────
+        _rc_cache = read_cache("rentcast")
+        _rc_data = _rc_cache.get("data") or {}
+        _rc_listings = _rc_data.get("listings", {})
+        _rc_sources = _rc_data.get("source_states", {})
+        _rc_live_count = _rc_data.get("live_listing_count", 0)
+        _rc_remaining = _rc_data.get("api_calls_remaining", 0)
+        _rc_has_key = _rc_data.get("has_api_key", False)
+
+        # Merge RentCast listings into the main listings dict (RentCast takes priority)
+        for abbr, rc_list in _rc_listings.items():
+            if rc_list:
+                listings[abbr] = rc_list
+                if abbr not in top3_abbr:
+                    top3_abbr.append(abbr)
+
+        # Show RentCast API status strip
+        if _rc_has_key:
+            _rc_used = _rc_data.get("api_calls_used", 0)
+            _live_states = [k for k, v in _rc_sources.items() if v == "live"]
+            if _rc_live_count > 0:
+                st.markdown(
+                    f'<div style="background:#1b5e20;color:#fff;padding:6px 14px;border-radius:6px;'
+                    f'font-size:0.82rem;margin-bottom:12px;display:inline-block;">'
+                    f'<b>LIVE DATA</b> &nbsp; {_rc_live_count} listings from RentCast API '
+                    f'&middot; {_rc_used}/50 calls used this month '
+                    f'&middot; Live states: {", ".join(_live_states)}'
+                    f'</div>', unsafe_allow_html=True)
+            else:
+                st.caption(f"RentCast API configured — {_rc_remaining} calls remaining this month. "
+                           f"Showing cached/mock data until next agent run.")
 
         # On-demand: generate listings for user's target state if not already cached
         _user_abbr_b = st.session_state.user_intent.get("state_abbr")
@@ -2558,11 +2619,15 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
 
                     # Highlight if city matches
                     _is_city_match = _user_city4 and _user_city4.lower() in (listing.get("city", "") or "").lower()
-                    _border_clr = "#1b5e20" if _is_city_match else GOLD
+                    _is_live = listing.get("_source") == "rentcast"
+                    _border_clr = "#1b5e20" if _is_city_match or _is_live else GOLD
+                    _live_badge = ('<span style="background:#1b5e20;color:#fff;padding:2px 8px;'
+                                   'border-radius:4px;font-size:0.7rem;font-weight:700;'
+                                   'margin-left:8px;vertical-align:middle;">LIVE DATA</span>') if _is_live else ""
 
                     st.markdown(f"""
                     <div class="listing-card" style="border-left-color:{_border_clr};">
-                      <div class="l-price">{price_fmt}</div>
+                      <div class="l-price">{price_fmt}{_live_badge}</div>
                       <div class="l-address">{addr_fmt}</div>
                       <div style="margin:4px 0;">
                         <span class="l-tag">{pt_fmt}</span>
@@ -2700,13 +2765,7 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
             _tier_labels = {1: "Independent News", 2: "Government", 3: "Trade Press", 4: "Press Release"}
             _left_colors = {"VERIFIED": "#4caf50", "HIGH": "#8bc34a", "MODERATE": "#ff9800", "LOW": "#f44336"}
 
-            shown = 0
-            for art in raw:
-                if feed_type_filter != "All" and art.get("feed_type") != feed_type_filter:
-                    continue
-                if art.get("credibility_score", 0) < _cred_min_score:
-                    continue
-
+            def _render_article(art):
                 tier       = art.get("tier", 4)
                 link       = art.get("link", "#")
                 title      = art.get("title", "No title")
@@ -2723,11 +2782,41 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                 _age_lbl   = f"{age_days}d ago" if age_days is not None else ""
                 _left_clr  = _left_colors.get(cred_lbl, "#d4a843")
 
+                # Per-tier card styling
+                if cred_lbl == "VERIFIED":
+                    _card_bg      = "#0e1a0a"
+                    _card_border  = f"2px solid #4caf50"
+                    _card_shadow  = "box-shadow:0 0 12px rgba(76,175,80,0.18);"
+                    _card_left    = "5px solid #4caf50"
+                    _verified_banner = (
+                        '<div style="font-size:10px;font-weight:700;letter-spacing:0.12em;'
+                        'color:#4caf50;margin-bottom:8px;">★ VERIFIED SOURCE</div>'
+                    )
+                elif cred_lbl == "HIGH":
+                    _card_bg      = "#0e140a"
+                    _card_border  = "1px solid #3a5a1a"
+                    _card_shadow  = ""
+                    _card_left    = "4px solid #8bc34a"
+                    _verified_banner = ""
+                elif cred_lbl == "MODERATE":
+                    _card_bg      = "#171309"
+                    _card_border  = "1px solid #2a2208"
+                    _card_shadow  = ""
+                    _card_left    = "3px solid #ff9800"
+                    _verified_banner = ""
+                else:  # LOW
+                    _card_bg      = "#141210"
+                    _card_border  = "1px solid #1e1a14"
+                    _card_shadow  = ""
+                    _card_left    = "2px solid #f44336"
+                    _verified_banner = ""
+
+                _title_clr  = "#d4a843" if cred_lbl != "VERIFIED" else "#7ecb80"
                 _title_html = (
-                    f'<a href="{link}" target="_blank" style="color:#d4a843;font-weight:600;'
+                    f'<a href="{link}" target="_blank" style="color:{_title_clr};font-weight:600;'
                     f'font-size:15px;text-decoration:none;line-height:1.4;">{title}</a>'
                     if link and link != "#"
-                    else f'<span style="color:#d4a843;font-weight:600;font-size:15px;">{title}</span>'
+                    else f'<span style="color:{_title_clr};font-weight:600;font-size:15px;">{title}</span>'
                 )
                 _cred_badge = (
                     f'<span style="font-size:10px;padding:2px 8px;border-radius:4px;'
@@ -2747,10 +2836,12 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                 ) if confirms else ""
                 _src_label  = f'<span style="font-size:11px;color:#6a5228;">{src}</span>' if src else ""
                 _date_label = f'<span style="font-size:11px;color:#4a3e18;">{_age_lbl}</span>' if _age_lbl else ""
+                _desc_clr   = "#8a7040" if cred_lbl != "LOW" else "#5a5040"
 
                 st.markdown(f"""
-<div style="background:#171309;border:1px solid #2a2208;border-radius:10px;
-            padding:16px 18px;margin:8px 0;border-left:3px solid {_left_clr};">
+<div style="background:{_card_bg};border:{_card_border};border-radius:10px;
+            padding:16px 18px;margin:8px 0;border-left:{_card_left};{_card_shadow}">
+  {_verified_banner}
   <div style="margin-bottom:10px;">{_title_html}</div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
     {_cred_badge}
@@ -2759,9 +2850,33 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
     {_src_label}
     {_date_label}
   </div>
-  <div style="font-size:13px;color:#8a7040;line-height:1.6;">{desc}</div>
+  <div style="font-size:13px;color:{_desc_clr};line-height:1.6;">{desc}</div>
 </div>""", unsafe_allow_html=True)
-                shown += 1
+
+            shown       = 0
+            low_articles = []
+
+            for art in raw:
+                if feed_type_filter != "All" and art.get("feed_type") != feed_type_filter:
+                    continue
+                if art.get("credibility_score", 0) < _cred_min_score:
+                    continue
+
+                cred_lbl = art.get("credibility_label", "LOW")
+
+                if cred_lbl == "LOW" and cred_filter == "All":
+                    # Collect LOW articles to render collapsed
+                    low_articles.append(art)
+                else:
+                    _render_article(art)
+                    shown += 1
+
+            # Render LOW articles collapsed
+            if low_articles:
+                with st.expander(f"Low credibility articles ({len(low_articles)}) — unverified / press releases"):
+                    for art in low_articles:
+                        _render_article(art)
+                shown += len(low_articles)
 
             if shown == 0:
                 st.info("No articles match the current filters.")
@@ -2839,6 +2954,11 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             "in Sunbelt markets from record 2024-2025 deliveries."
         )
 
+        # ── Focus banner ─────────────────────────────────────────────────────
+        _vac_pt = _active_pt()
+        _pt_focus_banner(_vac_pt)
+        _vac_focus_col = _PT_VAC_COL.get(_vac_pt) if _vac_pt else None
+
         # ── Market Heatmap ───────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
         section(" Vacancy Rate by Market and Property Type")
@@ -2881,20 +3001,26 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                         )
                 return "rgb(150,150,150)"
 
-            # Header row
-            _vhdr_cells = "".join(
-                f'<th style="padding:10px 8px 14px;color:#c8a040;font-size:0.78rem;'
-                f'font-weight:700;letter-spacing:0.08em;text-align:center;'
-                f'border-bottom:1px solid #2a2410;">{c.upper()}</th>'
-                for c in _vac_cols
-            )
+            # Header row — dim non-focus columns when focus is active
+            _vhdr_cells = ""
+            for c in _vac_cols:
+                _is_focus_col = (not _vac_focus_col) or (c == _vac_focus_col)
+                _hdr_opacity = "1" if _is_focus_col else "0.25"
+                _hdr_clr     = "#c8a040" if _is_focus_col else "#5a5030"
+                _hdr_fw      = "700" if _is_focus_col else "400"
+                _vhdr_cells += (
+                    f'<th style="padding:10px 8px 14px;color:{_hdr_clr};font-size:0.78rem;'
+                    f'font-weight:{_hdr_fw};letter-spacing:0.08em;text-align:center;'
+                    f'border-bottom:1px solid #2a2410;opacity:{_hdr_opacity};">{c.upper()}</th>'
+                )
             _vhdr = (
                 f'<tr><th style="padding:10px 8px 14px;border-bottom:1px solid #2a2410;"></th>'
                 f'{_vhdr_cells}</tr>'
             )
 
-            # Data rows
+            # Data rows — dim non-focus columns
             _vrows_html = ""
+            import numpy as _np
             for _mkt in pivot.index:
                 _vcells = (
                     f'<td style="padding:7px 12px 7px 0;text-align:right;color:#c8b890;'
@@ -2902,19 +3028,20 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                     f'{_mkt}</td>'
                 )
                 for _col in _vac_cols:
+                    _is_focus_col = (not _vac_focus_col) or (_col == _vac_focus_col)
+                    _cell_opacity = "1" if _is_focus_col else "0.22"
                     _val = pivot.loc[_mkt, _col] if _col in pivot.columns else None
-                    import numpy as _np
                     if _val is not None and not (_np.isnan(_val) if hasattr(_val, '__float__') else False) and float(_val) > 0:
                         _bg = _vac_cell_color(float(_val))
                         _vcells += (
-                            f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;">'
+                            f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;opacity:{_cell_opacity};">'
                             f'<div style="background:{_bg};border-radius:7px;padding:9px 0;'
                             f'text-align:center;color:#fff;font-size:0.92rem;font-weight:600;'
                             f'letter-spacing:0.04em;min-width:80px;">{float(_val):.1f}%</div></td>'
                         )
                     else:
                         _vcells += (
-                            f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;">'
+                            f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;opacity:{_cell_opacity};">'
                             f'<div style="text-align:center;color:#4a4530;font-size:0.92rem;">—</div></td>'
                         )
                 _vrows_html += f"<tr>{_vcells}</tr>"
@@ -2955,7 +3082,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 for i, h in enumerate(_md_headers)
             )
 
-            # Build rows
+            # Build rows — dim non-focus property type rows when focus is active
             _md_rows_html = ""
             for _, _row in detail_df.iterrows():
                 _trend_str  = f"{TREND_ARROW[_row['trend']]} {_row['trend'].title()}"
@@ -2964,8 +3091,11 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 _vs_str     = f"{_vs:+.1f}pp"
                 _vs_c       = "#66bb6a" if _vs < -2 else ("#ef5350" if _vs > 2 else "#c8a040")
                 _vac_val    = float(_row["vacancy_rate"])
-                _row_style  = "border-bottom:1px solid #1e1c0e;"
-                _td         = f'style="padding:12px 16px;{_row_style}'
+                _is_focus_row = (not _vac_focus_col) or (_row["property_type"] == _vac_focus_col)
+                _row_opacity  = "1" if _is_focus_row else "0.25"
+                _row_bg       = "#1a1500" if _is_focus_row and _vac_focus_col else "transparent"
+                _row_style    = f"border-bottom:1px solid #1e1c0e;background:{_row_bg};opacity:{_row_opacity};"
+                _td           = f'style="padding:12px 16px;{_row_style}'
                 _md_rows_html += (
                     f'<tr>'
                     f'<td {_td}text-align:left;color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_row["market"]}</td>'
@@ -3541,6 +3671,8 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
 | Land Availability | 10% | Developable acres + entitlement timeline (faster = better) |
 | Macro Environment | 5% | Interest rate environment + credit conditions signal |
 
+**Climate Risk Adjustment** (applied after weighting): Markets with a state climate risk score ≥ 60 receive a composite penalty of `min(10, (score − 60) × 0.20)` points. A Severe-risk market (score 85) loses up to 5 pts from its composite. This is shown as a red annotation on the score.
+
 **Grade scale:** A ≥ 80 · B+ ≥ 70 · B ≥ 60 · C+ ≥ 50 · C ≥ 40 · D < 40
                 """)
 
@@ -3616,6 +3748,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
   <th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:right;border-bottom:1px solid #2a2410;">SCORE</th>
   <th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;">GRADE</th>
   {_mfb_fcols_hdr}
+  <th style="padding:10px 10px 14px;color:#ef5350;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;">CLIMATE ADJ.</th>
 </tr>"""
 
             # Grade badge colors
@@ -3631,17 +3764,28 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             # Rows
             _mfb_rows = ""
             for _ri, _rr in enumerate(_ms_rankings[:10]):
-                _f   = _rr["factors"]
-                _sc  = float(_rr["composite"])
-                _sep = "border-bottom:1px solid #1e1c0e;"
+                _f       = _rr["factors"]
+                _sc      = float(_rr["composite"])
+                _penalty = float(_rr.get("climate_penalty", 0) or 0)
+                _raw_sc  = float(_rr.get("raw_composite", _sc) or _sc)
+                _sep     = "border-bottom:1px solid #1e1c0e;"
 
-                # Mini score bar (80px track)
-                _bar_fill = min(_sc / 100 * 80, 80)
+                # Mini score bar (80px track) — uses raw score for bar length
+                _bar_fill = min(_raw_sc / 100 * 80, 80)
                 _score_bar = (
                     f'<div style="width:80px;height:6px;background:#2a2410;border-radius:3px;overflow:hidden;">'
                     f'<div style="width:{_bar_fill:.1f}px;height:6px;background:#c8a040;border-radius:3px;"></div>'
                     f'</div>'
                 )
+
+                # Composite score cell — annotate penalty if present
+                if _penalty > 0:
+                    _score_cell = (
+                        f'<div style="font-size:1.05rem;font-weight:700;color:#c8a040;">{_sc:.1f}</div>'
+                        f'<div style="font-size:0.72rem;color:#ef5350;margin-top:2px;">−{_penalty:.1f} climate</div>'
+                    )
+                else:
+                    _score_cell = f'<div style="font-size:1.05rem;font-weight:700;color:#c8a040;">{_sc:.1f}</div>'
 
                 # Factor cells: value + mini underbar
                 _fcells = ""
@@ -3656,15 +3800,30 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                         f'</td>'
                     )
 
+                # Climate adjustment cell
+                if _penalty > 0:
+                    _clim_cell = (
+                        f'<td style="padding:12px 10px;{_sep}text-align:center;">'
+                        f'<span style="color:#ef5350;font-size:0.88rem;font-weight:700;">−{_penalty:.1f}</span>'
+                        f'</td>'
+                    )
+                else:
+                    _clim_cell = (
+                        f'<td style="padding:12px 10px;{_sep}text-align:center;">'
+                        f'<span style="color:#4a4530;font-size:0.88rem;">—</span>'
+                        f'</td>'
+                    )
+
                 _rank_c = "#c8a040" if _ri < 3 else "#7a7050"
                 _mfb_rows += (
                     f'<tr>'
                     f'<td style="padding:12px 10px;{_sep}text-align:center;color:{_rank_c};font-size:0.88rem;">{_rr["rank"]}</td>'
                     f'<td style="padding:12px 14px;{_sep}color:#c8b870;font-size:0.95rem;font-weight:600;white-space:nowrap;">{_rr["market"]}</td>'
                     f'<td style="padding:12px 14px;{_sep}vertical-align:middle;">{_score_bar}</td>'
-                    f'<td style="padding:12px 10px;{_sep}text-align:right;color:#c8a040;font-size:1.05rem;font-weight:700;letter-spacing:0.02em;">{_sc:.1f}</td>'
+                    f'<td style="padding:12px 10px;{_sep}text-align:right;">{_score_cell}</td>'
                     f'<td style="padding:12px 10px;{_sep}text-align:center;">{_grade_badge(_rr["grade"])}</td>'
                     f'{_fcells}'
+                    f'{_clim_cell}'
                     f'</tr>'
                 )
 
@@ -3676,6 +3835,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
   </div>
   <div style="font-size:0.78rem;color:#7a7050;font-style:italic;margin-bottom:18px;">
     Factor scores out of 100. Migration is the primary differentiator across markets.
+    <span style="color:#ef5350;">Climate Adj.</span> = points deducted for high physical climate risk (state score ≥ 60).
   </div>
   <div style="overflow-x:auto;">
     <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
@@ -3744,22 +3904,30 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             if _cap_err and not _cap_t10y:
                 st.info(f" {_cap_err}")
 
+            # ── Focus banner ──────────────────────────────────────────────────
+            _cap_pt = _active_pt()
+            _pt_focus_banner(_cap_pt)
+            _cap_focus_col = _PT_CAP_COL.get(_cap_pt) if _cap_pt else None
+
             # ── National cap rates ────────────────────────────────────────────
             section(" National Cap Rates by Property Type")
             _cap_ncols = st.columns(len(_cap_national))
             for _cap_col, (_ptype, _pd) in zip(_cap_ncols, _cap_national.items()):
-                _sp_info = _cap_spreads.get(_ptype, {})
-                _sig     = _sp_info.get("signal", "")
-                _sig_c   = {"attractive": "#66bb6a", "fair": "#d4a843", "compressed": "#ef5350"}.get(_sig, "#a09880")
-                _cap_col.markdown(metric_card(
-                    _ptype,
-                    f"{_pd['rate']}%",
-                    f"{_cap_ta.get(_pd['trend'],'')} vs {_pd['prior_year']}% prior year",
-                ), unsafe_allow_html=True)
+                _sp_info    = _cap_spreads.get(_ptype, {})
+                _sig        = _sp_info.get("signal", "")
+                _sig_c      = {"attractive": "#66bb6a", "fair": "#d4a843", "compressed": "#ef5350"}.get(_sig, "#a09880")
+                _is_focus   = (not _cap_focus_col) or (_ptype == _cap_focus_col)
+                _card_html  = metric_card(_ptype, f"{_pd['rate']}%", f"{_cap_ta.get(_pd['trend'],'')} vs {_pd['prior_year']}% prior year")
+                if _cap_focus_col and _is_focus:
+                    _card_html = f'<div style="outline:2px solid #c8a040;border-radius:10px;">{_card_html}</div>'
+                elif _cap_focus_col and not _is_focus:
+                    _card_html = f'<div style="opacity:0.25;">{_card_html}</div>'
+                _cap_col.markdown(_card_html, unsafe_allow_html=True)
                 if _sig:
                     _cap_col.markdown(
                         f"<div style='text-align:center;font-size:0.77rem;color:{_sig_c};"
-                        f"margin-top:-6px;margin-bottom:8px;font-weight:700;'>{_sig.upper()}</div>",
+                        f"margin-top:-6px;margin-bottom:8px;font-weight:700;"
+                        f"opacity:{"1" if _is_focus else "0.25"};'>{_sig.upper()}</div>",
                         unsafe_allow_html=True,
                     )
 
@@ -3811,35 +3979,40 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                             )
                     return "rgb(150,150,150)"
 
-                # Build header row
-                _hm_header_cells = "".join(
-                    f'<th style="padding:10px 8px 14px;color:#c8a040;font-size:0.78rem;'
-                    f'font-weight:700;letter-spacing:0.08em;text-align:center;'
-                    f'border-bottom:1px solid #2a2410;">{p.upper()}</th>'
-                    for p in _hm_ptypes
-                )
+                # Build header row — dim non-focus columns
+                _hm_header_cells = ""
+                for p in _hm_ptypes:
+                    _is_fc = (not _cap_focus_col) or (p == _cap_focus_col)
+                    _hm_header_cells += (
+                        f'<th style="padding:10px 8px 14px;color:{"#c8a040" if _is_fc else "#5a5030"};'
+                        f'font-size:0.78rem;font-weight:{"700" if _is_fc else "400"};'
+                        f'letter-spacing:0.08em;text-align:center;opacity:{"1" if _is_fc else "0.3"};'
+                        f'border-bottom:1px solid #2a2410;">{p.upper()}</th>'
+                    )
                 _hm_header = (
                     f'<tr><th style="padding:10px 8px 14px;border-bottom:1px solid #2a2410;"></th>'
                     f'{_hm_header_cells}</tr>'
                 )
 
-                # Build data rows
+                # Build data rows — dim non-focus columns
                 _hm_rows_html = ""
                 for _mkt, _mdata in _cap_mktcaps.items():
                     _cells = f'<td style="padding:7px 12px 7px 0;text-align:right;color:#c8b890;font-size:0.88rem;white-space:nowrap;border-bottom:1px solid #1e1c0e;">{_mkt}</td>'
                     for _pt in _hm_ptypes:
+                        _is_fc  = (not _cap_focus_col) or (_pt == _cap_focus_col)
+                        _col_op = "1" if _is_fc else "0.22"
                         _val = _mdata.get(_pt)
                         if _val and _val > 0:
                             _bg  = _cap_cell_color(float(_val))
                             _cells += (
-                                f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;">'
+                                f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;opacity:{_col_op};">'
                                 f'<div style="background:{_bg};border-radius:7px;padding:9px 0;'
                                 f'text-align:center;color:#fff;font-size:0.92rem;font-weight:600;'
                                 f'letter-spacing:0.04em;min-width:80px;">{_val:.1f}%</div></td>'
                             )
                         else:
                             _cells += (
-                                f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;">'
+                                f'<td style="padding:7px 6px;border-bottom:1px solid #1e1c0e;opacity:{_col_op};">'
                                 f'<div style="text-align:center;color:#4a4530;font-size:0.92rem;">—</div></td>'
                             )
                     _hm_rows_html += f"<tr>{_cells}</tr>"
@@ -3867,11 +4040,13 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             # ── Property-type analyst notes ───────────────────────────────────
             section(" Analyst Notes")
             for _ptype, _pd in _cap_national.items():
-                _t_c = _cap_tc.get(_pd["trend"], "#d4a843")
-                _t_a = _cap_ta.get(_pd["trend"], "")
+                _t_c      = _cap_tc.get(_pd["trend"], "#d4a843")
+                _t_a      = _cap_ta.get(_pd["trend"], "")
+                _is_focus = (not _cap_focus_col) or (_ptype == _cap_focus_col)
+                _note_op  = "1" if _is_focus else "0.28"
                 st.markdown(
                     f"<div style='background:#171309;border-left:3px solid {_t_c};"
-                    f"padding:8px 16px;border-radius:4px;margin-bottom:8px;'>"
+                    f"padding:8px 16px;border-radius:4px;margin-bottom:8px;opacity:{_note_op};'>"
                     f"<b style='color:#e8dfc4;'>{_ptype}</b> "
                     f"<span style='color:{_t_c};font-size:0.85rem;'>{_t_a} {_pd['trend']} — {_pd['rate']}% cap rate</span>"
                     f" &nbsp;·&nbsp; <span style='color:#a09880;font-size:0.83rem;'>{_pd['note']}</span></div>",
@@ -3924,17 +4099,29 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
 **FRED CPI Rent** = Bureau of Labor Statistics measure of residential rent inflation — a leading indicator for multifamily rent trends.
                 """)
 
+            # ── Focus banner ──────────────────────────────────────────────────
+            _rg_pt_focus  = _active_pt()
+            _pt_focus_banner(_rg_pt_focus)
+            _rg_focus_lbl = _PT_RG_LBL.get(_rg_pt_focus) if _rg_pt_focus else None
+            _rg_focus_key = _PT_RG_KEY.get(_rg_pt_focus) if _rg_pt_focus else None
+
             # ── National overview ─────────────────────────────────────────────
             section(" National Rent Growth by Property Type (YoY %)")
             _rg_ncols = st.columns(len(_rg_national))
             for _rg_col, (_rg_pt, _rg_d) in zip(_rg_ncols, _rg_national.items()):
-                _rg_yoy   = _rg_d["yoy_pct"]
-                _rg_color = "#66bb6a" if _rg_yoy > 1 else ("#ef5350" if _rg_yoy < 0 else "#d4a843")
-                _rg_col.markdown(metric_card(
+                _rg_yoy    = _rg_d["yoy_pct"]
+                _rg_color  = "#66bb6a" if _rg_yoy > 1 else ("#ef5350" if _rg_yoy < 0 else "#d4a843")
+                _is_focus  = (not _rg_pt_focus) or (_rg_pt == _rg_pt_focus)
+                _card_html = metric_card(
                     _rg_pt,
                     f"<span style='color:{_rg_color}'>{_rg_yoy:+.1f}%</span>",
                     f"{_rg_ta.get(_rg_d['trend'],'')} vs {_rg_d['prior_year']:+.1f}% prior year",
-                ), unsafe_allow_html=True)
+                )
+                if _rg_pt_focus and _is_focus:
+                    _card_html = f'<div style="outline:2px solid #c8a040;border-radius:10px;">{_card_html}</div>'
+                elif _rg_pt_focus and not _is_focus:
+                    _card_html = f'<div style="opacity:0.25;">{_card_html}</div>'
+                _rg_col.markdown(_card_html, unsafe_allow_html=True)
 
             # ── Top 5 — Multifamily ───────────────────────────────────────────
             section(" Top 5 Markets — Multifamily Rent Growth (YoY %)")
@@ -3957,9 +4144,14 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             # ── All-market heatmap ────────────────────────────────────────────
             section(" Rent Growth Heatmap — All Markets")
             if _rg_market:
-                _rg_mkts   = list(_rg_market.keys())
-                _rg_ptypes = ["multifamily", "industrial_psf", "office_psf", "retail_psf"]
-                _rg_lbls   = ["Multifamily", "Industrial PSF", "Office PSF", "Retail PSF"]
+                _rg_mkts     = list(_rg_market.keys())
+                _rg_ptypes   = ["multifamily", "industrial_psf", "office_psf", "retail_psf"]
+                _rg_lbls     = ["Multifamily", "Industrial PSF", "Office PSF", "Retail PSF"]
+                # Reorder: put focus type first when active
+                if _rg_focus_key and _rg_focus_key in _rg_ptypes:
+                    _fi = _rg_ptypes.index(_rg_focus_key)
+                    _rg_ptypes = [_rg_ptypes[_fi]] + [p for i, p in enumerate(_rg_ptypes) if i != _fi]
+                    _rg_lbls   = [_rg_lbls[_fi]]   + [l for i, l in enumerate(_rg_lbls)   if i != _fi]
                 _rg_matrix = [[_rg_market[m].get(p, 0) for p in _rg_ptypes] for m in _rg_mkts]
                 fig_rg = go.Figure(go.Heatmap(
                     z=_rg_matrix, x=_rg_lbls, y=_rg_mkts,
@@ -4008,11 +4200,13 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             # ── Analyst notes ─────────────────────────────────────────────────
             section(" Analyst Notes")
             for _rg_pt, _rg_d in _rg_national.items():
-                _rg_t_c = _rg_tc.get(_rg_d["trend"], "#d4a843")
-                _rg_t_a = _rg_ta.get(_rg_d["trend"], "")
+                _rg_t_c   = _rg_tc.get(_rg_d["trend"], "#d4a843")
+                _rg_t_a   = _rg_ta.get(_rg_d["trend"], "")
+                _is_focus = (not _rg_pt_focus) or (_rg_pt == _rg_pt_focus)
+                _note_op  = "1" if _is_focus else "0.28"
                 st.markdown(
                     f"<div style='background:#171309;border-left:3px solid {_rg_t_c};"
-                    f"padding:8px 16px;border-radius:4px;margin-bottom:8px;'>"
+                    f"padding:8px 16px;border-radius:4px;margin-bottom:8px;opacity:{_note_op};'>"
                     f"<b style='color:#e8dfc4;'>{_rg_pt}</b> "
                     f"<span style='color:{_rg_t_c};font-size:0.85rem;'>{_rg_t_a} {_rg_d['trend']}</span>"
                     f" &nbsp;·&nbsp; <span style='color:#a09880;font-size:0.83rem;'>{_rg_d['note']}</span></div>",
@@ -6771,6 +6965,15 @@ with main_tab_advisor:
                       else "#f44336" if _cscr < 75 else "#9c27b0")
             _rg_c  = "#4caf50" if _rg > 3 else ("#ff9800" if _rg > 0 else "#f44336")
 
+            # Climate score penalty (matches market_score_agent formula)
+            _clim_penalty = round(min(10.0, (_cscr - 60) * 0.20), 1) if _cscr >= 60 else 0.0
+            _clim_penalty_row = ""
+            if _clim_penalty > 0:
+                _clim_penalty_row = (
+                    f'<tr><td style="color:#ef5350;padding:5px 0;font-size:0.82rem;">Score Adj. (climate)</td>'
+                    f'<td style="color:#ef5350;font-weight:700;text-align:right;font-size:0.82rem;">−{_clim_penalty:.1f} pts</td></tr>'
+                )
+
             st.markdown(f"""
 <div style="background:#1a1208;border:1px solid #2a2010;border-radius:8px;padding:18px 20px;">
   <div style="color:#d4a843;font-weight:600;font-size:0.95rem;margin-bottom:12px;">Market Signals</div>
@@ -6781,6 +6984,7 @@ with main_tab_advisor:
         <td style="color:{_rg_c};font-weight:600;text-align:right;">{_rg:+.1f}%</td></tr>
     <tr><td style="color:#a09880;padding:5px 0;">Climate Risk</td>
         <td style="color:{_cc};font-weight:600;text-align:right;">{_clbl} ({_cscr:.0f}/100)</td></tr>
+    {_clim_penalty_row}
     <tr><td style="color:#a09880;padding:5px 0;">GDP Cycle</td>
         <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_gdp.title()}</td></tr>
     <tr><td style="color:#a09880;padding:5px 0;">Credit Conditions</td>
@@ -7051,14 +7255,19 @@ with main_tab_advisor:
             _compare = [primary] + runners
             _cmp_rows = []
             for _i, _m in enumerate(_compare):
-                _bd_m = _m.get("factor_scores", {})
+                _bd_m  = _m.get("factor_scores", {})
+                _cscr2 = _m.get("climate_score", 0)
+                _clim_pen2 = round(min(10.0, (_cscr2 - 60) * 0.20), 1) if _cscr2 >= 60 else 0.0
+                _clim_str  = f"{_cscr2:.0f} ({_m.get('climate_label', 'N/A')})"
+                if _clim_pen2 > 0:
+                    _clim_str += f" −{_clim_pen2:.1f}pts"
                 _cmp_rows.append({
                     "Rank":              "Primary" if _i == 0 else f"#{_i+1} Runner-Up",
                     "Market":            _m["market"],
                     "Opp. Score":        _m["opportunity_score"],
                     "Cap Rate":          f"{_m.get('cap_rate', 0):.2f}%",
                     "Rent Growth":       f"{_m.get('rent_growth', 0):+.1f}%",
-                    "Climate Risk":      f"{_m.get('climate_score', 0):.0f} ({_m.get('climate_label', 'N/A')})",
+                    "Climate Risk":      _clim_str,
                     "Mkt Fundamentals":  f"{_bd_m.get('market_fundamentals', {}).get('raw_score', 0):.0f}",
                     "Migration Score":   f"{_m.get('mig_score', 0):.0f}",
                 })
@@ -7068,8 +7277,21 @@ with main_tab_advisor:
                 if val == "Primary": return "color:#d4a843;font-weight:700"
                 return "color:#a09880"
 
+            def _adv_style_climate(val):
+                """Colour-code climate risk: green low, orange mid, red/purple high."""
+                try:
+                    score = float(str(val).split("(")[0].strip())
+                except Exception:
+                    return ""
+                if score < 25:   return "color:#4caf50;font-weight:600"
+                if score < 50:   return "color:#ff9800;font-weight:600"
+                if score < 75:   return "color:#f44336;font-weight:600"
+                return "color:#9c27b0;font-weight:700"
+
             st.dataframe(
-                _cmp_df.style.map(_adv_style_rank, subset=["Rank"]),
+                _cmp_df.style
+                       .map(_adv_style_rank,    subset=["Rank"])
+                       .map(_adv_style_climate, subset=["Climate Risk"]),
                 use_container_width=True,
                 hide_index=True,
             )
