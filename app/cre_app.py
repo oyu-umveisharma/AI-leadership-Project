@@ -5198,7 +5198,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
         if pt or loc:
             risk_context = PROPERTY_RISK_CONTEXT.get(pt, "all major climate hazards") if pt else "all major climate hazards"
             loc_state = st.session_state.user_intent.get("state")
-            loc_data  = state_scores.get(loc_state, {}) if loc_state else {}
+            loc_data  = state_sco_adv_result.get(loc_state, {}) if loc_state else {}
             focus_metro = next((m for m in metro_scores if loc and loc.lower() in m["metro"].lower()), None)
             if focus_metro:
                 loc_score = focus_metro["composite_score"]
@@ -7797,7 +7797,7 @@ with main_tab_advisor:
         )
 
         # ── Financing Structure ───────────────────────────────────────────────
-        financing = res.get("financing", {})
+        financing = _adv_result.get("financing", {})
         if financing:
             st.markdown("<br>", unsafe_allow_html=True)
             section(" Financing Structure")
@@ -7838,7 +7838,7 @@ with main_tab_advisor:
                 )
 
         # ── 10-Year P&L Pro Forma ─────────────────────────────────────────────
-        proforma = res.get("proforma", [])
+        proforma = _adv_result.get("proforma", [])
         if proforma:
             st.markdown("<br>", unsafe_allow_html=True)
             section(" 10-Year P&L Pro Forma")
@@ -7892,7 +7892,7 @@ with main_tab_advisor:
                        "Year-1 shows lease-up vacancy premium. Rent grows at market rate; OpEx inflates 2.5%/yr.")
 
         # ── Tax & Depreciation Benefits ───────────────────────────────────────
-        tax = res.get("tax_benefits", {})
+        tax = _adv_result.get("tax_benefits", {})
         if tax:
             st.markdown("<br>", unsafe_allow_html=True)
             section(" Tax & Depreciation Benefits")
