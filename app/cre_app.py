@@ -494,9 +494,9 @@ if not st.session_state.onboarding_complete:
         margin-bottom: 4px;
       }}
       .welcome-sub {{
-        font-size: 1.05rem;
-        color: #e8e9ed;
-        margin-bottom: 32px;
+        font-size: 1.0rem;
+        color: #b0b4c0;
+        margin-bottom: 20px;
       }}
       .welcome-prompt {{
         font-size: 1.15rem;
@@ -525,7 +525,41 @@ if not st.session_state.onboarding_complete:
     <div class="welcome-box">
       <div class="welcome-icon"></div>
       <div class="welcome-title">CRE Intelligence Platform</div>
-      <div class="welcome-sub">Welcome! I'm your AI-powered commercial real estate assistant.</div>
+      <div class="welcome-sub">
+        AI-powered commercial real estate investment advisor &mdash; delivering
+        institutional-grade market analysis, full P&amp;L projections,
+        debt structuring, and tax optimization in seconds.
+      </div>
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin-bottom:28px;">
+        <span style="background:rgba(200,160,64,0.12);border:1px solid rgba(200,160,64,0.35);
+                     color:#c8a040;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
+          &#10003;&nbsp;Market Scoring
+        </span>
+        <span style="background:rgba(43,191,176,0.10);border:1px solid rgba(43,191,176,0.30);
+                     color:#2bbfb0;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
+          &#10003;&nbsp;10-Year P&amp;L Pro Forma
+        </span>
+        <span style="background:rgba(200,160,64,0.12);border:1px solid rgba(200,160,64,0.35);
+                     color:#c8a040;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
+          &#10003;&nbsp;Financing &amp; DSCR
+        </span>
+        <span style="background:rgba(144,128,208,0.12);border:1px solid rgba(144,128,208,0.35);
+                     color:#9080d0;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
+          &#10003;&nbsp;Depreciation Tax Shield
+        </span>
+        <span style="background:rgba(76,175,80,0.10);border:1px solid rgba(76,175,80,0.30);
+                     color:#4caf50;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
+          &#10003;&nbsp;Opportunity Zone Benefits
+        </span>
+        <span style="background:rgba(244,67,54,0.10);border:1px solid rgba(244,67,54,0.30);
+                     color:#ef5350;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
+          &#10003;&nbsp;Climate &amp; Risk Analysis
+        </span>
+        <span style="background:rgba(200,160,64,0.12);border:1px solid rgba(200,160,64,0.35);
+                     color:#c8a040;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
+          &#10003;&nbsp;AI Investment Rationale
+        </span>
+      </div>
       <div class="welcome-prompt">What are you looking to invest in today?</div>
     </div>
     """, unsafe_allow_html=True)
