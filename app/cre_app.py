@@ -900,8 +900,8 @@ if not st.session_state.onboarding_complete:
         "Exploring":   '<svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20M2 12h20"/><path d="M4.9 7h14.2M4.9 17h14.2"/></svg>',
     }
     _prop_cards_html = "".join([
-        f'<div class="prop-card" onclick="window.location.href=\'?select={name}\'">'
-        f'{icon}<div class="prop-card-lbl">{name.upper()}</div></div>'
+        f'<div class="prop-card" onclick="window.top.location.href=\'?select={name}\'">'
+        f'{icon}<div class="prop-card-lbl">{"BROWSE ALL" if name == "Exploring" else name.upper()}</div></div>'
         for name, icon in _PROP_ICONS.items()
     ])
 
@@ -909,7 +909,7 @@ if not st.session_state.onboarding_complete:
     _recent_html = ""
     if st.session_state.recent_searches:
         _rs_items = "".join([
-            f'<span class="rs-item" onclick="window.location.href=\'?q={_r.replace(" ","+")}\'">'
+            f'<span class="rs-item" onclick="window.top.location.href=\'?q={_r.replace(" ","+")}\'">'
             f'<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="opacity:.45;flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>'
             f'&nbsp;{_r}&nbsp;<span style="opacity:.4;font-size:.6rem;">&#8599;</span></span>'
             for _r in st.session_state.recent_searches[:4]
@@ -1235,67 +1235,19 @@ if not st.session_state.onboarding_complete:
     st.markdown(f"""
     <div class="s-examples">
       Try:&nbsp;
-      <span class="s-ex" onclick="window.location.href='?q=Multifamily+in+Nashville'">&ldquo;Multifamily in Nashville&rdquo;</span>
+      <span class="s-ex" onclick="window.top.location.href='?q=Multifamily+in+Nashville'">&ldquo;Multifamily in Nashville&rdquo;</span>
       &nbsp;&middot;&nbsp;
-      <span class="s-ex" onclick="window.location.href='?q=Office+cap+rates+Chicago'">&ldquo;Office cap rates Chicago&rdquo;</span>
+      <span class="s-ex" onclick="window.top.location.href='?q=Office+cap+rates+Chicago'">&ldquo;Office cap rates Chicago&rdquo;</span>
       &nbsp;&middot;&nbsp;
-      <span class="s-ex" onclick="window.location.href='?q=Best+Sunbelt+markets+2026'">&ldquo;Best Sunbelt markets 2026&rdquo;</span>
+      <span class="s-ex" onclick="window.top.location.href='?q=Best+Sunbelt+markets+2026'">&ldquo;Best Sunbelt markets 2026&rdquo;</span>
     </div>
 
     <div class="cre-wrap">
       <div class="prop-hdr">OR SELECT A PROPERTY TYPE</div>
+      <div class="prop-grid">{_prop_cards_html}</div>
     </div>
     {_recent_html}
     """, unsafe_allow_html=True)
-
-    # ── Property type buttons (real Streamlit buttons — 100% reliable) ────────
-    st.markdown("""
-    <style>
-      /* 6-col property card grid */
-      div[data-testid="stHorizontalBlock"].prop-row > div[data-testid="column"] .stButton > button {
-        background: rgba(255,255,255,.018) !important;
-        border: 1px solid rgba(200,160,64,.18) !important;
-        border-radius: 10px !important;
-        color: #6a5228 !important;
-        height: 88px !important;
-        width: 100% !important;
-        font-size: .6rem !important;
-        font-weight: 600 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 2.5px !important;
-        font-family: 'DM Sans', sans-serif !important;
-        transition: all .2s !important;
-        line-height: 1.6 !important;
-        white-space: pre-wrap !important;
-      }
-      div[data-testid="stHorizontalBlock"].prop-row > div[data-testid="column"] .stButton > button:hover {
-        background: rgba(200,160,64,.07) !important;
-        border-color: rgba(200,160,64,.45) !important;
-        color: #d4a843 !important;
-      }
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="cre-wrap">', unsafe_allow_html=True)
-    _PROP_BTNS = [
-        ("Industrial",  "🏭"),
-        ("Multifamily", "🏢"),
-        ("Office",      "🗂"),
-        ("Retail",      "🏪"),
-        ("Healthcare",  "🏥"),
-        ("Exploring",   "🌐"),
-    ]
-    _pcols = st.columns(6)
-    for _col, (_pt, _ico) in zip(_pcols, _PROP_BTNS):
-        with _col:
-            _lbl = "BROWSE ALL" if _pt == "Exploring" else _pt.upper()
-            if st.button(f"{_ico}\n{_lbl}", key=f"ptbtn_{_pt}", use_container_width=True):
-                if _pt == "Exploring":
-                    _complete_onboarding()
-                else:
-                    _complete_onboarding(property_type=_pt)
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
     st.stop()
 
@@ -5198,7 +5150,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
         if pt or loc:
             risk_context = PROPERTY_RISK_CONTEXT.get(pt, "all major climate hazards") if pt else "all major climate hazards"
             loc_state = st.session_state.user_intent.get("state")
-            loc_data  = state_sco_adv_result.get(loc_state, {}) if loc_state else {}
+            loc_data  = state_scores.get(loc_state, {}) if loc_state else {}
             focus_metro = next((m for m in metro_scores if loc and loc.lower() in m["metro"].lower()), None)
             if focus_metro:
                 loc_score = focus_metro["composite_score"]
