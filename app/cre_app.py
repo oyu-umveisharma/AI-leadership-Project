@@ -3671,6 +3671,8 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
 | Land Availability | 10% | Developable acres + entitlement timeline (faster = better) |
 | Macro Environment | 5% | Interest rate environment + credit conditions signal |
 
+**Climate Risk Adjustment** (applied after weighting): Markets with a state climate risk score ≥ 60 receive a composite penalty of `min(10, (score − 60) × 0.20)` points. A Severe-risk market (score 85) loses up to 5 pts from its composite. This is shown as a red annotation on the score.
+
 **Grade scale:** A ≥ 80 · B+ ≥ 70 · B ≥ 60 · C+ ≥ 50 · C ≥ 40 · D < 40
                 """)
 
@@ -3746,6 +3748,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
   <th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:right;border-bottom:1px solid #2a2410;">SCORE</th>
   <th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;">GRADE</th>
   {_mfb_fcols_hdr}
+  <th style="padding:10px 10px 14px;color:#ef5350;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;">CLIMATE ADJ.</th>
 </tr>"""
 
             # Grade badge colors
@@ -3761,17 +3764,28 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             # Rows
             _mfb_rows = ""
             for _ri, _rr in enumerate(_ms_rankings[:10]):
-                _f   = _rr["factors"]
-                _sc  = float(_rr["composite"])
-                _sep = "border-bottom:1px solid #1e1c0e;"
+                _f       = _rr["factors"]
+                _sc      = float(_rr["composite"])
+                _penalty = float(_rr.get("climate_penalty", 0) or 0)
+                _raw_sc  = float(_rr.get("raw_composite", _sc) or _sc)
+                _sep     = "border-bottom:1px solid #1e1c0e;"
 
-                # Mini score bar (80px track)
-                _bar_fill = min(_sc / 100 * 80, 80)
+                # Mini score bar (80px track) — uses raw score for bar length
+                _bar_fill = min(_raw_sc / 100 * 80, 80)
                 _score_bar = (
                     f'<div style="width:80px;height:6px;background:#2a2410;border-radius:3px;overflow:hidden;">'
                     f'<div style="width:{_bar_fill:.1f}px;height:6px;background:#c8a040;border-radius:3px;"></div>'
                     f'</div>'
                 )
+
+                # Composite score cell — annotate penalty if present
+                if _penalty > 0:
+                    _score_cell = (
+                        f'<div style="font-size:1.05rem;font-weight:700;color:#c8a040;">{_sc:.1f}</div>'
+                        f'<div style="font-size:0.72rem;color:#ef5350;margin-top:2px;">−{_penalty:.1f} climate</div>'
+                    )
+                else:
+                    _score_cell = f'<div style="font-size:1.05rem;font-weight:700;color:#c8a040;">{_sc:.1f}</div>'
 
                 # Factor cells: value + mini underbar
                 _fcells = ""
@@ -3786,15 +3800,30 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                         f'</td>'
                     )
 
+                # Climate adjustment cell
+                if _penalty > 0:
+                    _clim_cell = (
+                        f'<td style="padding:12px 10px;{_sep}text-align:center;">'
+                        f'<span style="color:#ef5350;font-size:0.88rem;font-weight:700;">−{_penalty:.1f}</span>'
+                        f'</td>'
+                    )
+                else:
+                    _clim_cell = (
+                        f'<td style="padding:12px 10px;{_sep}text-align:center;">'
+                        f'<span style="color:#4a4530;font-size:0.88rem;">—</span>'
+                        f'</td>'
+                    )
+
                 _rank_c = "#c8a040" if _ri < 3 else "#7a7050"
                 _mfb_rows += (
                     f'<tr>'
                     f'<td style="padding:12px 10px;{_sep}text-align:center;color:{_rank_c};font-size:0.88rem;">{_rr["rank"]}</td>'
                     f'<td style="padding:12px 14px;{_sep}color:#c8b870;font-size:0.95rem;font-weight:600;white-space:nowrap;">{_rr["market"]}</td>'
                     f'<td style="padding:12px 14px;{_sep}vertical-align:middle;">{_score_bar}</td>'
-                    f'<td style="padding:12px 10px;{_sep}text-align:right;color:#c8a040;font-size:1.05rem;font-weight:700;letter-spacing:0.02em;">{_sc:.1f}</td>'
+                    f'<td style="padding:12px 10px;{_sep}text-align:right;">{_score_cell}</td>'
                     f'<td style="padding:12px 10px;{_sep}text-align:center;">{_grade_badge(_rr["grade"])}</td>'
                     f'{_fcells}'
+                    f'{_clim_cell}'
                     f'</tr>'
                 )
 
@@ -3806,6 +3835,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
   </div>
   <div style="font-size:0.78rem;color:#7a7050;font-style:italic;margin-bottom:18px;">
     Factor scores out of 100. Migration is the primary differentiator across markets.
+    <span style="color:#ef5350;">Climate Adj.</span> = points deducted for high physical climate risk (state score ≥ 60).
   </div>
   <div style="overflow-x:auto;">
     <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
@@ -6919,6 +6949,15 @@ with main_tab_advisor:
                       else "#f44336" if _cscr < 75 else "#9c27b0")
             _rg_c  = "#4caf50" if _rg > 3 else ("#ff9800" if _rg > 0 else "#f44336")
 
+            # Climate score penalty (matches market_score_agent formula)
+            _clim_penalty = round(min(10.0, (_cscr - 60) * 0.20), 1) if _cscr >= 60 else 0.0
+            _clim_penalty_row = ""
+            if _clim_penalty > 0:
+                _clim_penalty_row = (
+                    f'<tr><td style="color:#ef5350;padding:5px 0;font-size:0.82rem;">Score Adj. (climate)</td>'
+                    f'<td style="color:#ef5350;font-weight:700;text-align:right;font-size:0.82rem;">−{_clim_penalty:.1f} pts</td></tr>'
+                )
+
             st.markdown(f"""
 <div style="background:#1a1208;border:1px solid #2a2010;border-radius:8px;padding:18px 20px;">
   <div style="color:#d4a843;font-weight:600;font-size:0.95rem;margin-bottom:12px;">Market Signals</div>
@@ -6929,6 +6968,7 @@ with main_tab_advisor:
         <td style="color:{_rg_c};font-weight:600;text-align:right;">{_rg:+.1f}%</td></tr>
     <tr><td style="color:#a09880;padding:5px 0;">Climate Risk</td>
         <td style="color:{_cc};font-weight:600;text-align:right;">{_clbl} ({_cscr:.0f}/100)</td></tr>
+    {_clim_penalty_row}
     <tr><td style="color:#a09880;padding:5px 0;">GDP Cycle</td>
         <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_gdp.title()}</td></tr>
     <tr><td style="color:#a09880;padding:5px 0;">Credit Conditions</td>
@@ -7033,14 +7073,19 @@ with main_tab_advisor:
             _compare = [primary] + runners
             _cmp_rows = []
             for _i, _m in enumerate(_compare):
-                _bd_m = _m.get("factor_scores", {})
+                _bd_m  = _m.get("factor_scores", {})
+                _cscr2 = _m.get("climate_score", 0)
+                _clim_pen2 = round(min(10.0, (_cscr2 - 60) * 0.20), 1) if _cscr2 >= 60 else 0.0
+                _clim_str  = f"{_cscr2:.0f} ({_m.get('climate_label', 'N/A')})"
+                if _clim_pen2 > 0:
+                    _clim_str += f" −{_clim_pen2:.1f}pts"
                 _cmp_rows.append({
                     "Rank":              "Primary" if _i == 0 else f"#{_i+1} Runner-Up",
                     "Market":            _m["market"],
                     "Opp. Score":        _m["opportunity_score"],
                     "Cap Rate":          f"{_m.get('cap_rate', 0):.2f}%",
                     "Rent Growth":       f"{_m.get('rent_growth', 0):+.1f}%",
-                    "Climate Risk":      f"{_m.get('climate_score', 0):.0f} ({_m.get('climate_label', 'N/A')})",
+                    "Climate Risk":      _clim_str,
                     "Mkt Fundamentals":  f"{_bd_m.get('market_fundamentals', {}).get('raw_score', 0):.0f}",
                     "Migration Score":   f"{_m.get('mig_score', 0):.0f}",
                 })
@@ -7050,8 +7095,21 @@ with main_tab_advisor:
                 if val == "Primary": return "color:#d4a843;font-weight:700"
                 return "color:#a09880"
 
+            def _adv_style_climate(val):
+                """Colour-code climate risk: green low, orange mid, red/purple high."""
+                try:
+                    score = float(str(val).split("(")[0].strip())
+                except Exception:
+                    return ""
+                if score < 25:   return "color:#4caf50;font-weight:600"
+                if score < 50:   return "color:#ff9800;font-weight:600"
+                if score < 75:   return "color:#f44336;font-weight:600"
+                return "color:#9c27b0;font-weight:700"
+
             st.dataframe(
-                _cmp_df.style.map(_adv_style_rank, subset=["Rank"]),
+                _cmp_df.style
+                       .map(_adv_style_rank,    subset=["Rank"])
+                       .map(_adv_style_climate, subset=["Climate Risk"]),
                 use_container_width=True,
                 hide_index=True,
             )
