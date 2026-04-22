@@ -2736,13 +2736,7 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
             _tier_labels = {1: "Independent News", 2: "Government", 3: "Trade Press", 4: "Press Release"}
             _left_colors = {"VERIFIED": "#4caf50", "HIGH": "#8bc34a", "MODERATE": "#ff9800", "LOW": "#f44336"}
 
-            shown = 0
-            for art in raw:
-                if feed_type_filter != "All" and art.get("feed_type") != feed_type_filter:
-                    continue
-                if art.get("credibility_score", 0) < _cred_min_score:
-                    continue
-
+            def _render_article(art):
                 tier       = art.get("tier", 4)
                 link       = art.get("link", "#")
                 title      = art.get("title", "No title")
@@ -2759,11 +2753,41 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                 _age_lbl   = f"{age_days}d ago" if age_days is not None else ""
                 _left_clr  = _left_colors.get(cred_lbl, "#d4a843")
 
+                # Per-tier card styling
+                if cred_lbl == "VERIFIED":
+                    _card_bg      = "#0e1a0a"
+                    _card_border  = f"2px solid #4caf50"
+                    _card_shadow  = "box-shadow:0 0 12px rgba(76,175,80,0.18);"
+                    _card_left    = "5px solid #4caf50"
+                    _verified_banner = (
+                        '<div style="font-size:10px;font-weight:700;letter-spacing:0.12em;'
+                        'color:#4caf50;margin-bottom:8px;">★ VERIFIED SOURCE</div>'
+                    )
+                elif cred_lbl == "HIGH":
+                    _card_bg      = "#0e140a"
+                    _card_border  = "1px solid #3a5a1a"
+                    _card_shadow  = ""
+                    _card_left    = "4px solid #8bc34a"
+                    _verified_banner = ""
+                elif cred_lbl == "MODERATE":
+                    _card_bg      = "#171309"
+                    _card_border  = "1px solid #2a2208"
+                    _card_shadow  = ""
+                    _card_left    = "3px solid #ff9800"
+                    _verified_banner = ""
+                else:  # LOW
+                    _card_bg      = "#141210"
+                    _card_border  = "1px solid #1e1a14"
+                    _card_shadow  = ""
+                    _card_left    = "2px solid #f44336"
+                    _verified_banner = ""
+
+                _title_clr  = "#d4a843" if cred_lbl != "VERIFIED" else "#7ecb80"
                 _title_html = (
-                    f'<a href="{link}" target="_blank" style="color:#d4a843;font-weight:600;'
+                    f'<a href="{link}" target="_blank" style="color:{_title_clr};font-weight:600;'
                     f'font-size:15px;text-decoration:none;line-height:1.4;">{title}</a>'
                     if link and link != "#"
-                    else f'<span style="color:#d4a843;font-weight:600;font-size:15px;">{title}</span>'
+                    else f'<span style="color:{_title_clr};font-weight:600;font-size:15px;">{title}</span>'
                 )
                 _cred_badge = (
                     f'<span style="font-size:10px;padding:2px 8px;border-radius:4px;'
@@ -2783,10 +2807,12 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                 ) if confirms else ""
                 _src_label  = f'<span style="font-size:11px;color:#6a5228;">{src}</span>' if src else ""
                 _date_label = f'<span style="font-size:11px;color:#4a3e18;">{_age_lbl}</span>' if _age_lbl else ""
+                _desc_clr   = "#8a7040" if cred_lbl != "LOW" else "#5a5040"
 
                 st.markdown(f"""
-<div style="background:#171309;border:1px solid #2a2208;border-radius:10px;
-            padding:16px 18px;margin:8px 0;border-left:3px solid {_left_clr};">
+<div style="background:{_card_bg};border:{_card_border};border-radius:10px;
+            padding:16px 18px;margin:8px 0;border-left:{_card_left};{_card_shadow}">
+  {_verified_banner}
   <div style="margin-bottom:10px;">{_title_html}</div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
     {_cred_badge}
@@ -2795,9 +2821,33 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
     {_src_label}
     {_date_label}
   </div>
-  <div style="font-size:13px;color:#8a7040;line-height:1.6;">{desc}</div>
+  <div style="font-size:13px;color:{_desc_clr};line-height:1.6;">{desc}</div>
 </div>""", unsafe_allow_html=True)
-                shown += 1
+
+            shown       = 0
+            low_articles = []
+
+            for art in raw:
+                if feed_type_filter != "All" and art.get("feed_type") != feed_type_filter:
+                    continue
+                if art.get("credibility_score", 0) < _cred_min_score:
+                    continue
+
+                cred_lbl = art.get("credibility_label", "LOW")
+
+                if cred_lbl == "LOW" and cred_filter == "All":
+                    # Collect LOW articles to render collapsed
+                    low_articles.append(art)
+                else:
+                    _render_article(art)
+                    shown += 1
+
+            # Render LOW articles collapsed
+            if low_articles:
+                with st.expander(f"Low credibility articles ({len(low_articles)}) — unverified / press releases"):
+                    for art in low_articles:
+                        _render_article(art)
+                shown += len(low_articles)
 
             if shown == 0:
                 st.info("No articles match the current filters.")
