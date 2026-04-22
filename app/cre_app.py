@@ -1231,23 +1231,79 @@ if not st.session_state.onboarding_complete:
                 _complete_onboarding(**_parse_intent(user_input))
             st.rerun()
 
-    # ── Example queries + property cards + recent searches ───────────────────
-    st.markdown(f"""
+    # ── Example queries ───────────────────────────────────────────────────────
+    st.markdown("""
     <div class="s-examples">
       Try:&nbsp;
-      <span class="s-ex" onclick="window.top.location.href='?q=Multifamily+in+Nashville'">&ldquo;Multifamily in Nashville&rdquo;</span>
+      <span class="s-ex-static">&ldquo;Multifamily in Nashville&rdquo;</span>
       &nbsp;&middot;&nbsp;
-      <span class="s-ex" onclick="window.top.location.href='?q=Office+cap+rates+Chicago'">&ldquo;Office cap rates Chicago&rdquo;</span>
+      <span class="s-ex-static">&ldquo;Office cap rates Chicago&rdquo;</span>
       &nbsp;&middot;&nbsp;
-      <span class="s-ex" onclick="window.top.location.href='?q=Best+Sunbelt+markets+2026'">&ldquo;Best Sunbelt markets 2026&rdquo;</span>
+      <span class="s-ex-static">&ldquo;Best Sunbelt markets 2026&rdquo;</span>
     </div>
-
-    <div class="cre-wrap">
-      <div class="prop-hdr">OR SELECT A PROPERTY TYPE</div>
-      <div class="prop-grid">{_prop_cards_html}</div>
-    </div>
-    {_recent_html}
     """, unsafe_allow_html=True)
+
+    # ── Property type cards (native buttons for reliable click handling) ───────
+    st.markdown("""
+<style>
+  /* Property card button styling */
+  div[data-testid="stHorizontalBlock"].prop-row > div[data-testid="column"] > div[data-testid="stVerticalBlock"] {
+    gap: 0 !important;
+  }
+  .prop-card-btn > div[data-testid="stButton"] > button {
+    background: rgba(255,255,255,.018) !important;
+    border: 1px solid rgba(200,160,64,.18) !important;
+    border-radius: 10px !important;
+    padding: 18px 8px 14px !important;
+    color: #5a4820 !important;
+    font-size: .58rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 2px !important;
+    text-transform: uppercase !important;
+    width: 100% !important;
+    min-height: 80px !important;
+    transition: all .2s !important;
+    cursor: pointer !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .prop-card-btn > div[data-testid="stButton"] > button:hover,
+  .prop-card-btn > div[data-testid="stButton"] > button:focus {
+    background: rgba(200,160,64,.08) !important;
+    border-color: rgba(200,160,64,.45) !important;
+    color: #c8a040 !important;
+  }
+</style>
+<div class="cre-wrap" style="padding-bottom:0;">
+  <div class="prop-hdr">OR SELECT A PROPERTY TYPE</div>
+</div>
+""", unsafe_allow_html=True)
+
+    _PROP_LABELS = {
+        "Industrial":  ("🏭", "Industrial"),
+        "Multifamily": ("🏢", "Multifamily"),
+        "Office":      ("🏛", "Office"),
+        "Retail":      ("🏪", "Retail"),
+        "Healthcare":  ("🏥", "Healthcare"),
+        "Exploring":   ("🌐", "Browse All"),
+    }
+
+    _pcols = st.columns(len(_PROP_LABELS))
+    for _pcol, (_pname, (_picon, _plbl)) in zip(_pcols, _PROP_LABELS.items()):
+        with _pcol:
+            st.markdown('<div class="prop-card-btn">', unsafe_allow_html=True)
+            if st.button(f"{_picon}\n{_plbl.upper()}", key=f"propcard_{_pname}", use_container_width=True):
+                if _pname == "Exploring":
+                    _complete_onboarding()
+                else:
+                    _complete_onboarding(property_type=_pname)
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── Recent searches ───────────────────────────────────────────────────────
+    st.markdown(f"{_recent_html}", unsafe_allow_html=True)
 
     st.stop()
 
