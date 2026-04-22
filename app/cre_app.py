@@ -1244,10 +1244,58 @@ if not st.session_state.onboarding_complete:
 
     <div class="cre-wrap">
       <div class="prop-hdr">OR SELECT A PROPERTY TYPE</div>
-      <div class="prop-grid">{_prop_cards_html}</div>
     </div>
     {_recent_html}
     """, unsafe_allow_html=True)
+
+    # ── Property type buttons (real Streamlit buttons — 100% reliable) ────────
+    st.markdown("""
+    <style>
+      /* 6-col property card grid */
+      div[data-testid="stHorizontalBlock"].prop-row > div[data-testid="column"] .stButton > button {
+        background: rgba(255,255,255,.018) !important;
+        border: 1px solid rgba(200,160,64,.18) !important;
+        border-radius: 10px !important;
+        color: #6a5228 !important;
+        height: 88px !important;
+        width: 100% !important;
+        font-size: .6rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 2.5px !important;
+        font-family: 'DM Sans', sans-serif !important;
+        transition: all .2s !important;
+        line-height: 1.6 !important;
+        white-space: pre-wrap !important;
+      }
+      div[data-testid="stHorizontalBlock"].prop-row > div[data-testid="column"] .stButton > button:hover {
+        background: rgba(200,160,64,.07) !important;
+        border-color: rgba(200,160,64,.45) !important;
+        color: #d4a843 !important;
+      }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="cre-wrap">', unsafe_allow_html=True)
+    _PROP_BTNS = [
+        ("Industrial",  "🏭"),
+        ("Multifamily", "🏢"),
+        ("Office",      "🗂"),
+        ("Retail",      "🏪"),
+        ("Healthcare",  "🏥"),
+        ("Exploring",   "🌐"),
+    ]
+    _pcols = st.columns(6)
+    for _col, (_pt, _ico) in zip(_pcols, _PROP_BTNS):
+        with _col:
+            _lbl = "BROWSE ALL" if _pt == "Exploring" else _pt.upper()
+            if st.button(f"{_ico}\n{_lbl}", key=f"ptbtn_{_pt}", use_container_width=True):
+                if _pt == "Exploring":
+                    _complete_onboarding()
+                else:
+                    _complete_onboarding(property_type=_pt)
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.stop()
 
