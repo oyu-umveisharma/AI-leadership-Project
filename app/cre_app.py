@@ -482,17 +482,15 @@ def _complete_onboarding(property_type=None, location=None, raw_input="", **kwar
 if not st.session_state.onboarding_complete:
 
     # ── Query-param navigation (property card / example link clicks) ──────────
+    # NOTE: set session state BEFORE clearing params to avoid double-rerun bug
     try:
-        _qp        = st.query_params
-        _qp_select = _qp.get("select")
-        _qp_q      = _qp.get("q")
-        _qp_clear  = _qp.get("clear_recent")
+        _qp_select = st.query_params.get("select")
+        _qp_q      = st.query_params.get("q")
+        _qp_clear  = st.query_params.get("clear_recent")
     except Exception:
-        _qp = {}; _qp_select = _qp_q = _qp_clear = None
+        _qp_select = _qp_q = _qp_clear = None
 
     if _qp_select:
-        try: st.query_params.clear()
-        except Exception: pass
         _sel = _qp_select if isinstance(_qp_select, str) else _qp_select[0]
         if _sel == "Exploring":
             _complete_onboarding()
@@ -501,8 +499,6 @@ if not st.session_state.onboarding_complete:
         st.rerun()
 
     if _qp_q:
-        try: st.query_params.clear()
-        except Exception: pass
         _q = (_qp_q if isinstance(_qp_q, str) else _qp_q[0]).replace("+", " ")
         if _is_advisor_query(_q):
             _complete_onboarding(raw_input=_q)
@@ -514,9 +510,9 @@ if not st.session_state.onboarding_complete:
         st.rerun()
 
     if _qp_clear:
+        st.session_state.recent_searches = []
         try: st.query_params.clear()
         except Exception: pass
-        st.session_state.recent_searches = []
         st.rerun()
 
     # ── Live ticker data ──────────────────────────────────────────────────────
