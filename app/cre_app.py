@@ -650,10 +650,26 @@ def _is_advisor_query(text: str) -> bool:
         'build', 'invest', 'develop', 'construction', 'acquire', 'purchase',
         'looking to', 'want to', 'interested in', 'planning to', 'advise',
         'recommend', 'where should', 'best market', 'best city',
+        'would it look', 'what would', 'how would', 'what does it',
+        'can you analyze', 'analyze this', 'give me a', 'show me',
     ])
-    # Trigger advisor if: (has financials + action) OR (budget + sqft) OR (3+ signals)
-    signals = sum([has_budget, has_sqft, has_timeline, has_action])
-    return (has_budget and has_action) or (has_budget and has_sqft) or signals >= 3
+    # Natural-language intent phrases (first-person or interrogative investment intent)
+    has_intent   = any(w in t for w in [
+        'i want to', 'i am looking', "i'm looking", 'i would like',
+        'we want to', 'we are looking', "we're looking",
+        'what would it look like', 'what would it cost',
+        'how much would', 'what if i', 'tell me about investing',
+    ])
+    # Trigger advisor if: (financials + action) OR (budget + sqft) OR (3+ signals)
+    # OR natural-language intent paired with any action/investment word
+    signals = sum([has_budget, has_sqft, has_timeline, has_action, has_intent])
+    return (
+        (has_budget and has_action)
+        or (has_budget and has_sqft)
+        or signals >= 3
+        or (has_action and has_intent)     # e.g. "I want to build near UT"
+        or (has_intent and len(t.split()) >= 8)  # long natural-language question
+    )
 
 
 def _parse_intent(raw: str) -> dict:
