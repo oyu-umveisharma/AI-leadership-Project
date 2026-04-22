@@ -267,6 +267,292 @@ _CITY_TO_STATE = {
     "cheyenne": "WY", "casper": "WY", "laramie": "WY",
 }
 
+# ── University → (city, state_abbr) ─────────────────────────────────────────
+_UNIVERSITY_LOCATIONS = {
+    # Alabama
+    "university of alabama": ("Tuscaloosa", "AL"), "ua": ("Tuscaloosa", "AL"),
+    "auburn": ("Auburn", "AL"), "auburn university": ("Auburn", "AL"),
+    "samford": ("Birmingham", "AL"),
+    # Alaska
+    "university of alaska": ("Fairbanks", "AK"), "uas": ("Juneau", "AK"),
+    # Arizona
+    "arizona state": ("Tempe", "AZ"), "arizona state university": ("Tempe", "AZ"), "asu": ("Tempe", "AZ"),
+    "university of arizona": ("Tucson", "AZ"),
+    "northern arizona": ("Flagstaff", "AZ"), "nau": ("Flagstaff", "AZ"),
+    # Arkansas
+    "university of arkansas": ("Fayetteville", "AR"), "u of a fayetteville": ("Fayetteville", "AR"),
+    "arkansas state": ("Jonesboro", "AR"),
+    # California
+    "uc berkeley": ("Berkeley", "CA"), "cal berkeley": ("Berkeley", "CA"), "berkeley": ("Berkeley", "CA"),
+    "ucla": ("Los Angeles", "CA"), "university of california los angeles": ("Los Angeles", "CA"),
+    "usc": ("Los Angeles", "CA"), "university of southern california": ("Los Angeles", "CA"),
+    "stanford": ("Palo Alto", "CA"), "stanford university": ("Palo Alto", "CA"),
+    "uc davis": ("Davis", "CA"),
+    "uc san diego": ("San Diego", "CA"), "ucsd": ("San Diego", "CA"),
+    "uc santa barbara": ("Santa Barbara", "CA"), "ucsb": ("Santa Barbara", "CA"),
+    "uc irvine": ("Irvine", "CA"), "uci": ("Irvine", "CA"),
+    "uc riverside": ("Riverside", "CA"),
+    "uc santa cruz": ("Santa Cruz", "CA"),
+    "caltech": ("Pasadena", "CA"), "california institute of technology": ("Pasadena", "CA"),
+    "san jose state": ("San Jose", "CA"), "sjsu": ("San Jose", "CA"),
+    "cal poly slo": ("San Luis Obispo", "CA"), "cal poly": ("San Luis Obispo", "CA"),
+    "san diego state": ("San Diego", "CA"), "sdsu": ("San Diego", "CA"),
+    "loyola marymount": ("Los Angeles", "CA"), "lmu": ("Los Angeles", "CA"),
+    "santa clara university": ("Santa Clara", "CA"),
+    "university of san francisco": ("San Francisco", "CA"), "usf sf": ("San Francisco", "CA"),
+    "pepperdine": ("Malibu", "CA"),
+    # Colorado
+    "university of colorado": ("Boulder", "CO"), "cu boulder": ("Boulder", "CO"),
+    "colorado state": ("Fort Collins", "CO"), "csu": ("Fort Collins", "CO"),
+    "university of denver": ("Denver", "CO"), "du": ("Denver", "CO"),
+    "colorado school of mines": ("Golden", "CO"),
+    "air force academy": ("Colorado Springs", "CO"),
+    # Connecticut
+    "yale": ("New Haven", "CT"), "yale university": ("New Haven", "CT"),
+    "university of connecticut": ("Storrs", "CT"), "uconn": ("Storrs", "CT"),
+    "fairfield university": ("Fairfield", "CT"),
+    "wesleyan": ("Middletown", "CT"), "wesleyan university": ("Middletown", "CT"),
+    # DC
+    "george washington": ("Washington", "DC"), "george washington university": ("Washington", "DC"), "gwu": ("Washington", "DC"),
+    "georgetown": ("Washington", "DC"), "georgetown university": ("Washington", "DC"),
+    "american university": ("Washington", "DC"),
+    "howard": ("Washington", "DC"), "howard university": ("Washington", "DC"),
+    "catholic university": ("Washington", "DC"),
+    # Delaware
+    "university of delaware": ("Newark", "DE"), "udel": ("Newark", "DE"),
+    # Florida
+    "university of florida": ("Gainesville", "FL"), "uf": ("Gainesville", "FL"),
+    "florida state": ("Tallahassee", "FL"), "fsu": ("Tallahassee", "FL"),
+    "university of miami": ("Coral Gables", "FL"),
+    "ucf": ("Orlando", "FL"), "university of central florida": ("Orlando", "FL"),
+    "usf": ("Tampa", "FL"), "university of south florida": ("Tampa", "FL"),
+    "fau": ("Boca Raton", "FL"), "florida atlantic": ("Boca Raton", "FL"),
+    "fiu": ("Miami", "FL"), "florida international": ("Miami", "FL"),
+    "florida gulf coast": ("Fort Myers", "FL"), "fgcu": ("Fort Myers", "FL"),
+    # Georgia
+    "university of georgia": ("Athens", "GA"), "uga": ("Athens", "GA"),
+    "georgia tech": ("Atlanta", "GA"), "georgia institute of technology": ("Atlanta", "GA"),
+    "emory": ("Atlanta", "GA"), "emory university": ("Atlanta", "GA"),
+    "georgia state": ("Atlanta", "GA"), "gsu": ("Atlanta", "GA"),
+    "kennesaw state": ("Kennesaw", "GA"), "ksu": ("Kennesaw", "GA"),
+    # Hawaii
+    "university of hawaii": ("Honolulu", "HI"), "uh manoa": ("Honolulu", "HI"),
+    # Idaho
+    "boise state": ("Boise", "ID"),
+    "university of idaho": ("Moscow", "ID"),
+    "idaho state": ("Pocatello", "ID"),
+    # Illinois
+    "university of illinois": ("Champaign", "IL"), "uiuc": ("Champaign", "IL"), "u of i": ("Champaign", "IL"),
+    "northwestern": ("Evanston", "IL"), "northwestern university": ("Evanston", "IL"),
+    "university of chicago": ("Chicago", "IL"),
+    "depaul": ("Chicago", "IL"), "depaul university": ("Chicago", "IL"),
+    "loyola chicago": ("Chicago", "IL"), "loyola university chicago": ("Chicago", "IL"),
+    "illinois state": ("Normal", "IL"),
+    "southern illinois": ("Carbondale", "IL"), "siu": ("Carbondale", "IL"),
+    # Indiana
+    "purdue": ("West Lafayette", "IN"), "purdue university": ("West Lafayette", "IN"),
+    "indiana university": ("Bloomington", "IN"), "iu": ("Bloomington", "IN"), "iu bloomington": ("Bloomington", "IN"),
+    "notre dame": ("South Bend", "IN"), "university of notre dame": ("South Bend", "IN"),
+    "ball state": ("Muncie", "IN"),
+    "butler": ("Indianapolis", "IN"), "butler university": ("Indianapolis", "IN"),
+    "iupui": ("Indianapolis", "IN"),
+    # Iowa
+    "iowa state": ("Ames", "IA"),
+    "university of iowa": ("Iowa City", "IA"),
+    # Kansas
+    "kansas state": ("Manhattan", "KS"), "k state": ("Manhattan", "KS"),
+    "university of kansas": ("Lawrence", "KS"), "ku": ("Lawrence", "KS"),
+    "wichita state": ("Wichita", "KS"),
+    # Kentucky
+    "university of kentucky": ("Lexington", "KY"), "uk lexington": ("Lexington", "KY"),
+    "university of louisville": ("Louisville", "KY"), "u of l": ("Louisville", "KY"),
+    "western kentucky": ("Bowling Green", "KY"), "wku": ("Bowling Green", "KY"),
+    # Louisiana
+    "lsu": ("Baton Rouge", "LA"), "louisiana state": ("Baton Rouge", "LA"),
+    "tulane": ("New Orleans", "LA"), "tulane university": ("New Orleans", "LA"),
+    "loyola new orleans": ("New Orleans", "LA"),
+    "university of louisiana": ("Lafayette", "LA"), "ul lafayette": ("Lafayette", "LA"),
+    # Maine
+    "university of maine": ("Orono", "ME"),
+    # Maryland
+    "johns hopkins": ("Baltimore", "MD"), "johns hopkins university": ("Baltimore", "MD"), "jhu": ("Baltimore", "MD"),
+    "university of maryland": ("College Park", "MD"), "umd": ("College Park", "MD"),
+    "towson": ("Towson", "MD"), "towson university": ("Towson", "MD"),
+    "loyola maryland": ("Baltimore", "MD"),
+    # Massachusetts
+    "mit": ("Cambridge", "MA"), "massachusetts institute of technology": ("Cambridge", "MA"),
+    "harvard": ("Cambridge", "MA"), "harvard university": ("Cambridge", "MA"),
+    "boston university": ("Boston", "MA"), "bu": ("Boston", "MA"),
+    "boston college": ("Chestnut Hill", "MA"), "bc": ("Chestnut Hill", "MA"),
+    "northeastern": ("Boston", "MA"), "northeastern university": ("Boston", "MA"),
+    "tufts": ("Medford", "MA"), "tufts university": ("Medford", "MA"),
+    "umass amherst": ("Amherst", "MA"), "university of massachusetts": ("Amherst", "MA"), "umass": ("Amherst", "MA"),
+    "wpi": ("Worcester", "MA"), "worcester polytechnic": ("Worcester", "MA"),
+    "brandeis": ("Waltham", "MA"),
+    "suffolk university": ("Boston", "MA"),
+    # Michigan
+    "michigan state": ("East Lansing", "MI"), "msu": ("East Lansing", "MI"),
+    "university of michigan": ("Ann Arbor", "MI"), "u of m": ("Ann Arbor", "MI"), "umich": ("Ann Arbor", "MI"),
+    "wayne state": ("Detroit", "MI"), "wayne state university": ("Detroit", "MI"),
+    "western michigan": ("Kalamazoo", "MI"), "wmu": ("Kalamazoo", "MI"),
+    "central michigan": ("Mount Pleasant", "MI"), "cmu michigan": ("Mount Pleasant", "MI"),
+    "grand valley state": ("Allendale", "MI"), "gvsu": ("Allendale", "MI"),
+    # Minnesota
+    "university of minnesota": ("Minneapolis", "MN"), "umn": ("Minneapolis", "MN"), "u of m minnesota": ("Minneapolis", "MN"),
+    "minnesota state": ("Mankato", "MN"),
+    "st olaf": ("Northfield", "MN"),
+    "macalester": ("St. Paul", "MN"),
+    # Mississippi
+    "university of mississippi": ("Oxford", "MS"), "ole miss": ("Oxford", "MS"),
+    "mississippi state": ("Starkville", "MS"),
+    # Missouri
+    "university of missouri": ("Columbia", "MO"), "mizzou": ("Columbia", "MO"),
+    "washington university in st louis": ("St. Louis", "MO"), "wustl": ("St. Louis", "MO"),
+    "saint louis university": ("St. Louis", "MO"), "slu": ("St. Louis", "MO"),
+    "missouri state": ("Springfield", "MO"),
+    # Montana
+    "montana state": ("Bozeman", "MT"),
+    "university of montana": ("Missoula", "MT"),
+    # Nebraska
+    "university of nebraska": ("Lincoln", "NE"), "unl": ("Lincoln", "NE"),
+    "creighton": ("Omaha", "NE"), "creighton university": ("Omaha", "NE"),
+    "nebraska wesleyan": ("Lincoln", "NE"),
+    # Nevada
+    "university of nevada reno": ("Reno", "NV"), "unr": ("Reno", "NV"),
+    "unlv": ("Las Vegas", "NV"), "university of nevada las vegas": ("Las Vegas", "NV"),
+    # New Hampshire
+    "dartmouth": ("Hanover", "NH"), "dartmouth college": ("Hanover", "NH"),
+    "university of new hampshire": ("Durham", "NH"), "unh": ("Durham", "NH"),
+    # New Jersey
+    "rutgers": ("New Brunswick", "NJ"), "rutgers university": ("New Brunswick", "NJ"),
+    "princeton": ("Princeton", "NJ"), "princeton university": ("Princeton", "NJ"),
+    "seton hall": ("South Orange", "NJ"), "seton hall university": ("South Orange", "NJ"),
+    "montclair state": ("Montclair", "NJ"),
+    "njit": ("Newark", "NJ"),
+    # New Mexico
+    "university of new mexico": ("Albuquerque", "NM"), "unm": ("Albuquerque", "NM"),
+    "new mexico state": ("Las Cruces", "NM"), "nmsu": ("Las Cruces", "NM"),
+    # New York
+    "columbia": ("New York", "NY"), "columbia university": ("New York", "NY"),
+    "nyu": ("New York", "NY"), "new york university": ("New York", "NY"),
+    "cornell": ("Ithaca", "NY"), "cornell university": ("Ithaca", "NY"),
+    "fordham": ("New York", "NY"), "fordham university": ("New York", "NY"),
+    "suny buffalo": ("Buffalo", "NY"), "university at buffalo": ("Buffalo", "NY"), "ub": ("Buffalo", "NY"),
+    "suny stony brook": ("Stony Brook", "NY"), "stony brook": ("Stony Brook", "NY"),
+    "suny albany": ("Albany", "NY"), "university at albany": ("Albany", "NY"),
+    "rpi": ("Troy", "NY"), "rensselaer polytechnic": ("Troy", "NY"),
+    "rochester": ("Rochester", "NY"), "university of rochester": ("Rochester", "NY"),
+    "syracuse": ("Syracuse", "NY"), "syracuse university": ("Syracuse", "NY"),
+    "vassar": ("Poughkeepsie", "NY"),
+    "hofstra": ("Hempstead", "NY"),
+    "new york tech": ("Old Westbury", "NY"),
+    # North Carolina
+    "unc": ("Chapel Hill", "NC"), "university of north carolina": ("Chapel Hill", "NC"), "unc chapel hill": ("Chapel Hill", "NC"),
+    "nc state": ("Raleigh", "NC"), "north carolina state": ("Raleigh", "NC"), "ncsu": ("Raleigh", "NC"),
+    "duke": ("Durham", "NC"), "duke university": ("Durham", "NC"),
+    "wake forest": ("Winston-Salem", "NC"), "wake forest university": ("Winston-Salem", "NC"),
+    "unc charlotte": ("Charlotte", "NC"), "uncc": ("Charlotte", "NC"),
+    "appalachian state": ("Boone", "NC"), "app state": ("Boone", "NC"),
+    "ecu": ("Greenville", "NC"), "east carolina": ("Greenville", "NC"),
+    # North Dakota
+    "university of north dakota": ("Grand Forks", "ND"), "und": ("Grand Forks", "ND"),
+    "north dakota state": ("Fargo", "ND"), "ndsu": ("Fargo", "ND"),
+    # Ohio
+    "ohio state": ("Columbus", "OH"), "osu": ("Columbus", "OH"), "the ohio state": ("Columbus", "OH"),
+    "university of cincinnati": ("Cincinnati", "OH"), "uc cincinnati": ("Cincinnati", "OH"),
+    "miami university": ("Oxford", "OH"),
+    "ohio university": ("Athens", "OH"),
+    "case western": ("Cleveland", "OH"), "case western reserve": ("Cleveland", "OH"), "cwru": ("Cleveland", "OH"),
+    "bowling green state": ("Bowling Green", "OH"), "bgsu": ("Bowling Green", "OH"),
+    "kent state": ("Kent", "OH"),
+    # Oklahoma
+    "university of oklahoma": ("Norman", "OK"), "ou": ("Norman", "OK"),
+    "oklahoma state": ("Stillwater", "OK"), "osu oklahoma": ("Stillwater", "OK"),
+    "oral roberts": ("Tulsa", "OK"), "oru": ("Tulsa", "OK"),
+    # Oregon
+    "university of oregon": ("Eugene", "OR"), "u of o": ("Eugene", "OR"),
+    "oregon state": ("Corvallis", "OR"), "osu oregon": ("Corvallis", "OR"),
+    "portland state": ("Portland", "OR"), "psu oregon": ("Portland", "OR"),
+    "reed college": ("Portland", "OR"),
+    # Pennsylvania
+    "penn state": ("State College", "PA"), "pennsylvania state": ("State College", "PA"), "psu": ("State College", "PA"),
+    "upenn": ("Philadelphia", "PA"), "university of pennsylvania": ("Philadelphia", "PA"),
+    "temple": ("Philadelphia", "PA"), "temple university": ("Philadelphia", "PA"),
+    "drexel": ("Philadelphia", "PA"), "drexel university": ("Philadelphia", "PA"),
+    "carnegie mellon": ("Pittsburgh", "PA"), "cmu": ("Pittsburgh", "PA"),
+    "university of pittsburgh": ("Pittsburgh", "PA"), "pitt": ("Pittsburgh", "PA"),
+    "lehigh": ("Bethlehem", "PA"), "lehigh university": ("Bethlehem", "PA"),
+    "villanova": ("Villanova", "PA"), "villanova university": ("Villanova", "PA"),
+    "la salle": ("Philadelphia", "PA"),
+    "swarthmore": ("Swarthmore", "PA"),
+    # Rhode Island
+    "brown": ("Providence", "RI"), "brown university": ("Providence", "RI"),
+    "university of rhode island": ("Kingston", "RI"), "uri": ("Kingston", "RI"),
+    "providence college": ("Providence", "RI"),
+    # South Carolina
+    "clemson": ("Clemson", "SC"), "clemson university": ("Clemson", "SC"),
+    "university of south carolina": ("Columbia", "SC"), "usc columbia": ("Columbia", "SC"),
+    "college of charleston": ("Charleston", "SC"),
+    "citadel": ("Charleston", "SC"),
+    # South Dakota
+    "south dakota state": ("Brookings", "SD"), "sdsu sd": ("Brookings", "SD"),
+    "university of south dakota": ("Vermillion", "SD"), "usd": ("Vermillion", "SD"),
+    # Tennessee
+    "university of tennessee": ("Knoxville", "TN"), "ut knoxville": ("Knoxville", "TN"), "utk": ("Knoxville", "TN"),
+    "vanderbilt": ("Nashville", "TN"), "vanderbilt university": ("Nashville", "TN"),
+    "tennessee state": ("Nashville", "TN"), "tsu": ("Nashville", "TN"),
+    "middle tennessee": ("Murfreesboro", "TN"), "mtsu": ("Murfreesboro", "TN"),
+    "memphis": ("Memphis", "TN"), "university of memphis": ("Memphis", "TN"),
+    "belmont": ("Nashville", "TN"), "belmont university": ("Nashville", "TN"),
+    # Texas
+    "university of texas": ("Austin", "TX"), "ut austin": ("Austin", "TX"), "longhorns": ("Austin", "TX"),
+    "texas am": ("College Station", "TX"), "texas a&m": ("College Station", "TX"), "tamu": ("College Station", "TX"),
+    "texas tech": ("Lubbock", "TX"), "texas tech university": ("Lubbock", "TX"), "ttu": ("Lubbock", "TX"),
+    "smu": ("Dallas", "TX"), "southern methodist": ("Dallas", "TX"), "southern methodist university": ("Dallas", "TX"),
+    "rice": ("Houston", "TX"), "rice university": ("Houston", "TX"),
+    "baylor": ("Waco", "TX"), "baylor university": ("Waco", "TX"),
+    "ut dallas": ("Richardson", "TX"), "utd": ("Richardson", "TX"),
+    "university of houston": ("Houston", "TX"), "uh houston": ("Houston", "TX"),
+    "tcu": ("Fort Worth", "TX"), "texas christian": ("Fort Worth", "TX"),
+    "utsa": ("San Antonio", "TX"), "ut san antonio": ("San Antonio", "TX"),
+    "sam houston state": ("Huntsville", "TX"),
+    "stephen f austin": ("Nacogdoches", "TX"),
+    # Utah
+    "university of utah": ("Salt Lake City", "UT"), "u of u": ("Salt Lake City", "UT"),
+    "byu": ("Provo", "UT"), "brigham young": ("Provo", "UT"), "brigham young university": ("Provo", "UT"),
+    "utah state": ("Logan", "UT"), "usu": ("Logan", "UT"),
+    "weber state": ("Ogden", "UT"),
+    # Vermont
+    "university of vermont": ("Burlington", "VT"), "uvm": ("Burlington", "VT"),
+    "middlebury": ("Middlebury", "VT"),
+    # Virginia
+    "university of virginia": ("Charlottesville", "VA"), "uva": ("Charlottesville", "VA"),
+    "virginia tech": ("Blacksburg", "VA"), "vt": ("Blacksburg", "VA"),
+    "george mason": ("Fairfax", "VA"), "george mason university": ("Fairfax", "VA"), "gmu": ("Fairfax", "VA"),
+    "william and mary": ("Williamsburg", "VA"),
+    "vcu": ("Richmond", "VA"), "virginia commonwealth": ("Richmond", "VA"),
+    "liberty university": ("Lynchburg", "VA"), "liberty": ("Lynchburg", "VA"),
+    "james madison": ("Harrisonburg", "VA"), "jmu": ("Harrisonburg", "VA"),
+    "old dominion": ("Norfolk", "VA"), "odu": ("Norfolk", "VA"),
+    # Washington
+    "university of washington": ("Seattle", "WA"), "uw seattle": ("Seattle", "WA"), "uw": ("Seattle", "WA"),
+    "washington state": ("Pullman", "WA"), "wsu": ("Pullman", "WA"),
+    "seattle university": ("Seattle", "WA"),
+    "gonzaga": ("Spokane", "WA"), "gonzaga university": ("Spokane", "WA"),
+    "western washington": ("Bellingham", "WA"),
+    # West Virginia
+    "west virginia university": ("Morgantown", "WV"), "wvu": ("Morgantown", "WV"),
+    "marshall university": ("Huntington", "WV"),
+    # Wisconsin
+    "university of wisconsin": ("Madison", "WI"), "uw madison": ("Madison", "WI"), "wisconsin": ("Madison", "WI"),
+    "marquette": ("Milwaukee", "WI"), "marquette university": ("Milwaukee", "WI"),
+    "uwm": ("Milwaukee", "WI"), "uw milwaukee": ("Milwaukee", "WI"),
+    # Wyoming
+    "university of wyoming": ("Laramie", "WY"), "uwyo": ("Laramie", "WY"),
+}
+# Sorted longest-first to prevent short keys matching inside longer names
+_UNI_KEYS_SORTED = sorted(_UNIVERSITY_LOCATIONS.keys(), key=len, reverse=True)
+
 
 def _get_location_scope(location_str: str) -> dict:
     """Parse a location string into city/state components."""
@@ -431,33 +717,53 @@ def _parse_intent(raw: str) -> dict:
         if cleaned:
             location = " ".join(cleaned)
 
-    # Fallback 1: "near [X]" pattern — e.g., "near University of Tennessee"
+    # Fallback 1: proximity phrase — "near/around/close to/by [X]"
     if not location:
-        _near_m = _re.search(r'(?:^|\b)near\s+(?:the\s+|a\s+)?(.+?)(?:\s*$|[,.])', raw, _re.IGNORECASE)
-        if _near_m:
-            _cand = _near_m.group(1).strip()
-            # "University of [State]" → extract state
-            _om = _re.search(r'\bof\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', _cand)
-            if _om and _om.group(1).lower() in _STATE_NAME_TO_ABBR:
-                location = _US_STATES[_STATE_NAME_TO_ABBR[_om.group(1).lower()]]
-            elif _cand.lower() in _STATE_NAME_TO_ABBR:
-                location = _US_STATES[_STATE_NAME_TO_ABBR[_cand.lower()]]
-            elif _cand.upper() in _US_STATES:
-                location = _US_STATES[_cand.upper()]
-            elif _cand.lower() in _CITY_TO_STATE:
-                _ca = _CITY_TO_STATE[_cand.lower()]
-                location = _cand.title() + ", " + _US_STATES[_ca]
-            else:
-                location = _cand
+        _prox_m = _re.search(
+            r'(?:^|\b)(?:near|around|by|close\s+to|next\s+to|adjacent\s+to)\s+'
+            r'(?:the\s+|a\s+)?(.+?)(?:\s*$|[,.])',
+            raw, _re.IGNORECASE,
+        )
+        if _prox_m:
+            _cand = _prox_m.group(1).strip()
+            _cand_l = _cand.lower()
+            # University lookup (longest key first to avoid partial matches)
+            for _ukey in _UNI_KEYS_SORTED:
+                if _re.search(r'\b' + _re.escape(_ukey) + r'\b', _cand_l):
+                    _ucity, _usa = _UNIVERSITY_LOCATIONS[_ukey]
+                    location = f"{_ucity}, {_US_STATES[_usa]}"
+                    break
+            if not location:
+                # "X of [State]" pattern
+                _om = _re.search(r'\bof\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', _cand)
+                if _om and _om.group(1).lower() in _STATE_NAME_TO_ABBR:
+                    location = _US_STATES[_STATE_NAME_TO_ABBR[_om.group(1).lower()]]
+                elif _cand_l in _STATE_NAME_TO_ABBR:
+                    location = _US_STATES[_STATE_NAME_TO_ABBR[_cand_l]]
+                elif _cand.upper() in _US_STATES:
+                    location = _US_STATES[_cand.upper()]
+                elif _cand_l in _CITY_TO_STATE:
+                    _ca = _CITY_TO_STATE[_cand_l]
+                    location = _cand.title() + ", " + _US_STATES[_ca]
+                else:
+                    location = _cand
 
-    # Fallback 2: state name appears anywhere in the input
+    # Fallback 2: university name anywhere in input
+    if not location:
+        for _ukey in _UNI_KEYS_SORTED:
+            if _re.search(r'\b' + _re.escape(_ukey) + r'\b', raw_lower):
+                _ucity, _usa = _UNIVERSITY_LOCATIONS[_ukey]
+                location = f"{_ucity}, {_US_STATES[_usa]}"
+                break
+
+    # Fallback 3: state name anywhere in input
     if not location:
         for _sn, _sa in _STATE_NAME_TO_ABBR.items():
             if _re.search(r'\b' + _re.escape(_sn) + r'\b', raw_lower):
                 location = _US_STATES[_sa]
                 break
 
-    # Fallback 3: known city name appears anywhere in the input
+    # Fallback 4: known city name anywhere in input
     if not location:
         for _cn, _ca in _CITY_TO_STATE.items():
             if _re.search(r'\b' + _re.escape(_cn) + r'\b', raw_lower):
