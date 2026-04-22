@@ -180,6 +180,7 @@ _agent_status = {
     "climate_risk":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "chief_of_staff":  {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "rentcast":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "manager":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
 def get_status() -> dict:
