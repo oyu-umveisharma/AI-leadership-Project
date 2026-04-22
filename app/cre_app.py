@@ -100,6 +100,8 @@ if "adv_auto_generate" not in st.session_state:
     st.session_state.adv_auto_generate = False
 if "adv_navigate" not in st.session_state:
     st.session_state.adv_navigate = False
+if "recent_searches" not in st.session_state:
+    st.session_state.recent_searches = []
 
 # US state name/abbreviation lookup
 _US_STATES = {
@@ -468,137 +470,413 @@ def _complete_onboarding(property_type=None, location=None, raw_input="", **kwar
         "raw_input": raw_input,
     }
     st.session_state.onboarding_complete = True
+    if raw_input and raw_input.strip():
+        if raw_input not in st.session_state.recent_searches:
+            st.session_state.recent_searches.insert(0, raw_input)
+            st.session_state.recent_searches = st.session_state.recent_searches[:6]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  WELCOME / ONBOARDING SCREEN
 # ═══════════════════════════════════════════════════════════════════════════════
 if not st.session_state.onboarding_complete:
-    st.markdown(f"""
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
-      html, body, [class*="css"] {{ font-family: 'Source Sans Pro', sans-serif; }}
-      .main .block-container {{ max-width: 680px; padding-top: 8vh; }}
-      .welcome-box {{
-        text-align: center;
-        padding: 40px 20px;
-      }}
-      .welcome-icon {{
-        font-size: 3.5rem;
-        margin-bottom: 8px;
-      }}
-      .welcome-title {{
-        font-size: 2rem;
-        font-weight: 700;
-        color: {GOLD};
-        margin-bottom: 4px;
-      }}
-      .welcome-sub {{
-        font-size: 1.0rem;
-        color: #b0b4c0;
-        margin-bottom: 20px;
-      }}
-      .welcome-prompt {{
-        font-size: 1.15rem;
-        font-weight: 600;
-        color: #e8e9ed;
-        margin-bottom: 16px;
-      }}
-      .welcome-or {{
-        color: #999;
-        font-size: 0.85rem;
-        margin: 18px 0 12px 0;
-      }}
-      .welcome-footer {{
-        margin-top: 48px;
-        padding-top: 20px;
-        border-top: 3px solid {GOLD};
-      }}
-      .welcome-footer .purdue {{
-        font-size: 0.8rem;
-        color: #888;
-      }}
-      .welcome-footer .purdue b {{
-        color: {GOLD_DARK};
-      }}
-    </style>
-    <div class="welcome-box">
-      <div class="welcome-icon"></div>
-      <div class="welcome-title">CRE Intelligence Platform</div>
-      <div class="welcome-sub">
-        AI-powered commercial real estate investment advisor &mdash; delivering
-        institutional-grade market analysis, full P&amp;L projections,
-        debt structuring, and tax optimization in seconds.
-      </div>
-      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin-bottom:28px;">
-        <span style="background:rgba(200,160,64,0.12);border:1px solid rgba(200,160,64,0.35);
-                     color:#c8a040;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
-          &#10003;&nbsp;Market Scoring
-        </span>
-        <span style="background:rgba(43,191,176,0.10);border:1px solid rgba(43,191,176,0.30);
-                     color:#2bbfb0;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
-          &#10003;&nbsp;10-Year P&amp;L Pro Forma
-        </span>
-        <span style="background:rgba(200,160,64,0.12);border:1px solid rgba(200,160,64,0.35);
-                     color:#c8a040;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
-          &#10003;&nbsp;Financing &amp; DSCR
-        </span>
-        <span style="background:rgba(144,128,208,0.12);border:1px solid rgba(144,128,208,0.35);
-                     color:#9080d0;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
-          &#10003;&nbsp;Depreciation Tax Shield
-        </span>
-        <span style="background:rgba(76,175,80,0.10);border:1px solid rgba(76,175,80,0.30);
-                     color:#4caf50;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
-          &#10003;&nbsp;Opportunity Zone Benefits
-        </span>
-        <span style="background:rgba(244,67,54,0.10);border:1px solid rgba(244,67,54,0.30);
-                     color:#ef5350;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
-          &#10003;&nbsp;Climate &amp; Risk Analysis
-        </span>
-        <span style="background:rgba(200,160,64,0.12);border:1px solid rgba(200,160,64,0.35);
-                     color:#c8a040;font-size:0.72rem;padding:4px 11px;border-radius:20px;">
-          &#10003;&nbsp;AI Investment Rationale
-        </span>
-      </div>
-      <div class="welcome-prompt">What are you looking to invest in today?</div>
-    </div>
-    """, unsafe_allow_html=True)
 
-    # Text input
-    user_input = st.text_input(
-        "Describe your investment focus",
-        placeholder="e.g., Industrial warehouse in Austin, TX",
-        label_visibility="collapsed",
-    )
-    if user_input:
-        if _is_advisor_query(user_input):
-            _complete_onboarding(raw_input=user_input)
-            st.session_state.adv_home_prompt    = user_input
-            st.session_state.adv_auto_generate  = True
-            st.session_state.adv_navigate       = True
+    # ── Query-param navigation (property card / example link clicks) ──────────
+    try:
+        _qp        = st.query_params
+        _qp_select = _qp.get("select")
+        _qp_q      = _qp.get("q")
+        _qp_clear  = _qp.get("clear_recent")
+    except Exception:
+        _qp = {}; _qp_select = _qp_q = _qp_clear = None
+
+    if _qp_select:
+        try: st.query_params.clear()
+        except Exception: pass
+        _sel = _qp_select if isinstance(_qp_select, str) else _qp_select[0]
+        if _sel == "Exploring":
+            _complete_onboarding()
         else:
-            intent = _parse_intent(user_input)
-            _complete_onboarding(**intent)
+            _complete_onboarding(property_type=_sel)
         st.rerun()
 
-    # Quick-select buttons
-    st.markdown('<div style="text-align:center;color:#999;font-size:0.85rem;margin:18px 0 12px 0;">or pick a category</div>', unsafe_allow_html=True)
-    cols = st.columns(5)
-    quick_options = ["Industrial", "Multifamily", "Office", "Retail", "Just Exploring"]
-    for col, opt in zip(cols, quick_options):
-        with col:
-            if st.button(opt, use_container_width=True, key=f"quick_{opt}"):
-                if opt == "Just Exploring":
-                    _complete_onboarding()
-                else:
-                    _complete_onboarding(property_type=opt)
-                st.rerun()
+    if _qp_q:
+        try: st.query_params.clear()
+        except Exception: pass
+        _q = (_qp_q if isinstance(_qp_q, str) else _qp_q[0]).replace("+", " ")
+        if _is_advisor_query(_q):
+            _complete_onboarding(raw_input=_q)
+            st.session_state.adv_home_prompt   = _q
+            st.session_state.adv_auto_generate = True
+            st.session_state.adv_navigate      = True
+        else:
+            _complete_onboarding(**_parse_intent(_q))
+        st.rerun()
 
+    if _qp_clear:
+        try: st.query_params.clear()
+        except Exception: pass
+        st.session_state.recent_searches = []
+        st.rerun()
+
+    # ── Live ticker data ──────────────────────────────────────────────────────
+    _tick_rates = read_cache("rates") or {}
+    _rd = _tick_rates.get("data", _tick_rates)
+    try: _tsy = f"{float(_rd.get('DGS10') or _rd.get('ten_year_yield') or _rd.get('treasury_10yr') or 4.5):.2f}%"
+    except Exception: _tsy = "4.50%"
+
+    _tick_cap = read_cache("cap_rate") or {}
+    _cd = _tick_cap.get("data", _tick_cap)
+    try: _cap_str = f"{float(_cd.get('national_avg_cap_rate', _cd.get('cap_rate', 5.6))):.2f}%"
+    except Exception: _cap_str = "5.60%"
+
+    _tick_ms  = read_cache("market_score") or {}
+    _top_mkt  = "Austin, TX"
+    try:
+        _sc = _tick_ms.get("scores") or (_tick_ms.get("data") or {}).get("scores") or []
+        if _sc: _top_mkt = _sc[0].get("market", "Austin, TX")
+    except Exception: pass
+
+    # ── SVG icons for property cards ──────────────────────────────────────────
+    _PROP_ICONS = {
+        "Industrial":  '<svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="1"/><path d="M2 11h20M7 7V4M12 7V4M17 7V4"/><rect x="9" y="14" width="6" height="7" rx="0.5"/></svg>',
+        "Multifamily": '<svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="2" width="18" height="20" rx="1"/><path d="M3 9h18M3 15h18M9 2v20M15 2v20"/></svg>',
+        "Office":      '<svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 8h18M8 3v18M8 12h8M8 16h5"/></svg>',
+        "Retail":      '<svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 9h18l-2 12H5L3 9z"/><path d="M3 9 5.5 3h13L21 9"/><path d="M9 21v-7h6v7"/></svg>',
+        "Healthcare":  '<svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="1"/><path d="M12 11v6M9 14h6"/><path d="M8 7V5a1 1 0 011-1h6a1 1 0 011 1v2"/></svg>',
+        "Exploring":   '<svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20M2 12h20"/><path d="M4.9 7h14.2M4.9 17h14.2"/></svg>',
+    }
+    _prop_cards_html = "".join([
+        f'<div class="prop-card" onclick="window.location.href=\'?select={name}\'">'
+        f'{icon}<div class="prop-card-lbl">{name.upper()}</div></div>'
+        for name, icon in _PROP_ICONS.items()
+    ])
+
+    # ── Recent searches HTML ──────────────────────────────────────────────────
+    _recent_html = ""
+    if st.session_state.recent_searches:
+        _rs_items = "".join([
+            f'<span class="rs-item" onclick="window.location.href=\'?q={_r.replace(" ","+")}\'">'
+            f'<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="opacity:.45;flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>'
+            f'&nbsp;{_r}&nbsp;<span style="opacity:.4;font-size:.6rem;">&#8599;</span></span>'
+            for _r in st.session_state.recent_searches[:4]
+        ])
+        _recent_html = f"""
+        <div class="cre-wrap" style="padding-bottom:52px;border-top:1px solid rgba(200,160,64,.08);padding-top:28px;margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <span style="color:#3a2e1a;font-size:.65rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;">Recent Searches</span>
+            <a href="?clear_recent=1" style="color:#3a2e1a;font-size:.72rem;text-decoration:none;">Clear all</a>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">{_rs_items}</div>
+        </div>"""
+
+    # ── Full-page HTML + CSS ──────────────────────────────────────────────────
     st.markdown(f"""
-    <div class="welcome-footer" style="text-align:center;">
-      <div class="purdue"><b>Purdue University</b> · Daniels School of Business · MSF Program</div>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+      html, body, [class*="css"],
+      [data-testid="stAppViewContainer"],
+      [data-testid="stApp"],
+      section[data-testid="stMain"] {{
+        font-family: 'DM Sans', -apple-system, sans-serif !important;
+        background: #0d0b04 !important;
+        color: #c8b890 !important;
+      }}
+      .main .block-container {{
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }}
+      header[data-testid="stHeader"],
+      [data-testid="stDecoration"],
+      footer, #MainMenu {{ display: none !important; }}
+
+      /* ── Navbar ─────────────────────────────────────────────────────────── */
+      .cre-nav {{
+        background: rgba(13,11,4,.97);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(200,160,64,.18);
+        padding: 0 32px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }}
+      .nav-logo {{
+        width:28px; height:28px; border-radius:6px;
+        background:{GOLD}; display:inline-flex;
+        align-items:center; justify-content:center;
+        font-size:.7rem; font-weight:800; color:#0d0b04;
+        margin-right:10px; vertical-align:middle;
+        font-family:'JetBrains Mono',monospace;
+      }}
+      .nav-brand {{ color:#e8e4d8; font-size:.93rem; font-weight:600; vertical-align:middle; }}
+      .nav-sep   {{ color:rgba(200,160,64,.25); margin:0 10px; vertical-align:middle; }}
+      .nav-school {{ color:#4a3820; font-size:.67rem; font-weight:500; letter-spacing:1.5px; vertical-align:middle; }}
+      .nav-links {{ display:flex; align-items:center; gap:28px; }}
+      .nav-link  {{ color:#6a5228; font-size:.8rem; }}
+      .nav-cta {{
+        background:transparent; border:1.5px solid {GOLD}; color:{GOLD};
+        padding:6px 16px; border-radius:6px; font-size:.78rem; font-weight:600;
+        cursor:default; font-family:'DM Sans',sans-serif; margin-left:24px;
+      }}
+
+      /* ── Ticker ─────────────────────────────────────────────────────────── */
+      .cre-ticker {{
+        background:#090700;
+        border-bottom:1px solid rgba(200,160,64,.1);
+        height:38px; display:flex; align-items:center; overflow:hidden;
+      }}
+      .t-item {{
+        display:flex; align-items:center; gap:7px;
+        padding:0 22px;
+        border-right:1px solid rgba(200,160,64,.08);
+        height:100%; white-space:nowrap;
+      }}
+      .t-lbl {{ color:#3a3020; font-size:.62rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; }}
+      .t-val {{ color:#d8d0b8; font-family:'JetBrains Mono',monospace; font-size:.8rem; font-weight:600; }}
+      .t-up  {{ color:#4caf50; font-size:.64rem; }}
+      .t-dn  {{ color:#ef5350; font-size:.64rem; }}
+      .t-badge {{
+        background:rgba(76,175,80,.15); border:1px solid rgba(76,175,80,.3);
+        color:#4caf50; font-size:.6rem; padding:1px 8px; border-radius:10px; font-weight:600;
+      }}
+
+      /* ── Hero ───────────────────────────────────────────────────────────── */
+      .cre-hero {{ text-align:center; padding:68px 20px 40px; }}
+      .hero-eyebrow {{
+        display:flex; align-items:center; justify-content:center;
+        gap:14px; margin-bottom:26px;
+      }}
+      .ey-line   {{ flex:0 0 64px; height:1px; background:linear-gradient(90deg,transparent,rgba(200,160,64,.4)); }}
+      .ey-line-r {{ background:linear-gradient(270deg,transparent,rgba(200,160,64,.4)); }}
+      .ey-text   {{ color:{GOLD}; font-size:.65rem; font-weight:500; letter-spacing:3.5px; }}
+      .hero-title {{
+        font-size:3.0rem; font-weight:700; color:{GOLD};
+        line-height:1.1; margin-bottom:18px; letter-spacing:-.5px;
+      }}
+      .hero-sub {{
+        font-size:1.02rem; color:#7a6840; line-height:1.65;
+        max-width:580px; margin:0 auto 36px;
+      }}
+
+      /* ── Feature chips ──────────────────────────────────────────────────── */
+      .f-chips {{
+        display:flex; flex-wrap:wrap; justify-content:center;
+        gap:8px; max-width:820px; margin:0 auto 52px;
+      }}
+      .f-chip {{
+        background:transparent; border:1px solid rgba(200,160,64,.22);
+        color:#7a6840; font-size:.72rem; padding:6px 14px; border-radius:4px;
+        display:inline-flex; align-items:center; gap:7px;
+      }}
+      .f-check {{ color:{GOLD}; font-weight:700; }}
+
+      /* ── Search input override ──────────────────────────────────────────── */
+      [data-testid="stForm"] {{
+        border:none !important; padding:0 !important; background:transparent !important;
+      }}
+      [data-testid="stForm"] > div {{ max-width:780px; margin:0 auto !important; }}
+      [data-testid="stHorizontalBlock"] {{ gap:0 !important; }}
+
+      [data-testid="stTextInput"] input {{
+        background: rgba(13,11,4,.92)
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%234a3820' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E")
+          no-repeat left 18px center !important;
+        border:1.5px solid rgba(200,160,64,.32) !important;
+        border-right:none !important;
+        border-radius:8px 0 0 8px !important;
+        color:#e0d8c0 !important;
+        font-size:.97rem !important;
+        padding:18px 20px 18px 52px !important;
+        height:58px !important;
+        font-family:'DM Sans',sans-serif !important;
+        caret-color:{GOLD};
+      }}
+      [data-testid="stTextInput"] input:focus {{
+        border-color:rgba(200,160,64,.55) !important;
+        box-shadow:0 0 0 3px rgba(200,160,64,.07) !important;
+        outline:none !important;
+      }}
+      [data-testid="stTextInput"] input::placeholder {{ color:#3a2e1a !important; }}
+      [data-testid="stTextInput"] > div {{ border:none !important; background:transparent !important; }}
+      [data-testid="InputInstructions"] {{ display:none !important; }}
+
+      [data-testid="stFormSubmitButton"] > button {{
+        background:{GOLD} !important; color:#0d0b04 !important;
+        border:none !important;
+        border-radius:0 8px 8px 0 !important;
+        padding:0 26px !important; height:58px !important;
+        font-weight:700 !important; font-size:.85rem !important;
+        font-family:'DM Sans',sans-serif !important;
+        width:100% !important; letter-spacing:.3px;
+      }}
+      [data-testid="stFormSubmitButton"] > button:hover {{
+        background:#e8c060 !important;
+      }}
+
+      /* ── Search examples ────────────────────────────────────────────────── */
+      .s-examples {{
+        text-align:center; color:#3a2e1a; font-size:.77rem; margin-bottom:52px;
+      }}
+      .s-ex {{
+        color:{GOLD}; cursor:pointer;
+        text-decoration:underline; text-decoration-color:rgba(200,160,64,.3);
+      }}
+
+      /* ── Property type section ──────────────────────────────────────────── */
+      .cre-wrap {{ max-width:1160px; margin:0 auto; padding:0 48px; }}
+      .prop-hdr {{
+        text-align:center; color:#3a2e1a; font-size:.65rem; font-weight:600;
+        letter-spacing:3px; text-transform:uppercase; margin-bottom:18px;
+      }}
+      .prop-grid {{
+        display:grid; grid-template-columns:repeat(6,1fr);
+        gap:12px; margin-bottom:52px;
+      }}
+      .prop-card {{
+        background:rgba(255,255,255,.018);
+        border:1px solid rgba(200,160,64,.15);
+        border-radius:10px; padding:24px 12px 18px;
+        text-align:center; cursor:pointer;
+        transition:all .2s; color:#5a4820;
+      }}
+      .prop-card:hover {{
+        background:rgba(200,160,64,.06);
+        border-color:rgba(200,160,64,.38); color:{GOLD};
+      }}
+      .prop-card svg {{ display:block; margin:0 auto 12px; color:inherit; }}
+      .prop-card-lbl {{ font-size:.6rem; font-weight:600; letter-spacing:2.5px; text-transform:uppercase; }}
+
+      /* ── Recent searches ────────────────────────────────────────────────── */
+      .rs-item {{
+        display:inline-flex; align-items:center; gap:6px;
+        background:rgba(255,255,255,.018);
+        border:1px solid rgba(200,160,64,.1);
+        border-radius:20px; color:#5a4820;
+        font-size:.72rem; padding:5px 14px;
+        cursor:pointer; white-space:nowrap;
+        transition:border-color .2s;
+      }}
+      .rs-item:hover {{ border-color:rgba(200,160,64,.3); color:{GOLD}; }}
+
+    </style>
+
+    <!-- NAVBAR -->
+    <div class="cre-nav">
+      <div>
+        <span class="nav-logo">&#9650;</span>
+        <span class="nav-brand">CRE Intelligence Platform</span>
+        <span class="nav-sep">|</span>
+        <span class="nav-school">PURDUE &middot; DANIELS MSF</span>
+      </div>
+      <div style="display:flex;align-items:center;">
+        <div class="nav-links">
+          <span class="nav-link">Markets</span>
+          <span class="nav-link">Watchlist</span>
+          <span class="nav-link">Reports</span>
+        </div>
+        <button class="nav-cta">New Analysis</button>
+      </div>
     </div>
+
+    <!-- TICKER BAR -->
+    <div class="cre-ticker">
+      <div class="t-item">
+        <span class="t-lbl">Ind. Cap Rate</span>
+        <span class="t-val">{_cap_str}</span>
+        <span class="t-dn">&#9660; 20bps</span>
+      </div>
+      <div class="t-item">
+        <span class="t-lbl">Rent Growth</span>
+        <span class="t-val">+8.0%</span>
+        <span class="t-up">&#9650; YoY</span>
+      </div>
+      <div class="t-item">
+        <span class="t-lbl">Nat. Vacancy</span>
+        <span class="t-val">4.5%</span>
+        <span class="t-up">&#9650; 60bps</span>
+      </div>
+      <div class="t-item">
+        <span class="t-lbl">Top Market</span>
+        <span class="t-val">{_top_mkt}</span>
+        <span class="t-badge">High</span>
+      </div>
+      <div class="t-item">
+        <span class="t-lbl">10Y Treasury</span>
+        <span class="t-val">{_tsy}</span>
+      </div>
+      <div class="t-item">
+        <span class="t-lbl">DSCR Min</span>
+        <span class="t-val">1.25x</span>
+      </div>
+    </div>
+
+    <!-- HERO -->
+    <div class="cre-hero">
+      <div class="hero-eyebrow">
+        <div class="ey-line"></div>
+        <span class="ey-text">AI-POWERED &middot; INSTITUTIONAL GRADE &middot; REAL-TIME</span>
+        <div class="ey-line ey-line-r"></div>
+      </div>
+      <div class="hero-title">CRE Intelligence Platform</div>
+      <div class="hero-sub">
+        Market analysis, 10-year P&amp;L projections, debt structuring, and tax optimization &mdash; delivered in seconds.
+      </div>
+      <div class="f-chips">
+        <span class="f-chip"><span class="f-check">&#10003;</span> Market Scoring</span>
+        <span class="f-chip"><span class="f-check">&#10003;</span> 10-Year P&amp;L Pro Forma</span>
+        <span class="f-chip"><span class="f-check">&#10003;</span> Financing &amp; DSCR</span>
+        <span class="f-chip"><span class="f-check">&#10003;</span> Depreciation Tax Shield</span>
+        <span class="f-chip"><span class="f-check">&#10003;</span> Opportunity Zone Benefits</span>
+        <span class="f-chip"><span class="f-check">&#10003;</span> Climate &amp; Risk Analysis</span>
+        <span class="f-chip"><span class="f-check">&#10003;</span> AI Investment Rationale</span>
+      </div>
+    </div>
+
     """, unsafe_allow_html=True)
+
+    # ── Search bar (form keeps input+button connected; Enter or click submits) ─
+    with st.form("home_search_form", clear_on_submit=False):
+        _sc, _bc = st.columns([7, 1.4])
+        with _sc:
+            user_input = st.text_input(
+                "Search",
+                placeholder="e.g., Industrial warehouse in Austin, TX",
+                label_visibility="collapsed",
+                key="home_search",
+            )
+        with _bc:
+            submitted = st.form_submit_button("Analyze")
+        if submitted and user_input:
+            if _is_advisor_query(user_input):
+                _complete_onboarding(raw_input=user_input)
+                st.session_state.adv_home_prompt   = user_input
+                st.session_state.adv_auto_generate = True
+                st.session_state.adv_navigate      = True
+            else:
+                _complete_onboarding(**_parse_intent(user_input))
+            st.rerun()
+
+    # ── Example queries + property cards + recent searches ───────────────────
+    st.markdown(f"""
+    <div class="s-examples">
+      Try:&nbsp;
+      <span class="s-ex" onclick="window.location.href='?q=Multifamily+in+Nashville'">&ldquo;Multifamily in Nashville&rdquo;</span>
+      &nbsp;&middot;&nbsp;
+      <span class="s-ex" onclick="window.location.href='?q=Office+cap+rates+Chicago'">&ldquo;Office cap rates Chicago&rdquo;</span>
+      &nbsp;&middot;&nbsp;
+      <span class="s-ex" onclick="window.location.href='?q=Best+Sunbelt+markets+2026'">&ldquo;Best Sunbelt markets 2026&rdquo;</span>
+    </div>
+
+    <div class="cre-wrap">
+      <div class="prop-hdr">OR SELECT A PROPERTY TYPE</div>
+      <div class="prop-grid">{_prop_cards_html}</div>
+    </div>
+    {_recent_html}
+    """, unsafe_allow_html=True)
+
     st.stop()
 
 
