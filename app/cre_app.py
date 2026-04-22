@@ -6475,15 +6475,31 @@ with main_tab_advisor:
     st.markdown("""
 <div style="background:linear-gradient(135deg,#1a1208 0%,#2a1e08 100%);
             border:1px solid #a07830; border-top:3px solid #d4a843;
-            border-radius:10px; padding:28px 36px; margin-bottom:24px;">
+            border-radius:10px; padding:28px 36px; margin-bottom:16px;">
   <div style="color:#d4a843;font-size:1.45rem;font-weight:700;letter-spacing:1px;">
-    AI Investment Advisor
+    AI-Powered Commercial Real Estate Advisor
   </div>
-  <div style="color:#a09880;font-size:0.92rem;margin-top:6px;max-width:720px;">
-    Describe your investment goal in plain English. The advisor parses your intent,
-    scores every candidate market across migration, pricing, climate, capital markets,
-    cap rates, and more, then delivers a personalized recommendation &mdash; with financials,
-    buildout timeline, and a ranked runner-up comparison.
+  <div style="color:#a09880;font-size:0.92rem;margin-top:6px;max-width:780px;line-height:1.65;">
+    Describe your investment goal in plain English. The platform parses your intent, scores
+    every candidate market across 10+ live data signals, and generates a full institutional-grade
+    investment brief &mdash; complete with a year-by-year P&amp;L pro forma, debt structure,
+    depreciation tax shield, and Opportunity Zone analysis.
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;">
+    <span style="background:#1e2e0a;border:1px solid #507028;color:#80a848;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Market Scoring</span>
+    <span style="background:#0a1e1e;border:1px solid #287068;color:#48a898;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; 10-Year P&amp;L Pro Forma</span>
+    <span style="background:#1a1408;border:1px solid #705828;color:#a88048;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Financing &amp; DSCR</span>
+    <span style="background:#1a0a1e;border:1px solid #603880;color:#9868b8;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Depreciation Tax Shield</span>
+    <span style="background:#1e0a0a;border:1px solid #802828;color:#b85858;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Opportunity Zone Benefits</span>
+    <span style="background:#0a0e1e;border:1px solid #284870;color:#4878a8;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Climate &amp; Risk Analysis</span>
+    <span style="background:#1a1208;border:1px solid #705020;color:#a87838;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; AI Investment Rationale</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -6821,6 +6837,172 @@ with main_tab_advisor:
             f"Construction cost signal: **{_esig}** (platform energy agent). "
             f"Cost multiplier: {_emult}. Buildout estimate: {financials['buildout_months']} months."
         )
+
+        # ── Financing Structure ───────────────────────────────────────────────
+        financing = res.get("financing", {})
+        if financing:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Financing Structure")
+            _fn1, _fn2, _fn3, _fn4, _fn5 = st.columns(5)
+            _dscr_c = "#4caf50" if financing.get("dscr", 0) >= 1.25 else ("#ff9800" if financing.get("dscr", 0) >= 1.0 else "#f44336")
+            _coc_c  = "#4caf50" if financing.get("cash_on_cash_pct", 0) >= 6 else "#ff9800"
+            _irrl_c = "#4caf50" if financing.get("leveraged_irr_pct", 0) >= 15 else "#ff9800"
+            for _fc, (_lbl, _val, _clr) in zip(
+                [_fn1, _fn2, _fn3, _fn4, _fn5],
+                [
+                    ("LTV",               f"{financing['ltv_pct']:.0f}%",                         "#e8dfc4"),
+                    ("Loan Amount",        f"${financing['loan_amount']/1e6:.2f}M",                "#e8dfc4"),
+                    ("Equity Required",    f"${financing['equity_required']/1e6:.2f}M",            "#d4a843"),
+                    ("Annual Debt Service",f"${financing['annual_debt_service']/1e3:.0f}K",        "#e8dfc4"),
+                    ("DSCR",               f"{financing['dscr']:.2f}x",                            _dscr_c),
+                ]
+            ):
+                _fc.markdown(
+                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                    f'<div class="value" style="color:{_clr};">{_val}</div></div>',
+                    unsafe_allow_html=True,
+                )
+            st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
+            _fn6, _fn7, _fn8, _fn9 = st.columns(4)
+            for _fc, (_lbl, _val, _clr) in zip(
+                [_fn6, _fn7, _fn8, _fn9],
+                [
+                    ("Loan Rate",          f"{financing['loan_rate_pct']:.2f}% / {financing['amort_years']}yr", "#e8dfc4"),
+                    ("Cash Flow After DS", f"${financing['cash_flow_after_ds']/1e3:.0f}K/yr",                  _coc_c),
+                    ("Cash-on-Cash",       f"{financing['cash_on_cash_pct']:.1f}%",                            _coc_c),
+                    ("Leveraged IRR",      f"{financing['leveraged_irr_pct']:.1f}%",                           _irrl_c),
+                ]
+            ):
+                _fc.markdown(
+                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                    f'<div class="value" style="color:{_clr};">{_val}</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+        # ── 10-Year P&L Pro Forma ─────────────────────────────────────────────
+        proforma = res.get("proforma", [])
+        if proforma:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" 10-Year P&L Pro Forma")
+            _pf_hdr = ["Year","Gross Revenue","Vacancy Loss","EGI","Operating Exp.","NOI","Debt Service","Cash Flow","Cumulative CF"]
+            _pf_keys = ["year","gross_revenue","vacancy_loss","egi","opex","noi","debt_service","cf_after_ds","cum_cf"]
+            _pf_aligns = ["center"] + ["right"] * 8
+
+            def _pf_fmt(k, v):
+                if k == "year": return str(v)
+                return f"${v/1e3:.0f}K" if abs(v) < 1e6 else f"${v/1e6:.2f}M"
+
+            _pf_hcells = "".join(
+                f'<th style="padding:8px 10px;color:#c8a040;font-size:0.72rem;font-weight:700;'
+                f'letter-spacing:0.08em;text-align:{al};border-bottom:1px solid #2a2410;'
+                f'white-space:nowrap;">{h}</th>'
+                for h, al in zip(_pf_hdr, _pf_aligns)
+            )
+            _pf_rows_html = ""
+            for _row in proforma:
+                _noi_c  = "#4caf50" if _row["noi"] > 0 else "#f44336"
+                _cf_c   = "#4caf50" if _row["cf_after_ds"] >= 0 else "#f44336"
+                _cum_c  = "#4caf50" if _row["cum_cf"] >= 0 else "#f44336"
+                _sep    = "border-bottom:1px solid #1a1808;"
+                _cells  = ""
+                for k, al in zip(_pf_keys, _pf_aligns):
+                    v = _row[k]
+                    fmt = _pf_fmt(k, v)
+                    if k == "noi":
+                        clr = _noi_c
+                    elif k == "cf_after_ds":
+                        clr = _cf_c
+                    elif k == "cum_cf":
+                        clr = _cum_c
+                    elif k == "year":
+                        clr = "#c8a040"
+                    else:
+                        clr = "#c8b890"
+                    _cells += (f'<td style="padding:7px 10px;{_sep}text-align:{al};'
+                               f'color:{clr};font-size:0.83rem;white-space:nowrap;">{fmt}</td>')
+                _pf_rows_html += f"<tr>{_cells}</tr>"
+
+            st.markdown(
+                f'<div style="background:#13110a;border-radius:10px;padding:20px 24px;'
+                f'margin-bottom:8px;overflow-x:auto;">'
+                f'<table style="border-collapse:collapse;width:100%;font-family:\'Source Sans Pro\',sans-serif;">'
+                f'<thead><tr>{_pf_hcells}</tr></thead>'
+                f'<tbody>{_pf_rows_html}</tbody></table></div>',
+                unsafe_allow_html=True,
+            )
+            st.caption("NOI = EGI − Operating Expenses. Cash Flow = NOI − Debt Service. "
+                       "Year-1 shows lease-up vacancy premium. Rent grows at market rate; OpEx inflates 2.5%/yr.")
+
+        # ── Tax & Depreciation Benefits ───────────────────────────────────────
+        tax = res.get("tax_benefits", {})
+        if tax:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Tax & Depreciation Benefits")
+
+            _tx1, _tx2, _tx3, _tx4, _tx5 = st.columns(5)
+            for _fc, (_lbl, _val, _clr) in zip(
+                [_tx1, _tx2, _tx3, _tx4, _tx5],
+                [
+                    ("Building Value",        f"${tax['building_value']/1e6:.2f}M",      "#e8dfc4"),
+                    ("Year-1 Depreciation",   f"${tax['yr1_depreciation']/1e3:.0f}K",    "#d4a843"),
+                    ("Year-1 Tax Shield",     f"${tax['yr1_tax_shield']/1e3:.0f}K",      "#4caf50"),
+                    ("Annual Tax Shield",     f"${tax['annual_tax_shield']/1e3:.0f}K/yr","#80c858"),
+                    ("10-Yr Tax Savings",     f"${tax['cum10_tax_savings']/1e6:.2f}M",   "#4caf50"),
+                ]
+            ):
+                _fc.markdown(
+                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                    f'<div class="value" style="color:{_clr};">{_val}</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
+
+            # Depreciation breakdown table
+            _depr_rows = [
+                ("Personal Property (5-yr)", tax["personal_prop_value"], f"{tax['bonus_depr_pct']}% bonus + straight-line"),
+                ("Land Improvements (15-yr)", tax["land_improv_value"],  f"{tax['bonus_depr_pct']}% bonus + straight-line"),
+                (f"Structure ({tax['struct_depr_life']}-yr)",            tax["structure_value"],   "Straight-line"),
+                ("Land (non-depreciable)",   tax["land_value"],          "N/A"),
+            ]
+            _depr_html = ""
+            for _dn, _dv, _dm in _depr_rows:
+                _bar_w = int(_dv / max(tax["building_value"] + tax["land_value"], 1) * 280)
+                _depr_html += (
+                    f'<tr>'
+                    f'<td style="padding:8px 12px;color:#c8b890;font-size:0.84rem;border-bottom:1px solid #1e1c0e;">{_dn}</td>'
+                    f'<td style="padding:8px 12px;text-align:right;color:#c8a040;font-size:0.84rem;border-bottom:1px solid #1e1c0e;">${_dv/1e6:.2f}M</td>'
+                    f'<td style="padding:8px 12px;border-bottom:1px solid #1e1c0e;">'
+                    f'<div style="background:#2a2410;border-radius:3px;height:8px;width:300px;">'
+                    f'<div style="background:#c8a040;border-radius:3px;height:8px;width:{_bar_w}px;"></div></div></td>'
+                    f'<td style="padding:8px 12px;color:#7a7060;font-size:0.78rem;border-bottom:1px solid #1e1c0e;">{_dm}</td>'
+                    f'</tr>'
+                )
+            st.markdown(
+                f'<div style="background:#13110a;border-radius:10px;padding:20px 24px;margin-bottom:8px;">'
+                f'<table style="border-collapse:collapse;width:100%;">'
+                f'<thead><tr>'
+                f'<th style="padding:8px 12px;color:#c8a040;font-size:0.72rem;letter-spacing:0.08em;border-bottom:1px solid #2a2410;">COMPONENT</th>'
+                f'<th style="padding:8px 12px;color:#c8a040;font-size:0.72rem;letter-spacing:0.08em;text-align:right;border-bottom:1px solid #2a2410;">VALUE</th>'
+                f'<th style="padding:8px 12px;border-bottom:1px solid #2a2410;"></th>'
+                f'<th style="padding:8px 12px;color:#c8a040;font-size:0.72rem;letter-spacing:0.08em;border-bottom:1px solid #2a2410;">METHOD</th>'
+                f'</tr></thead><tbody>{_depr_html}</tbody></table></div>',
+                unsafe_allow_html=True,
+            )
+
+            if tax.get("oz_eligible"):
+                st.markdown(
+                    f'<div style="background:#0a1e0a;border:1px solid #2a6030;border-left:4px solid #4caf50;'
+                    f'border-radius:6px;padding:12px 18px;margin-top:4px;color:#80c858;font-size:0.88rem;">'
+                    f'<strong>&#9733; Opportunity Zone</strong> &mdash; {tax["oz_note"]}</div>',
+                    unsafe_allow_html=True,
+                )
+            st.caption(
+                f"Assumes {tax['tax_rate_pct']}% combined federal tax rate. "
+                f"Cost-segregation allocation: 15% personal property (5-yr), 10% land improvements (15-yr), "
+                f"75% structure ({tax['struct_depr_life']}-yr). "
+                f"{tax['bonus_depr_pct']}% bonus depreciation applied (2025 schedule)."
+            )
 
         st.markdown("<br>", unsafe_allow_html=True)
 

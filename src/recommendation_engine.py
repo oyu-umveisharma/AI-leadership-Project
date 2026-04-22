@@ -152,6 +152,224 @@ _REGION_MAP = {
     "massachusetts":   ["Boston, MA"],
 }
 
+# ── Property-type financial parameters ───────────────────────────────────────
+_RENT_PSF = {
+    "Industrial": 9.50, "Office": 30.00, "Retail": 22.00,
+    "Multifamily": 18.00, "Mixed-Use": 24.00, "Healthcare": 27.00,
+    "Data Center": 65.00, "Self-Storage": 13.00, "Hospitality": 20.00,
+}
+_OPEX_RATIO = {          # operating expenses as % of EGI
+    "Industrial": 0.22, "Office": 0.40, "Retail": 0.28,
+    "Multifamily": 0.45, "Mixed-Use": 0.38, "Healthcare": 0.35,
+    "Data Center": 0.30, "Self-Storage": 0.35, "Hospitality": 0.50,
+}
+_STAB_VAC = {            # stabilised vacancy rate
+    "Industrial": 0.05, "Office": 0.14, "Retail": 0.09,
+    "Multifamily": 0.06, "Mixed-Use": 0.08, "Healthcare": 0.05,
+    "Data Center": 0.03, "Self-Storage": 0.11, "Hospitality": 0.30,
+}
+_LTV_MAP = {             # max LTV by type
+    "Industrial": 0.65, "Office": 0.65, "Retail": 0.65,
+    "Multifamily": 0.75, "Mixed-Use": 0.70, "Healthcare": 0.65,
+    "Data Center": 0.60, "Self-Storage": 0.70, "Hospitality": 0.60,
+}
+_AMORT_MAP = {           # amortisation period (years)
+    "Industrial": 25, "Office": 25, "Retail": 25,
+    "Multifamily": 30, "Mixed-Use": 25, "Healthcare": 25,
+    "Data Center": 20, "Self-Storage": 25, "Hospitality": 25,
+}
+_DEPR_LIFE = {           # IRS depreciation life (years)
+    "Industrial": 39, "Office": 39, "Retail": 39,
+    "Multifamily": 27.5, "Mixed-Use": 39, "Healthcare": 39,
+    "Data Center": 20, "Self-Storage": 39, "Hospitality": 39,
+}
+
+def _current_treasury_rate() -> float:
+    """Read 10-yr Treasury yield from rates cache; default 4.5%."""
+    try:
+        d = _read("rates")
+        for field in ["DGS10", "ten_year_yield", "treasury_10y", "10yr"]:
+            v = d.get(field)
+            if isinstance(v, (int, float)) and 0.5 < v < 20:
+                return v / 100
+        # Try nested fred block
+        fred = d.get("fred_rates", d.get("fred", {}))
+        if isinstance(fred, dict):
+            for field in ["DGS10", "10Y"]:
+                v = fred.get(field)
+                if isinstance(v, (int, float)) and 0.5 < v < 20:
+                    return v / 100
+    except Exception:
+        pass
+    return 0.045
+
+
+def estimate_financing(primary: dict, property_type: str,
+                        financials: dict, timeline_years: int) -> dict:
+    """Debt structure, DSCR, cash-on-cash, and leveraged IRR."""
+    pt = property_type.split("/")[0].strip()
+    total_cost = financials.get("total_cost", 0)
+    noi = financials.get("annual_noi", 0)
+
+    ltv    = _LTV_MAP.get(pt, 0.65)
+    amort  = _AMORT_MAP.get(pt, 25)
+    spread = 0.015 if pt == "Multifamily" else 0.020
+    rate   = _current_treasury_rate() + spread
+
+    loan      = total_cost * ltv
+    equity    = total_cost - loan
+    r_mo      = rate / 12
+    n_mo      = amort * 12
+    mo_pmt    = (loan * r_mo / (1 - (1 + r_mo) ** (-n_mo))) if r_mo > 0 else loan / n_mo
+    ann_ds    = mo_pmt * 12
+    cf_ds     = noi - ann_ds
+    dscr      = noi / ann_ds if ann_ds > 0 else 0
+    coc       = cf_ds / equity if equity > 0 else 0
+
+    # Loan balance at exit
+    n_paid    = timeline_years * 12
+    if r_mo > 0:
+        bal_exit = loan * (1 + r_mo) ** n_paid - mo_pmt * ((1 + r_mo) ** n_paid - 1) / r_mo
+    else:
+        bal_exit = loan - (loan / n_mo) * n_paid
+    bal_exit  = max(0.0, bal_exit)
+
+    exit_val  = financials.get("exit_value", total_cost)
+    eq_exit   = exit_val - bal_exit
+    total_eq_ret = eq_exit - equity + cf_ds * timeline_years
+
+    # Leveraged IRR via bisection
+    cfs = [-equity] + [cf_ds] * timeline_years
+    cfs[-1] += eq_exit
+    try:
+        lo, hi = -0.9, 10.0
+        for _ in range(60):
+            mid = (lo + hi) / 2
+            npv = sum(c / (1 + mid) ** t for t, c in enumerate(cfs))
+            if npv > 0: lo = mid
+            else:       hi = mid
+        lev_irr = mid
+    except Exception:
+        lev_irr = 0.0
+
+    return {
+        "ltv_pct":             round(ltv * 100, 1),
+        "loan_amount":         round(loan),
+        "equity_required":     round(equity),
+        "loan_rate_pct":       round(rate * 100, 2),
+        "amort_years":         amort,
+        "annual_debt_service": round(ann_ds),
+        "dscr":                round(dscr, 2),
+        "cash_flow_after_ds":  round(cf_ds),
+        "cash_on_cash_pct":    round(coc * 100, 2),
+        "loan_balance_exit":   round(bal_exit),
+        "equity_at_exit":      round(eq_exit),
+        "leveraged_irr_pct":   round(lev_irr * 100, 2),
+        "leveraged_roi_pct":   round(total_eq_ret / equity * 100, 1) if equity > 0 else 0,
+    }
+
+
+def estimate_proforma(property_type: str, financials: dict,
+                       financing: dict, primary: dict,
+                       timeline_years: int) -> list[dict]:
+    """Year-by-year 10-year operating pro forma."""
+    pt          = property_type.split("/")[0].strip()
+    gross_yr1   = financials.get("annual_gross_revenue", financials.get("annual_noi", 0) / max(1 - _OPEX_RATIO.get(pt, 0.35), 0.01))
+    opex_ratio  = _OPEX_RATIO.get(pt, 0.35)
+    vac_rate    = _STAB_VAC.get(pt, 0.08)
+    rent_g      = (primary.get("rent_growth", 3.0)) / 100
+    opex_inf    = 0.025
+    ann_ds      = financing.get("annual_debt_service", 0)
+    opex_base   = gross_yr1 * opex_ratio
+
+    rows, cum_cf = [], 0
+    gross = gross_yr1
+    for yr in range(1, min(int(timeline_years), 10) + 1):
+        if yr > 1:
+            gross *= (1 + rent_g)
+        yr_vac = min(vac_rate * 1.6, 0.25) if yr == 1 else vac_rate
+        vac_loss = gross * yr_vac
+        egi      = gross - vac_loss
+        opex     = opex_base * (1 + opex_inf) ** (yr - 1)
+        noi      = egi - opex
+        cf       = noi - ann_ds
+        cum_cf  += cf
+        rows.append({
+            "year":          yr,
+            "gross_revenue": round(gross),
+            "vacancy_loss":  round(vac_loss),
+            "egi":           round(egi),
+            "opex":          round(opex),
+            "noi":           round(noi),
+            "debt_service":  round(ann_ds),
+            "cf_after_ds":   round(cf),
+            "cum_cf":        round(cum_cf),
+        })
+    return rows
+
+
+def estimate_tax_benefits(property_type: str, financials: dict,
+                            primary: dict) -> dict:
+    """Depreciation schedule, cost-segregation tax shield, and OZ benefits."""
+    pt           = property_type.split("/")[0].strip()
+    total_cost   = financials.get("total_cost", 0)
+
+    land_pct     = 0.10 if pt == "Data Center" else 0.20
+    bldg_val     = total_cost * (1 - land_pct)
+    land_val     = total_cost * land_pct
+
+    # Cost-segregation allocation
+    pp_val  = bldg_val * 0.15   # 5-yr personal property
+    li_val  = bldg_val * 0.10   # 15-yr land improvements
+    str_val = bldg_val * 0.75   # 39-yr (or 27.5) structure
+
+    struct_life  = _DEPR_LIFE.get(pt, 39)
+    bonus_pct    = 0.40          # 2025 bonus depreciation (40%)
+
+    # Year-1 depreciation
+    yr1_depr = (
+        pp_val  * bonus_pct + (pp_val  * (1 - bonus_pct)) / 5 +
+        li_val  * bonus_pct + (li_val  * (1 - bonus_pct)) / 15 +
+        str_val / struct_life
+    )
+    # Years 2+ regular annual
+    ann_reg = (
+        (pp_val  * (1 - bonus_pct)) / 5 +
+        (li_val  * (1 - bonus_pct)) / 15 +
+        str_val / struct_life
+    )
+
+    tax_rate      = 0.37
+    yr1_shield    = yr1_depr  * tax_rate
+    ann_shield    = ann_reg   * tax_rate
+    cum10_savings = yr1_shield + ann_shield * 9
+
+    oz_eligible   = bool(primary.get("oz_eligible", False))
+    oz_note = (
+        "OZ Fund eligible: defer capital gains through 2026, "
+        "exclude 10-year appreciation from federal CGT entirely."
+        if oz_eligible else ""
+    )
+
+    return {
+        "land_value":           round(land_val),
+        "building_value":       round(bldg_val),
+        "personal_prop_value":  round(pp_val),
+        "land_improv_value":    round(li_val),
+        "structure_value":      round(str_val),
+        "struct_depr_life":     struct_life,
+        "bonus_depr_pct":       int(bonus_pct * 100),
+        "yr1_depreciation":     round(yr1_depr),
+        "yr1_tax_shield":       round(yr1_shield),
+        "annual_depr_reg":      round(ann_reg),
+        "annual_tax_shield":    round(ann_shield),
+        "cum10_tax_savings":    round(cum10_savings),
+        "tax_rate_pct":         int(tax_rate * 100),
+        "oz_eligible":          oz_eligible,
+        "oz_note":              oz_note,
+    }
+
+
 # ── Property type normalization ───────────────────────────────────────────────
 
 _PROP_SYNONYMS = {
@@ -664,23 +882,30 @@ def estimate_financials(market: dict, property_type: str, budget: float,
 
     buildout_months = _BUILDOUT_MONTHS_BASE.get(property_type, 18) + time_delta
 
+    # Gross revenue estimate (sqft × market rent PSF)
+    pt_key = property_type.split("/")[0].strip()
+    rent_psf = _RENT_PSF.get(pt_key, 18.0)
+    annual_gross_revenue = sqft * rent_psf
+
     return {
-        "land_cost":        round(land_cost),
-        "construction_cost": round(construction),
-        "soft_costs":        round(soft_costs),
-        "total_cost":        round(total_cost),
-        "annual_noi":        round(annual_noi),
-        "cap_rate_pct":      market.get("cap_rate", 6.0),
-        "rent_growth_pct":   market.get("rent_growth", 3.0),
-        "total_noi":         round(total_noi),
-        "exit_value":        round(exit_value),
-        "total_profit":      round(total_profit),
-        "roi_pct":           round(roi_pct, 1),
-        "irr_est":           round(irr_est, 1),
-        "buildout_months":   buildout_months,
-        "energy_signal":     energy_signal,
-        "sqft":              sqft,
-        "budget_input":      budget,
+        "land_cost":             round(land_cost),
+        "construction_cost":     round(construction),
+        "soft_costs":            round(soft_costs),
+        "total_cost":            round(total_cost),
+        "annual_gross_revenue":  round(annual_gross_revenue),
+        "annual_noi":            round(annual_noi),
+        "cap_rate_pct":          market.get("cap_rate", 6.0),
+        "rent_growth_pct":       market.get("rent_growth", 3.0),
+        "total_noi":             round(total_noi),
+        "exit_value":            round(exit_value),
+        "total_profit":          round(total_profit),
+        "roi_pct":               round(roi_pct, 1),
+        "irr_est":               round(irr_est, 1),
+        "buildout_months":       buildout_months,
+        "hold_years":            timeline_years,
+        "energy_signal":         energy_signal,
+        "sqft":                  sqft,
+        "budget_input":          budget,
     }
 
 # ── Step 7: Generate Groq narrative ──────────────────────────────────────────
@@ -768,9 +993,12 @@ def build_recommendation(params: dict) -> dict:
     if not scored:
         return {"error": "No market data available for the requested location."}
 
-    primary  = scored[0]
-    runners  = scored[1:3]
+    primary    = scored[0]
+    runners    = scored[1:3]
     financials = estimate_financials(primary, property_type, budget, sqft, timeline_years)
+    financing  = estimate_financing(primary, property_type, financials, timeline_years)
+    proforma   = estimate_proforma(property_type, financials, financing, primary, timeline_years)
+    tax        = estimate_tax_benefits(property_type, financials, primary)
     narrative  = generate_narrative(params, primary, runners, financials, weights)
 
     return {
@@ -779,6 +1007,9 @@ def build_recommendation(params: dict) -> dict:
         "primary":        primary,
         "runners":        runners,
         "financials":     financials,
+        "financing":      financing,
+        "proforma":       proforma,
+        "tax_benefits":   tax,
         "weights":        weights,
         "narrative":      narrative,
         "all_scored":     scored,
