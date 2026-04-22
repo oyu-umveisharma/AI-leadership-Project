@@ -431,6 +431,39 @@ def _parse_intent(raw: str) -> dict:
         if cleaned:
             location = " ".join(cleaned)
 
+    # Fallback 1: "near [X]" pattern — e.g., "near University of Tennessee"
+    if not location:
+        _near_m = _re.search(r'(?:^|\b)near\s+(?:the\s+|a\s+)?(.+?)(?:\s*$|[,.])', raw, _re.IGNORECASE)
+        if _near_m:
+            _cand = _near_m.group(1).strip()
+            # "University of [State]" → extract state
+            _om = _re.search(r'\bof\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', _cand)
+            if _om and _om.group(1).lower() in _STATE_NAME_TO_ABBR:
+                location = _US_STATES[_STATE_NAME_TO_ABBR[_om.group(1).lower()]]
+            elif _cand.lower() in _STATE_NAME_TO_ABBR:
+                location = _US_STATES[_STATE_NAME_TO_ABBR[_cand.lower()]]
+            elif _cand.upper() in _US_STATES:
+                location = _US_STATES[_cand.upper()]
+            elif _cand.lower() in _CITY_TO_STATE:
+                _ca = _CITY_TO_STATE[_cand.lower()]
+                location = _cand.title() + ", " + _US_STATES[_ca]
+            else:
+                location = _cand
+
+    # Fallback 2: state name appears anywhere in the input
+    if not location:
+        for _sn, _sa in _STATE_NAME_TO_ABBR.items():
+            if _re.search(r'\b' + _re.escape(_sn) + r'\b', raw_lower):
+                location = _US_STATES[_sa]
+                break
+
+    # Fallback 3: known city name appears anywhere in the input
+    if not location:
+        for _cn, _ca in _CITY_TO_STATE.items():
+            if _re.search(r'\b' + _re.escape(_cn) + r'\b', raw_lower):
+                location = _cn.title() + ", " + _US_STATES[_ca]
+                break
+
     # If we detected a region, don't treat it as a city/state location
     if region and not location:
         location = region
