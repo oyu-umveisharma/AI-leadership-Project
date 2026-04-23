@@ -1244,61 +1244,138 @@ if not st.session_state.onboarding_complete:
     """, unsafe_allow_html=True)
 
     # ── Property type cards (native buttons for reliable click handling) ───────
-    st.markdown("""
+    import base64 as _b64
+
+    def _svg_uri(s: str) -> str:
+        return "data:image/svg+xml;base64," + _b64.b64encode(s.strip().encode()).decode()
+
+    _SVG_INDUSTRIAL = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="20" width="38" height="21" rx="1.5"/>
+  <rect x="7" y="24" width="7" height="7"/><rect x="18" y="24" width="7" height="7"/><rect x="29" y="24" width="7" height="7"/>
+  <rect x="7" y="34" width="7" height="7"/><rect x="18" y="34" width="7" height="7"/><rect x="29" y="34" width="7" height="7"/>
+  <path d="M3 20L13 13v7M13 20L23 13v7M23 20L33 13v7"/>
+  <line x1="3" y1="20" x2="41" y2="20"/>
+</svg>''')
+
+    _SVG_MULTIFAMILY = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="3" width="11" height="11" rx="2"/><rect x="17" y="3" width="11" height="11" rx="2"/><rect x="30" y="3" width="11" height="11" rx="2"/>
+  <rect x="3" y="17" width="11" height="11" rx="2"/><rect x="17" y="17" width="11" height="11" rx="2"/><rect x="30" y="17" width="11" height="11" rx="2"/>
+  <rect x="3" y="30" width="11" height="11" rx="2"/><rect x="17" y="30" width="11" height="11" rx="2"/><rect x="30" y="30" width="11" height="11" rx="2"/>
+</svg>''')
+
+    _SVG_OFFICE = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="5" y="4" width="34" height="36" rx="2.5"/>
+  <line x1="15" y1="4" x2="15" y2="40"/>
+  <line x1="5" y1="15" x2="39" y2="15"/>
+  <line x1="5" y1="25" x2="39" y2="25"/>
+  <line x1="5" y1="35" x2="39" y2="35"/>
+</svg>''')
+
+    _SVG_RETAIL = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="4" y="20" width="36" height="21" rx="1"/>
+  <path d="M2 11h40l2 9H0l4-9z"/>
+  <rect x="17" y="28" width="10" height="13"/>
+  <rect x="6" y="25" width="8" height="7" rx="1"/>
+  <rect x="30" y="25" width="8" height="7" rx="1"/>
+</svg>''')
+
+    _SVG_HEALTHCARE = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="4" y="16" width="36" height="24" rx="3"/>
+  <path d="M15 16v-5a2 2 0 012-2h10a2 2 0 012 2v5"/>
+  <line x1="22" y1="23" x2="22" y2="33"/>
+  <line x1="17" y1="28" x2="27" y2="28"/>
+</svg>''')
+
+    _SVG_GLOBE = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="22" cy="22" r="19"/>
+  <ellipse cx="22" cy="22" rx="9" ry="19"/>
+  <line x1="3" y1="22" x2="41" y2="22"/>
+  <path d="M6 13h32M6 31h32"/>
+</svg>''')
+
+    _PROP_LABELS = {
+        "Industrial":  ("INDUSTRIAL",  _SVG_INDUSTRIAL),
+        "Multifamily": ("MULTIFAMILY", _SVG_MULTIFAMILY),
+        "Office":      ("OFFICE",      _SVG_OFFICE),
+        "Retail":      ("RETAIL",      _SVG_RETAIL),
+        "Healthcare":  ("HEALTHCARE",  _SVG_HEALTHCARE),
+        "Exploring":   ("BROWSE\nALL", _SVG_GLOBE),
+    }
+
+    st.markdown(f"""
 <style>
-  /* Property card button styling */
-  div[data-testid="stHorizontalBlock"].prop-row > div[data-testid="column"] > div[data-testid="stVerticalBlock"] {
-    gap: 0 !important;
-  }
-  .prop-card-btn > div[data-testid="stButton"] > button {
-    background: #0d0b04 !important;
-    border: 1px solid rgba(200,160,64,.25) !important;
-    border-top: 2px solid rgba(200,160,64,.55) !important;
-    border-radius: 10px !important;
-    padding: 20px 8px 16px !important;
-    color: #c8a040 !important;
-    font-size: .6rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 2.5px !important;
+  .prop-card-btn > div[data-testid="stButton"] > button {{
+    background: #161006 !important;
+    border: 1px solid rgba(180,145,50,.38) !important;
+    border-radius: 12px !important;
+    padding: 32px 10px 22px !important;
+    color: #a07828 !important;
+    font-size: .58rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 3px !important;
     text-transform: uppercase !important;
     width: 100% !important;
-    min-height: 86px !important;
-    transition: all .2s !important;
+    min-height: 148px !important;
+    transition: border-color .2s, box-shadow .2s, background .2s !important;
     cursor: pointer !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
-    gap: 8px !important;
-    box-shadow: 0 1px 8px rgba(0,0,0,.4) !important;
-  }
+    justify-content: flex-end !important;
+    gap: 0 !important;
+    line-height: 1.5 !important;
+    box-shadow: none !important;
+    position: relative !important;
+  }}
+  .prop-card-btn > div[data-testid="stButton"] > button::before {{
+    content: "" !important;
+    display: block !important;
+    width: 44px !important;
+    height: 44px !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: contain !important;
+    flex-shrink: 0 !important;
+    margin-bottom: 18px !important;
+  }}
+  /* Per-card icon injection */
+  .prop-card-Industrial > div[data-testid="stButton"] > button::before {{
+    background-image: url("{_SVG_INDUSTRIAL}") !important;
+  }}
+  .prop-card-Multifamily > div[data-testid="stButton"] > button::before {{
+    background-image: url("{_SVG_MULTIFAMILY}") !important;
+  }}
+  .prop-card-Office > div[data-testid="stButton"] > button::before {{
+    background-image: url("{_SVG_OFFICE}") !important;
+  }}
+  .prop-card-Retail > div[data-testid="stButton"] > button::before {{
+    background-image: url("{_SVG_RETAIL}") !important;
+  }}
+  .prop-card-Healthcare > div[data-testid="stButton"] > button::before {{
+    background-image: url("{_SVG_HEALTHCARE}") !important;
+  }}
+  .prop-card-Exploring > div[data-testid="stButton"] > button::before {{
+    background-image: url("{_SVG_GLOBE}") !important;
+  }}
   .prop-card-btn > div[data-testid="stButton"] > button:hover,
-  .prop-card-btn > div[data-testid="stButton"] > button:focus {
-    background: #1a1500 !important;
-    border-color: #c8a040 !important;
-    border-top-color: #d4a843 !important;
-    color: #d4a843 !important;
-    box-shadow: 0 0 14px rgba(200,160,64,.18) !important;
-  }
+  .prop-card-btn > div[data-testid="stButton"] > button:focus {{
+    background: #1e1608 !important;
+    border-color: rgba(200,160,64,.7) !important;
+    color: #c8a040 !important;
+    box-shadow: 0 0 18px rgba(180,145,50,.12) !important;
+    outline: none !important;
+  }}
 </style>
 <div class="cre-wrap" style="padding-bottom:0;">
   <div class="prop-hdr">OR SELECT A PROPERTY TYPE</div>
 </div>
 """, unsafe_allow_html=True)
 
-    _PROP_LABELS = {
-        "Industrial":  ("🏭", "Industrial"),
-        "Multifamily": ("🏢", "Multifamily"),
-        "Office":      ("🏛", "Office"),
-        "Retail":      ("🏪", "Retail"),
-        "Healthcare":  ("🏥", "Healthcare"),
-        "Exploring":   ("🌐", "Browse All"),
-    }
-
     _pcols = st.columns(len(_PROP_LABELS))
-    for _pcol, (_pname, (_picon, _plbl)) in zip(_pcols, _PROP_LABELS.items()):
+    for _pcol, (_pname, (_plbl, _psvg)) in zip(_pcols, _PROP_LABELS.items()):
         with _pcol:
-            st.markdown('<div class="prop-card-btn">', unsafe_allow_html=True)
-            if st.button(f"{_picon}\n{_plbl.upper()}", key=f"propcard_{_pname}", use_container_width=True):
+            st.markdown(f'<div class="prop-card-btn prop-card-{_pname}">', unsafe_allow_html=True)
+            if st.button(_plbl, key=f"propcard_{_pname}", use_container_width=True):
                 if _pname == "Exploring":
                     _complete_onboarding()
                 else:
