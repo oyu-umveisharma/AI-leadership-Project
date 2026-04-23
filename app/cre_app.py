@@ -4551,6 +4551,95 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
 """
             st.markdown(_md_html, unsafe_allow_html=True)
 
+        # ── Property Demand Score ────────────────────────────────────────────
+        if _vac_focus_col and mkt_rows:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(f" Property Demand Score — {_vac_focus_col}")
+            st.markdown(
+                f"Composite market health score for **{_vac_focus_col}** — combines vacancy tightness "
+                f"and net absorption signal. Higher = tighter supply/demand balance.",
+                unsafe_allow_html=False,
+            )
+
+            # Per-type weights: (vacancy_weight, absorption_weight)
+            _pds_weights = {
+                "Industrial":  (0.50, 0.50),
+                "Multifamily": (0.60, 0.40),
+                "Office":      (0.70, 0.30),
+                "Retail":      (0.55, 0.45),
+                "Mixed-Use":   (0.55, 0.45),
+            }
+            _w_vac, _w_abs = _pds_weights.get(_vac_focus_col, (0.60, 0.40))
+
+            # Build market→vacancy map for focused type
+            _pds_vac: dict = {}
+            for _r in mkt_rows:
+                if _r.get("property_type") == _vac_focus_col:
+                    _pds_vac[_r["market"]] = float(_r.get("vacancy_rate", 10.0))
+
+            # Build market→absorption map for focused type
+            _pds_abs: dict = {}
+            for _r in vac_data.get("absorption_rows", []):
+                if _r.get("property_type") == _vac_focus_col:
+                    _pds_abs[_r["market"]] = float(_r.get("net_absorption_ksf", 0))
+
+            # Normalize helpers
+            def _norm(v, lo, hi, inv=False):
+                if hi == lo: return 50.0
+                s = max(0.0, min(100.0, (v - lo) / (hi - lo) * 100))
+                return round(100.0 - s if inv else s, 1)
+
+            _all_markets_pds = sorted(set(list(_pds_vac.keys()) + list(_pds_abs.keys())))
+            _pds_rows = []
+            for _m in _all_markets_pds:
+                _vv = _pds_vac.get(_m, 10.0)
+                _av = _pds_abs.get(_m, 0)
+                _vs = _norm(_vv, 4.0, 25.0, inv=True)
+                _as = _norm(_av, -2000, 8000)
+                _ds = round(_w_vac * _vs + _w_abs * _as, 1)
+                _grade = "A" if _ds >= 75 else ("B" if _ds >= 55 else ("C" if _ds >= 40 else "D"))
+                _pds_rows.append({"market": _m, "score": _ds, "vac_score": _vs, "abs_score": _as,
+                                   "vacancy": _vv, "absorption": _av, "grade": _grade})
+
+            _pds_rows.sort(key=lambda x: x["score"], reverse=True)
+
+            # Render as horizontal bar chart
+            _pds_df = pd.DataFrame(_pds_rows)
+            _pds_colors = [
+                "#66bb6a" if r >= 70 else ("#d4a843" if r >= 50 else "#ef5350")
+                for r in _pds_df["score"]
+            ]
+            fig_pds = go.Figure(go.Bar(
+                x=_pds_df["score"], y=_pds_df["market"], orientation="h",
+                marker_color=_pds_colors,
+                text=[f"{r['grade']}  {r['score']:.0f}" for r in _pds_rows],
+                textposition="outside", textfont=dict(color="#c8b890", size=10),
+                customdata=_pds_df[["vacancy", "absorption", "vac_score", "abs_score"]].values,
+                hovertemplate=(
+                    "<b>%{y}</b><br>"
+                    f"Demand Score: %{{x:.0f}}<br>"
+                    f"Vacancy Rate: %{{customdata[0]:.1f}}%<br>"
+                    f"Absorption: %{{customdata[1]:,.0f}} ksf<br>"
+                    f"Vac Component: %{{customdata[2]:.0f}} (×{_w_vac:.0%})<br>"
+                    f"Abs Component: %{{customdata[3]:.0f}} (×{_w_abs:.0%})"
+                    "<extra></extra>"
+                ),
+            ))
+            fig_pds.update_layout(
+                xaxis=dict(range=[0, 115], gridcolor="#2a2208", tickfont=dict(color="#c8b890"),
+                           title="Demand Score (0–100)", title_font=dict(color="#7a7050")),
+                yaxis=dict(autorange="reversed", tickfont=dict(color="#c8b890", size=11)),
+                plot_bgcolor="#0d0b04", paper_bgcolor="#13110a",
+                margin=dict(t=10, b=20, l=180, r=60), height=460,
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(fig_pds, use_container_width=True, config={"displayModeBar": False})
+            st.caption(
+                f"Vacancy component (×{_w_vac:.0%}): inverted vacancy rate — lower vacancy = higher score. "
+                f"Absorption component (×{_w_abs:.0%}): positive net absorption = higher score. "
+                "Weights are property-type specific."
+            )
+
         # ── Absorption Rate ──────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
         section(" Net Absorption — Q1 2025 (thousands sq ft)")
@@ -4588,7 +4677,8 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             abs_df = pd.DataFrame(abs_rows)
 
             _pt_options = ["Industrial", "Office", "Retail", "Multifamily"]
-            _sel_pt = st.selectbox("Property Type", _pt_options, key="abs_pt_sel")
+            _abs_default_idx = _pt_options.index(_vac_focus_col) if _vac_focus_col in _pt_options else 0
+            _sel_pt = st.selectbox("Property Type", _pt_options, index=_abs_default_idx, key="abs_pt_sel")
             _abs_filtered = abs_df[abs_df["property_type"] == _sel_pt].sort_values(
                 "net_absorption_ksf", ascending=True
             )
