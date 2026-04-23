@@ -1876,11 +1876,13 @@ except Exception:
 _hdr_intent   = st.session_state.user_intent
 _hdr_focus_pt = _hdr_intent.get("property_type")
 _hdr_focus_loc = _hdr_intent.get("city") or _hdr_intent.get("state") or ""
-_hdr_focus_pill = ""
+# Always non-empty so the markdown parser never sees a blank line followed by
+# 4-space-indented HTML (which it would interpret as a code block).
+_hdr_focus_pill = '<span style="flex:1;min-width:0;"></span>'
 if _hdr_focus_pt:
     _hdr_pill_txt = _hdr_focus_pt + (f" · {_hdr_focus_loc}" if _hdr_focus_loc else "")
     _hdr_focus_pill = (
-        f'<div style="display:flex;align-items:center;gap:8px;margin:0 auto;">'
+        f'<div style="flex:1;display:flex;align-items:center;justify-content:center;">'
         f'<div style="background:#0d1a0d;border:1px solid #2a5a2a;border-radius:20px;'
         f'padding:4px 14px;display:flex;align-items:center;gap:7px;">'
         f'<span style="width:7px;height:7px;border-radius:50%;background:#4caf50;display:inline-block;flex-shrink:0;"></span>'
@@ -1907,9 +1909,7 @@ st.markdown(f"""
         <div style="font-size:15px; font-weight:600; color:#d4a843; letter-spacing:0.02em; line-height:1.2;">CRE Intelligence Platform</div>
         <div style="font-size:9px; color:#4a3820; letter-spacing:0.14em; text-transform:uppercase; margin-top:1px;">AI-Powered Commercial Real Estate Intelligence</div>
       </div>
-    </div>
-    {_hdr_focus_pill}
-    <div style="text-align:right;">
+    </div>{_hdr_focus_pill}<div style="text-align:right;">
       <div style="font-size:12px; font-weight:500; color:#c8a040;">Purdue University</div>
       <div style="font-size:10px; color:#5a4020; letter-spacing:0.08em; text-transform:uppercase; margin-top:1px;">Daniels School · MSF</div>
     </div>
