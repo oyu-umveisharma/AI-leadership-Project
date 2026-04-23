@@ -5657,6 +5657,53 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             _rg_focus_lbl = _PT_RG_LBL.get(_rg_pt_focus) if _rg_pt_focus else None
             _rg_focus_key = _PT_RG_KEY.get(_rg_pt_focus) if _rg_pt_focus else None
 
+            # ── One-line insight for focused type ─────────────────────────────
+            if _rg_pt_focus and _rg_focus_key and _rg_market:
+                # Build ranked list of markets by focused type's rent growth
+                _rg_insight_rows = []
+                for _im, _id in _rg_market.items():
+                    _iv = _id.get(_rg_focus_key)
+                    if _iv is not None:
+                        _rg_insight_rows.append((_im, float(_iv)))
+                _rg_insight_rows.sort(key=lambda x: x[1], reverse=True)
+
+                if _rg_insight_rows:
+                    _ig_top_mkt, _ig_top_val = _rg_insight_rows[0]
+                    _ig_nat_val = (_rg_national.get(_rg_pt_focus) or {}).get("yoy_pct", 0)
+                    _ig_rank_of = len(_rg_insight_rows)
+                    _ig_vs_nat  = round(_ig_top_val - _ig_nat_val, 1)
+                    _ig_color   = "#66bb6a" if _ig_top_val > 0 else "#ef5350"
+                    _ig_vs_c    = "#66bb6a" if _ig_vs_nat > 0 else "#ef5350"
+                    _ig_unit    = "%" if _rg_pt_focus == "Multifamily" else "% PSF"
+                    st.markdown(
+                        f'<div style="background:#0d1a0d;border:1px solid #2a4a2a;border-radius:8px;'
+                        f'padding:12px 18px;margin-bottom:8px;display:flex;align-items:center;gap:16px;'
+                        f'flex-wrap:wrap;">'
+                        f'<span style="font-size:1.4rem;font-weight:700;color:{_ig_color};">'
+                        f'{_ig_top_val:+.1f}{_ig_unit}</span>'
+                        f'<span style="color:#c8d8c8;font-size:0.9rem;">'
+                        f'<b>{_ig_top_mkt}</b> leads {_rg_pt_focus} rent growth — '
+                        f'<span style="color:{_ig_vs_c};">{_ig_vs_nat:+.1f}pp vs. national avg</span>'
+                        f'</span>'
+                        f'<span style="margin-left:auto;font-size:0.75rem;color:#4a7a4a;">'
+                        f'#1 of {_ig_rank_of} tracked markets</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    # Bottom market insight
+                    _ig_bot_mkt, _ig_bot_val = _rg_insight_rows[-1]
+                    _ig_bot_c = "#ef5350" if _ig_bot_val < 0 else "#d4a843"
+                    st.markdown(
+                        f'<div style="background:#1a0d0d;border:1px solid #4a2a2a;border-radius:8px;'
+                        f'padding:10px 18px;margin-bottom:12px;font-size:0.82rem;color:#c8a8a8;">'
+                        f'Weakest: <b>{_ig_bot_mkt}</b> at '
+                        f'<span style="color:{_ig_bot_c};font-weight:700;">{_ig_bot_val:+.1f}{_ig_unit}</span>'
+                        f' — #{_ig_rank_of} of {_ig_rank_of} markets'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
             # ── National overview ─────────────────────────────────────────────
             section(" National Rent Growth by Property Type (YoY %)")
             _rg_ncols = st.columns(len(_rg_national))
