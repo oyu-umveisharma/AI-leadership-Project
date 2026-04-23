@@ -9245,6 +9245,7 @@ with main_tab_about:
             ("climate_risk",        "Every 24h"),
             ("market_score",        "Every 6h"),
             ("opportunity_zone",    "Every 24h"),
+            ("forecast",            "Every 6h"),
             ("news",                "Every 4h"),
         ]
         _cc_cols = st.columns(5)
