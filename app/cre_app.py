@@ -8383,6 +8383,37 @@ with main_tab_advisor:
     if _home_prompt and not st.session_state.get("adv_prompt_text"):
         st.session_state["adv_prompt_text"] = _home_prompt
 
+    # Pre-fill from global intent if text area is still empty
+    _adv_intent    = st.session_state.user_intent
+    _adv_intent_pt = _adv_intent.get("property_type")
+    _adv_intent_loc = _adv_intent.get("city") or _adv_intent.get("state") or _adv_intent.get("location")
+
+    if _adv_intent_pt and not st.session_state.get("adv_prompt_text") and not st.session_state.get("adv_result"):
+        _adv_pt_hints = {
+            "Industrial":  ("warehouse / industrial facility", "10,000 sq ft", "$5M"),
+            "Multifamily": ("multifamily / apartment complex", "24 units",     "$8M"),
+            "Office":      ("office building",                  "8,000 sq ft",  "$4M"),
+            "Retail":      ("retail strip center",              "5,000 sq ft",  "$3M"),
+            "Healthcare":  ("medical office / healthcare",       "6,000 sq ft",  "$4M"),
+        }
+        _adv_hint = _adv_pt_hints.get(_adv_intent_pt, (_adv_intent_pt.lower(), "10,000 sq ft", "$5M"))
+        _adv_loc_str = f" in {_adv_intent_loc}" if _adv_intent_loc else ""
+        st.session_state["adv_prompt_text"] = (
+            f"I want to invest in a {_adv_hint[0]}{_adv_loc_str} — "
+            f"approximately {_adv_hint[1]} with a {_adv_hint[2]} budget over a 5-year hold"
+        )
+
+    # Context banner when intent is populated
+    if _adv_intent_pt:
+        _adv_ctx_loc = f" · {_adv_intent_loc}" if _adv_intent_loc else ""
+        st.markdown(
+            f'<div style="background:#0d1a0d;border:1px solid #2a4a2a;border-radius:7px;'
+            f'padding:8px 14px;margin-bottom:8px;font-size:0.8rem;color:#7ab07a;">'
+            f'Session focus: <b style="color:#a0d0a0;">{_adv_intent_pt}{_adv_ctx_loc}</b> — '
+            f'prompt pre-filled from your selection. Edit freely.</div>',
+            unsafe_allow_html=True,
+        )
+
     # ── Input area ────────────────────────────────────────────────────────────
     st.markdown("""
 <div style="background:#16140a;border:1px solid #3a3020;border-radius:8px;
