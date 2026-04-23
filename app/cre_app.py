@@ -2387,6 +2387,80 @@ with main_tab_re:
         mig_df   = pd.DataFrame(data["migration"])
         metros_df = pd.DataFrame(data["metros"])
 
+        # ── Property-type scoring helpers ──────────────────────────────────────
+        # State-level: re-weight composite score by property type
+        _PT_STATE_W = {
+            "Industrial":  {"biz": 0.60, "pop": 0.20, "comp": 0.20},
+            "Multifamily": {"biz": 0.20, "pop": 0.60, "comp": 0.20},
+            "Office":      {"biz": 0.50, "pop": 0.20, "comp": 0.30},
+            "Retail":      {"biz": 0.30, "pop": 0.50, "comp": 0.20},
+            "Healthcare":  {"biz": 0.25, "pop": 0.55, "comp": 0.20},
+        }
+        # Neighborhood zone suitability: 0=poor, 1=ok, 2=best
+        _PT_ZONE_RANK = {
+            "Industrial":  {"Urban Core": 0, "Suburban": 1, "Exurban": 2},
+            "Multifamily": {"Urban Core": 2, "Suburban": 1, "Exurban": 0},
+            "Office":      {"Urban Core": 2, "Suburban": 1, "Exurban": 0},
+            "Retail":      {"Urban Core": 2, "Suburban": 1, "Exurban": 0},
+            "Healthcare":  {"Urban Core": 1, "Suburban": 2, "Exurban": 0},
+        }
+        _PT_ZONE_LABEL = {0: "Low", 1: "Moderate", 2: "Best Fit"}
+
+        def _pt_state_score(row, pt):
+            biz  = float(row.get("biz_score", 50))
+            pop_n = max(0.0, min(100.0, (float(row.get("pop_growth_pct", 0)) + 3) / 8 * 100))
+            comp = float(row.get("composite_score", 50))
+            if not pt or pt not in _PT_STATE_W:
+                return comp
+            w = _PT_STATE_W[pt]
+            return round(w["biz"] * biz + w["pop"] * pop_n + w["comp"] * comp, 1)
+
+        def _pt_neighborhood_score(row, pt):
+            base = float(row.get("migration_score", 50))
+            pop  = float(row.get("pop_growth_pct", 0))
+            rent = float(row.get("median_rent_growth_pct", 0))
+            zone = row.get("neighborhood_type", "Suburban")
+            if not pt:
+                return base
+            pop_n  = max(0.0, min(100.0, (pop + 3) / 8 * 100))
+            rent_n = max(0.0, min(100.0, (rent + 5) / 15 * 100))
+            zr     = _PT_ZONE_RANK.get(pt, {}).get(zone, 1)
+            zone_n = zr / 2 * 100
+            if pt == "Industrial":
+                s = base*0.30 + pop_n*0.20 + rent_n*0.20 + zone_n*0.30
+            elif pt == "Multifamily":
+                s = base*0.30 + pop_n*0.35 + rent_n*0.20 + zone_n*0.15
+            elif pt == "Office":
+                s = base*0.35 + pop_n*0.20 + rent_n*0.15 + zone_n*0.30
+            elif pt == "Retail":
+                s = base*0.30 + pop_n*0.30 + rent_n*0.20 + zone_n*0.20
+            elif pt == "Healthcare":
+                s = base*0.25 + pop_n*0.40 + rent_n*0.10 + zone_n*0.25
+            else:
+                s = base
+            return round(max(0.0, min(100.0, s)), 1)
+
+        def _pt_county_score(row, pt):
+            base = float(row.get("migration_score", 50))
+            pop  = float(row.get("pop_growth_pct", 0))
+            if not pt:
+                return base
+            pop_n = max(0.0, min(100.0, (pop + 3) / 8 * 100))
+            driver = str(row.get("top_driver", "")).lower()
+            # Driver affinity bonus (+10 if driver matches property type)
+            _driver_affinity = {
+                "Industrial":  ["manufacturing", "logistics", "industrial", "warehouse", "port"],
+                "Multifamily": ["population", "housing", "migration", "university", "renter"],
+                "Office":      ["tech", "finance", "corporate", "hq", "professional"],
+                "Retail":      ["retail", "consumer", "tourism", "mixed-use", "commercial"],
+                "Healthcare":  ["medical", "healthcare", "hospital", "biotech", "senior"],
+            }
+            affinity = any(k in driver for k in _driver_affinity.get(pt, []))
+            bonus = 8.0 if affinity else 0.0
+            w = _PT_STATE_W.get(pt, {"biz": 0.33, "pop": 0.33, "comp": 0.34})
+            s = base * (w.get("comp", 0.3) + w.get("biz", 0.3)) + pop_n * w.get("pop", 0.3) + bonus
+            return round(max(0.0, min(100.0, s / (1 + bonus/100))), 1)
+
         # ── Intent-based highlighting ──────────────────────────────────────────
         _mig_intent = st.session_state.user_intent
         _mig_state = _mig_intent.get("state")
@@ -2438,6 +2512,34 @@ with main_tab_re:
                 f"You're looking for **{_mig_pt}** properties. "
                 f"Recommended market: **{_top['state_name']}** — #1 migration destination "
                 f"(Composite: {_top['composite_score']}, Pop Growth: {_top['pop_growth_pct']:+.1f}%)"
+            )
+
+        # ── Apply property-type re-weighting to state rankings ─────────────────
+        mig_df["pt_score"] = mig_df.apply(lambda r: _pt_state_score(r, _mig_pt), axis=1)
+        if _mig_pt:
+            # Preserve any location-based sort within the pt-reranked order
+            if _mig_abbr:
+                mig_df["_loc"] = (mig_df["state_abbr"] == _mig_abbr).astype(int)
+                mig_df = mig_df.sort_values(["_loc", "pt_score"], ascending=[False, False]).reset_index(drop=True)
+                mig_df = mig_df.drop(columns=["_loc"])
+            else:
+                mig_df = mig_df.sort_values("pt_score", ascending=False).reset_index(drop=True)
+            _pt_weights_desc = {
+                "Industrial":  "Business growth 60% · Pop growth 20% · Composite 20%",
+                "Multifamily": "Pop growth 60% · Business growth 20% · Composite 20%",
+                "Office":      "Business growth 50% · Composite 30% · Pop growth 20%",
+                "Retail":      "Pop growth 50% · Business growth 30% · Composite 20%",
+                "Healthcare":  "Pop growth 55% · Business growth 25% · Composite 20%",
+            }
+            st.markdown(
+                f'<div style="background:#0d1a0d;border:1px solid #2a4a2a;border-radius:8px;'
+                f'padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">'
+                f'<span style="color:#4caf50;font-size:1rem;">⬡</span>'
+                f'<span style="color:#c8d8c8;font-size:0.85rem;">'
+                f'Rankings re-weighted for <b style="color:#a0d0a0;">{_mig_pt}</b> — '
+                f'<span style="color:#5a8a5a;font-size:0.78rem;">{_pt_weights_desc.get(_mig_pt,"")}</span>'
+                f'</span></div>',
+                unsafe_allow_html=True,
             )
 
         # ── KPI strip (mockup stat cards) ─────────────────────────────────────
@@ -2632,12 +2734,19 @@ with main_tab_re:
 
                 # County table
                 section(f"County Rankings — {_US_STATES.get(_sel_state_abbr, _sel_state_abbr)}")
-                _cdisp = county_df.sort_values("migration_score", ascending=False)[
-                    ["name", "population", "pop_growth_pct", "migration_score", "top_driver"]
-                ].copy()
-                _cdisp.columns = ["County", "Population", "Pop Growth %", "Migration Score", "Key Driver"]
+                county_df["pt_score"] = county_df.apply(lambda r: _pt_county_score(r, _mig_pt), axis=1)
+                _county_sort_col = "pt_score" if _mig_pt else "migration_score"
+                _cdisp = county_df.sort_values(_county_sort_col, ascending=False).copy()
+                if _mig_pt:
+                    _cdisp = _cdisp[["name", "population", "pop_growth_pct", "migration_score", "pt_score", "top_driver"]]
+                    _cdisp.columns = ["County", "Population", "Pop Growth %", "Migration Score", f"{_mig_pt} Score", "Key Driver"]
+                    _cdisp[f"{_mig_pt} Score"] = _cdisp[f"{_mig_pt} Score"].apply(lambda x: f"{x:.0f}")
+                else:
+                    _cdisp = _cdisp[["name", "population", "pop_growth_pct", "migration_score", "top_driver"]]
+                    _cdisp.columns = ["County", "Population", "Pop Growth %", "Migration Score", "Key Driver"]
                 _cdisp["Population"] = _cdisp["Population"].apply(lambda x: f"{x:,}")
                 _cdisp["Pop Growth %"] = _cdisp["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
+                _cdisp["Migration Score"] = _cdisp["Migration Score"].apply(lambda x: f"{x:.0f}")
                 st.dataframe(_cdisp, use_container_width=True, hide_index=True)
 
         # ── METRO / NEIGHBORHOOD MAP ──────────────────────────────────────────
@@ -2714,34 +2823,37 @@ with main_tab_re:
                     _section_label = f"Area Migration — {_sel_metro} (estimated)"
                 section(_section_label)
 
-                # Color by score
-                _type_shapes = {"Urban Core": "circle", "Suburban": "diamond", "Exurban": "square"}
+                # Compute pt_score on zip_df before map (may not have been done yet if fallback path)
+                if "pt_score" not in zip_df.columns:
+                    zip_df["pt_score"] = zip_df.apply(lambda r: _pt_neighborhood_score(r, _mig_pt), axis=1)
+                _map_bubble_score = zip_df["pt_score"] if _mig_pt else zip_df["migration_score"]
+                _map_cbar_title   = f"{_mig_pt}\nScore" if _mig_pt else "Score"
                 fig_metro = go.Figure(go.Scattermapbox(
                     lat=zip_df["lat"], lon=zip_df["lon"],
                     mode="markers+text",
                     marker=dict(
-                        size=zip_df["migration_score"].clip(10, 95) / 5,
-                        color=zip_df["migration_score"],
+                        size=_map_bubble_score.clip(10, 95) / 5,
+                        color=_map_bubble_score,
                         colorscale=[
                             [0.0, "#7f0000"], [0.3, "#c62828"], [0.5, "#d4c5a9"],
                             [0.7, "#2e7d32"], [1.0, "#1b5e20"],
                         ],
                         cmin=0, cmax=100,
                         showscale=True,
-                        colorbar=dict(title=dict(text="Score", font=dict(color="#e8e9ed")),
+                        colorbar=dict(title=dict(text=_map_cbar_title, font=dict(color="#e8e9ed")),
                                       thickness=10, len=0.5,
                                       tickfont=dict(color="#e8e9ed")),
                     ),
                     text=zip_df["name"],
                     textposition="top center",
                     textfont=dict(size=9, color="#e8e9ed"),
-                    customdata=zip_df[["name", "migration_score", "pop_growth_pct", "median_rent_growth_pct", "neighborhood_type"]].values,
+                    customdata=zip_df[["name", "pt_score", "migration_score", "pop_growth_pct", "median_rent_growth_pct", "neighborhood_type"]].values,
                     hovertemplate=(
                         "<b>%{customdata[0]}</b><br>"
-                        "Score: %{customdata[1]}<br>"
-                        "Pop Growth: %{customdata[2]:+.1f}%<br>"
-                        "Rent Growth: %{customdata[3]:+.1f}%<br>"
-                        "Type: %{customdata[4]}<extra></extra>"
+                        + (f"{_mig_pt} Score: %{{customdata[1]:.0f}}<br>Migration Score: %{{customdata[2]:.0f}}<br>" if _mig_pt else "Score: %{customdata[2]:.0f}<br>")
+                        + "Pop Growth: %{customdata[3]:+.1f}%<br>"
+                        "Rent Growth: %{customdata[4]:+.1f}%<br>"
+                        "Type: %{customdata[5]}<extra></extra>"
                     ),
                 ))
                 _map_zoom = 9.5 if _use_fallback else 10.5
@@ -2758,15 +2870,53 @@ with main_tab_re:
                 )
                 st.plotly_chart(fig_metro, use_container_width=True, config={"displayModeBar": False})
 
-                # Neighborhood table
-                section(f"Neighborhood Rankings — {_sel_metro}")
-                _zdisp = zip_df.sort_values("migration_score", ascending=False)[
-                    ["name", "neighborhood_type", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]
-                ].copy()
-                _zdisp.columns = ["Neighborhood", "Type", "Migration Score", "Pop Growth %", "Rent Growth %"]
-                _zdisp["Pop Growth %"] = _zdisp["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
-                _zdisp["Rent Growth %"] = _zdisp["Rent Growth %"].apply(lambda x: f"{x:+.1f}%")
-                st.dataframe(_zdisp, use_container_width=True, hide_index=True)
+                # Neighborhood table with property-type scoring
+                _nbhd_title = f"Neighborhood Rankings — {_sel_metro}"
+                if _mig_pt:
+                    _nbhd_title += f" · {_mig_pt} Lens"
+                section(_nbhd_title)
+
+                zip_df = zip_df.copy()
+                zip_df["pt_score"] = zip_df.apply(lambda r: _pt_neighborhood_score(r, _mig_pt), axis=1)
+                zip_df["zone_fit"]  = zip_df["neighborhood_type"].apply(
+                    lambda z: _PT_ZONE_LABEL.get(_PT_ZONE_RANK.get(_mig_pt, {}).get(z, 1), "Moderate")
+                    if _mig_pt else "—"
+                )
+                _nbhd_sort_col = "pt_score" if _mig_pt else "migration_score"
+                zip_df = zip_df.sort_values(_nbhd_sort_col, ascending=False).reset_index(drop=True)
+
+                # Split top 50% / bottom 50%
+                _n_total_nbhd = len(zip_df)
+                _n_top = max(1, _n_total_nbhd // 2 + _n_total_nbhd % 2)
+                _df_top  = zip_df.iloc[:_n_top]
+                _df_rest = zip_df.iloc[_n_top:]
+
+                def _fmt_neighborhood_df(df):
+                    d = df.copy()
+                    if _mig_pt:
+                        d = d[["name", "neighborhood_type", "zone_fit", "pt_score", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]]
+                        d.columns = ["Neighborhood", "Type", "Zone Fit", f"{_mig_pt} Score", "Migration Score", "Pop Growth %", "Rent Growth %"]
+                        d[f"{_mig_pt} Score"] = d[f"{_mig_pt} Score"].apply(lambda x: f"{x:.0f}")
+                    else:
+                        d = d[["name", "neighborhood_type", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]]
+                        d.columns = ["Neighborhood", "Type", "Migration Score", "Pop Growth %", "Rent Growth %"]
+                    d["Migration Score"] = d["Migration Score"].apply(lambda x: f"{x:.0f}")
+                    d["Pop Growth %"]    = d["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
+                    d["Rent Growth %"]   = d["Rent Growth %"].apply(lambda x: f"{x:+.1f}%")
+                    return d
+
+                st.dataframe(_fmt_neighborhood_df(_df_top), use_container_width=True, hide_index=True)
+
+                if not _df_rest.empty:
+                    _rest_label = (
+                        f"Show lower-ranked neighborhoods ({len(_df_rest)} areas — bottom 50%)"
+                    )
+                    with st.expander(_rest_label, expanded=False):
+                        st.dataframe(_fmt_neighborhood_df(_df_rest), use_container_width=True, hide_index=True)
+                        st.caption(
+                            "These neighborhoods scored in the bottom half for "
+                            + (f"**{_mig_pt}** demand signals." if _mig_pt else "migration strength.")
+                        )
 
         # ── NATIONAL MAP (default) ────────────────────────────────────────────
         else:
@@ -2847,9 +2997,11 @@ with main_tab_re:
                     elif score >= 25: return "Declining"
                     else:             return "High Outflow"
 
+                _map_z     = mig_df["pt_score"] if _mig_pt else mig_df["composite_score"]
+                _map_clbl  = f"{_mig_pt}<br>Score" if _mig_pt else "Migration<br>Score"
                 fig_map = go.Figure(go.Choropleth(
                     locations=mig_df["state_abbr"],
-                    z=mig_df["composite_score"],
+                    z=_map_z,
                     locationmode="USA-states",
                     colorscale=[
                         [0.0,  "#7f0000"],
@@ -2863,7 +3015,7 @@ with main_tab_re:
                     zmin=0, zmax=100,
                     marker=dict(line=dict(width=_marker_line_widths, color=_marker_line_colors)),
                     colorbar=dict(
-                        title=dict(text="Migration<br>Score", font=dict(size=11, color="#c8b890")),
+                        title=dict(text=_map_clbl, font=dict(size=11, color="#c8b890")),
                         tickfont=dict(size=10, color="#c8b890"),
                         thickness=14, len=0.65,
                         bgcolor="#1a1208",
@@ -2873,8 +3025,9 @@ with main_tab_re:
                     text=mig_df.apply(
                         lambda r: (
                             f"<b>{r['state_name']}</b><br>"
-                            f"Migration Score: {r['composite_score']:.0f}<br>"
-                            f"Classification: {_classify(r['composite_score'])}<br>"
+                            + (f"{_mig_pt} Score: {r['pt_score']:.0f}<br>Migration Score: {r['composite_score']:.0f}<br>" if _mig_pt else f"Migration Score: {r['composite_score']:.0f}<br>")
+                            + f"Classification: {_classify(r['pt_score'] if _mig_pt else r['composite_score'])}<br>"
+                            f"Pop Growth: {r['pop_growth_pct']:+.1f}% · Biz Score: {r['biz_score']:.0f}<br>"
                             f"Key Drivers: {r['growth_drivers']}"
                         ),
                         axis=1
@@ -2923,11 +3076,15 @@ with main_tab_re:
                     dragmode=False,
                 )
                 st.plotly_chart(fig_map, use_container_width=True, config={"scrollZoom": False, "displayModeBar": False})
-                st.caption(
+                _map_cap = (
+                    f"Map re-scored for **{_mig_pt}** demand — color reflects the property-type-adjusted score, "
+                    f"not the generic migration composite. Darker green = stronger fit for {_mig_pt} investment."
+                ) if _mig_pt else (
                     "Darker green indicates states with the strongest combined population inflow and business migration. "
                     "These markets historically see the earliest and sharpest increases in CRE demand — "
                     "particularly for multifamily, industrial, and mixed-use properties."
                 )
+                st.caption(_map_cap)
 
             with legend_col:
                 st.markdown(
@@ -2961,37 +3118,56 @@ with main_tab_re:
                 )
 
         # ── Top 10 States ──────────────────────────────────────────────────────
-        section(" Top 10 States for CRE Investment (Migration Score)")
+        _top10_score_col = "pt_score" if _mig_pt else "composite_score"
+        _top10_title = (
+            f" Top 10 States — {_mig_pt} Migration Score"
+            if _mig_pt else
+            " Top 10 States for CRE Investment (Migration Score)"
+        )
+        section(_top10_title)
         top10 = mig_df.head(10)
+        _bar_scores = top10[_top10_score_col]
+        _bar_custom = top10.apply(
+            lambda r: [r["state_name"], r["pop_growth_pct"], r["key_companies"],
+                       r["composite_score"], r.get("biz_score", 0)], axis=1
+        ).tolist()
         fig_bar = go.Figure(go.Bar(
-            x=top10["composite_score"], y=top10["state_abbr"],
+            x=_bar_scores, y=top10["state_abbr"],
             orientation="h",
-            marker=dict(color=top10["composite_score"],
-                        colorscale=[[0, GOLD_DARK], [1, GOLD]], showscale=False),
-            text=top10["composite_score"].apply(lambda x: f"{x:.0f}"),
+            marker=dict(color=_bar_scores, colorscale=[[0, GOLD_DARK], [1, GOLD]], showscale=False),
+            text=_bar_scores.apply(lambda x: f"{x:.0f}"),
             textposition="outside",
             textfont=dict(color="#c8b890", size=12),
-            customdata=top10[["state_name", "pop_growth_pct", "key_companies"]].values,
+            customdata=_bar_custom,
             hovertemplate=(
                 "<b>%{customdata[0]}</b><br>"
-                "Pop Growth: %{customdata[1]:+.2f}%<br>"
+                + (f"{_mig_pt} Score: %{{x:.0f}}<br>Base Migration: %{{customdata[3]:.0f}}<br>" if _mig_pt else "Score: %{x:.0f}<br>")
+                + "Pop Growth: %{customdata[1]:+.2f}%<br>"
+                "Biz Score: %{customdata[4]:.0f}<br>"
                 "Key Companies: %{customdata[2]}<extra></extra>"
             ),
         ))
         fig_bar.update_layout(
             plot_bgcolor="#1e1a0a", paper_bgcolor="#1a1208",
-            xaxis=dict(showgrid=True, gridcolor="#2a2208", range=[0, 110],
+            xaxis=dict(showgrid=True, gridcolor="#2a2208", range=[0, 115],
                        tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
             yaxis=dict(autorange="reversed", tickfont=dict(color="#c8b890", size=12)),
             margin=dict(t=20, b=20, l=60, r=60),
             height=320, font=dict(family="Source Sans Pro", color="#c8b890"),
         )
         st.plotly_chart(fig_bar, use_container_width=True)
-        st.caption(
-            "Rankings combine population growth rate (60% weight) and business migration index (40% weight). "
-            "States at the top represent the most favorable macro conditions for new CRE investment — "
-            "higher scores correlate with rising rental demand, tighter vacancy, and upward rent pressure."
-        )
+        if _mig_pt:
+            st.caption(
+                f"Rankings re-weighted for **{_mig_pt}** demand. "
+                f"{_pt_weights_desc.get(_mig_pt, '')}. "
+                "Higher scores indicate stronger macro conditions for this property type."
+            )
+        else:
+            st.caption(
+                "Rankings combine population growth rate (60% weight) and business migration index (40% weight). "
+                "States at the top represent the most favorable macro conditions for new CRE investment — "
+                "higher scores correlate with rising rental demand, tighter vacancy, and upward rent pressure."
+            )
 
         # ── Metro Table ────────────────────────────────────────────────────────
         _metro_city = st.session_state.user_intent.get("city")
