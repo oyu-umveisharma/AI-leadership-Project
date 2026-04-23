@@ -910,6 +910,31 @@ def estimate_financials(market: dict, property_type: str, budget: float,
 
 # ── Step 7: Generate Groq narrative ──────────────────────────────────────────
 
+def _forecast_context_line() -> str:
+    """Pull Agent 22 FRED projections and condense into a one-line macro outlook."""
+    try:
+        from pathlib import Path as _Path
+        import json as _json
+        _fp = _Path(__file__).parent.parent / "cache" / "forecast.json"
+        if not _fp.exists():
+            return ""
+        _proj = (_json.loads(_fp.read_text()).get("data") or {}).get("projections") or {}
+        if not _proj:
+            return ""
+        parts = []
+        for _name, _p in _proj.items():
+            _cur = _p.get("current")
+            _q4  = _p.get("q4_2026")
+            if _cur is None or _q4 is None:
+                continue
+            parts.append(f"{_name}: {_cur:.2f}% → Q4 2026 {_q4:.2f}%")
+        if not parts:
+            return ""
+        return " Macro forecast — " + "; ".join(parts) + "."
+    except Exception:
+        return ""
+
+
 def generate_narrative(params: dict, primary: dict, runners: list[dict],
                         financials: dict, weights: dict) -> str:
     """Generate a 3-paragraph investment rationale via Groq."""
@@ -917,6 +942,7 @@ def generate_narrative(params: dict, primary: dict, runners: list[dict],
         f" Climate risk is rated {primary['climate_label']} ({primary['climate_score']:.0f}/100)."
         if primary["climate_score"] > 40 else ""
     )
+    forecast_note = _forecast_context_line()
     fin = financials
     prompt = (
         f"Property type: {params['property_type']}. "
@@ -932,7 +958,7 @@ def generate_narrative(params: dict, primary: dict, runners: list[dict],
         f"Estimated ROI: {fin['roi_pct']}% over {params['timeline_years']} years.{climate_note} "
         f"Market score: {primary['ms_composite']:.1f}/100. "
         f"GDP cycle: {primary['gdp_cycle']}. Credit: {primary['credit_signal']}. "
-        f"Risk tolerance: {params.get('risk_tolerance', 'moderate')}."
+        f"Risk tolerance: {params.get('risk_tolerance', 'moderate')}.{forecast_note}"
     )
 
     narrative = _groq_complete(

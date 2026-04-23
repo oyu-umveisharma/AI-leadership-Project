@@ -104,6 +104,8 @@ if "recent_searches" not in st.session_state:
     st.session_state.recent_searches = []
 if "nav_to_tab" not in st.session_state:
     st.session_state.nav_to_tab = None
+if "show_brief_for" not in st.session_state:
+    st.session_state.show_brief_for = None
 
 # US state name/abbreviation lookup
 _US_STATES = {
@@ -834,6 +836,237 @@ def _complete_onboarding(property_type=None, location=None, raw_input="", **kwar
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  QUICK INVESTMENT BRIEF — unified AI panel shown after any query
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _quick_brief_insight(property_type: str, location: str, data_summary: str) -> str:
+    """Short Groq-generated market insight for the Quick Brief panel."""
+    import os as _os
+    key = _os.getenv("GROQ_API_KEY", "")
+    if not key:
+        return ""
+    try:
+        from groq import Groq as _Groq
+        client = _Groq(api_key=key)
+        pt  = property_type or "commercial real estate"
+        loc = location or "the US"
+        resp = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": (
+                    "You are a CRE investment analyst. Write exactly 2 sentences of actionable "
+                    "market insight based on the data provided. Be specific with numbers. "
+                    "No preamble, no headers, no bullets."
+                )},
+                {"role": "user", "content": (
+                    f"Investor is focused on {pt} in {loc}.\n\nLive market data:\n"
+                    f"{data_summary[:600]}\n\nGive a concise 2-sentence insight."
+                )},
+            ],
+            max_tokens=140,
+            temperature=0.25,
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception:
+        return ""
+
+
+# Canonical property-type → cap-rate / rent-growth cache keys
+_BRIEF_PT_KEYS = {
+    "Industrial":  ("Industrial",   "industrial_psf"),
+    "Multifamily": ("Multifamily",  "multifamily"),
+    "Office":      ("Office",       "office_psf"),
+    "Retail":      ("Retail",       "retail_psf"),
+    "Healthcare":  ("Office",       "office_psf"),   # fallback — no separate cache slice
+}
+
+
+def _build_brief_data(intent: dict) -> dict:
+    """Compose a Quick Brief payload: top 3 markets + an AI insight."""
+    pt       = (intent or {}).get("property_type")
+    location = (intent or {}).get("location")
+    user_mkt = (intent or {}).get("city") or location
+
+    caprate_key, rg_key = _BRIEF_PT_KEYS.get(pt, ("Industrial", "industrial_psf"))
+
+    ms_cache = read_cache("market_score") or {}
+    ms_rank  = (ms_cache.get("data") or {}).get("rankings", []) or []
+    cr_cache = read_cache("cap_rate") or {}
+    cr_mkts  = (cr_cache.get("data") or {}).get("market_cap_rates", {}) or {}
+    rg_cache = read_cache("rent_growth") or {}
+    rg_mkts  = (rg_cache.get("data") or {}).get("market_rent_growth", {}) or {}
+
+    ms_by_mkt = {m.get("market"): m for m in ms_rank if m.get("market")}
+    ranked    = sorted(ms_rank, key=lambda m: m.get("composite", 0), reverse=True)
+
+    # If the user named a location, surface its market first (if we score it)
+    seen: set[str] = set()
+    chosen: list[str] = []
+    if user_mkt:
+        um = user_mkt.lower()
+        for m in ms_rank:
+            mk = m.get("market", "")
+            if um in mk.lower():
+                chosen.append(mk)
+                seen.add(mk)
+                break
+    for m in ranked:
+        mk = m.get("market", "")
+        if mk and mk not in seen:
+            chosen.append(mk)
+            seen.add(mk)
+            if len(chosen) >= 3:
+                break
+
+    top3 = []
+    for mk in chosen[:3]:
+        row = ms_by_mkt.get(mk, {})
+        cap = (cr_mkts.get(mk) or {}).get(caprate_key)
+        rg  = (rg_mkts.get(mk) or {}).get(rg_key)
+        top3.append({
+            "market":      mk,
+            "score":       float(row.get("composite", 0) or 0),
+            "grade":       row.get("grade", ""),
+            "cap_rate":    cap,
+            "rent_growth": rg,
+        })
+
+    # AI insight — summarize the 3 rows as grounded context
+    lines = []
+    for r in top3:
+        parts = [f"{r['market']} score {r['score']:.1f}"]
+        if r["cap_rate"] is not None:
+            parts.append(f"{pt or 'CRE'} cap {r['cap_rate']:.1f}%")
+        if r["rent_growth"] is not None:
+            parts.append(f"rent growth {r['rent_growth']:+.1f}%")
+        lines.append(", ".join(parts))
+    insight = _quick_brief_insight(pt or "", location or "", "\n".join(lines))
+
+    return {
+        "property_type": pt,
+        "location":      location,
+        "user_market":   user_mkt,
+        "top3":          top3,
+        "insight":       insight,
+        "raw_input":     (intent or {}).get("raw_input", ""),
+    }
+
+
+def _render_quick_brief(intent: dict, context_key: str) -> None:
+    """Render the Quick Brief panel + CTA buttons. `context_key` disambiguates button keys."""
+    brief = _build_brief_data(intent)
+    pt  = brief.get("property_type") or "All property types"
+    loc = brief.get("location") or "United States"
+    header = f"{pt.upper()} IN {loc.upper()} — QUICK BRIEF"
+
+    # ── Panel ────────────────────────────────────────────────────────────────
+    rows_html = ""
+    for i, r in enumerate(brief["top3"], start=1):
+        cap_str = f"{r['cap_rate']:.1f}%" if r["cap_rate"] is not None else "—"
+        rg_raw  = r["rent_growth"]
+        if rg_raw is None:
+            rg_str = "—"
+            rg_col = "#a09880"
+        else:
+            rg_str = f"{rg_raw:+.1f}%"
+            rg_col = "#4caf50" if rg_raw >= 0 else "#ef5350"
+        score_col = ("#4caf50" if r["score"] >= 75 else
+                     "#d4a843" if r["score"] >= 60 else
+                     "#ff9800" if r["score"] >= 45 else "#ef5350")
+        rows_html += (
+            f'<div style="display:flex;justify-content:space-between;align-items:center;'
+            f'padding:10px 14px;border-bottom:1px solid #2a2208;">'
+            f'  <div style="color:#e8dfc4;font-size:0.92rem;">'
+            f'    <span style="color:#d4a843;font-weight:700;margin-right:10px;">{i}.</span>'
+            f'    <b>{r["market"]}</b>'
+            f'    <span style="color:#6a5228;font-size:0.78rem;margin-left:8px;">Grade {r["grade"] or "—"}</span>'
+            f'  </div>'
+            f'  <div style="color:#a09880;font-size:0.82rem;display:flex;gap:18px;">'
+            f'    <span>Score: <b style="color:{score_col};">{r["score"]:.1f}</b></span>'
+            f'    <span>Cap: <b style="color:#c8a040;">{cap_str}</b></span>'
+            f'    <span>Growth: <b style="color:{rg_col};">{rg_str}</b></span>'
+            f'  </div>'
+            f'</div>'
+        )
+    if not rows_html:
+        rows_html = (
+            '<div style="padding:18px;color:#a09880;font-size:0.9rem;">'
+            'Market scoring data is still loading — try again in ~30 seconds.</div>'
+        )
+
+    insight_html = ""
+    if brief.get("insight"):
+        insight_html = (
+            f'<div style="background:#16140a;border-left:3px solid #d4a843;'
+            f'padding:12px 16px;margin-top:14px;border-radius:4px;'
+            f'color:#e8dfc4;font-size:0.9rem;line-height:1.6;font-style:italic;">'
+            f'<span style="color:#d4a843;font-style:normal;font-weight:700;">AI Insight:</span> '
+            f'{brief["insight"]}'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg,#1a1208 0%,#221a0a 100%);'
+        f'border:1px solid #a07830;border-top:3px solid #d4a843;border-radius:10px;'
+        f'padding:22px 26px;margin-top:20px;">'
+        f'  <div style="color:#d4a843;font-size:0.82rem;letter-spacing:0.15em;'
+        f'      font-weight:700;margin-bottom:4px;">&#128200; {header}</div>'
+        f'  <div style="color:#a09880;font-size:0.8rem;margin-bottom:14px;">'
+        f'      Top 3 markets ranked on live composite scoring, cap rates, and rent growth.'
+        f'  </div>'
+        f'  <div style="background:#0f0d06;border:1px solid #2a2208;border-radius:6px;'
+        f'      overflow:hidden;">{rows_html}</div>'
+        f'  {insight_html}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── CTAs ─────────────────────────────────────────────────────────────────
+    _c1, _c2, _c3 = st.columns([1.2, 1.4, 0.8], gap="small")
+    with _c1:
+        explore = st.button(
+            "Explore Dashboard →",
+            use_container_width=True,
+            type="primary",
+            key=f"brief_explore_{context_key}",
+        )
+    with _c2:
+        full = st.button(
+            "Get Full P&L Analysis →",
+            use_container_width=True,
+            key=f"brief_advisor_{context_key}",
+        )
+    with _c3:
+        dismiss = st.button(
+            "Dismiss",
+            use_container_width=True,
+            key=f"brief_dismiss_{context_key}",
+        )
+
+    if explore:
+        st.session_state.show_brief_for = None
+        if not st.session_state.onboarding_complete:
+            _complete_onboarding(**intent)
+        st.rerun()
+    if full:
+        _prompt = intent.get("raw_input") or (
+            f"{intent.get('property_type') or 'Commercial real estate'} in "
+            f"{intent.get('location') or 'the US'}"
+        )
+        st.session_state.adv_home_prompt   = _prompt
+        st.session_state.adv_auto_generate = True
+        st.session_state.adv_navigate      = True
+        st.session_state.show_brief_for    = None
+        if not st.session_state.onboarding_complete:
+            _complete_onboarding(raw_input=_prompt)
+        st.rerun()
+    if dismiss:
+        st.session_state.show_brief_for = None
+        st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  WELCOME / ONBOARDING SCREEN
 # ═══════════════════════════════════════════════════════════════════════════════
 if not st.session_state.onboarding_complete:
@@ -1228,8 +1461,15 @@ if not st.session_state.onboarding_complete:
                 st.session_state.adv_auto_generate = True
                 st.session_state.adv_navigate      = True
             else:
-                _complete_onboarding(**_parse_intent(user_input))
+                # Show Quick Brief first — user picks a CTA to navigate
+                _intent = _parse_intent(user_input)
+                _intent["raw_input"] = user_input
+                st.session_state.show_brief_for = _intent
             st.rerun()
+
+    # ── Quick Investment Brief (inline, after query) ──────────────────────────
+    if st.session_state.get("show_brief_for"):
+        _render_quick_brief(st.session_state.show_brief_for, context_key="welcome")
 
     # ── Example queries ───────────────────────────────────────────────────────
     st.markdown("""
@@ -1725,7 +1965,10 @@ with _bar_left:
             st.rerun()
         else:
             _new_intent = _parse_intent(_new_query)
+            _new_intent["raw_input"] = _new_query
             _complete_onboarding(**_new_intent)
+            # Also surface the Quick Brief on the dashboard — "always on" AI
+            st.session_state.show_brief_for = _new_intent
             st.rerun()
 with _bar_right:
     if st.button("Reset", use_container_width=True, key="reset_focus"):
@@ -1741,6 +1984,10 @@ if _cur_pt or _cur_loc:
         f'</div>',
         unsafe_allow_html=True,
     )
+
+# ── Quick Investment Brief (dashboard banner after chat-bar query) ────────────
+if st.session_state.get("show_brief_for"):
+    _render_quick_brief(st.session_state.show_brief_for, context_key="dashboard")
 
 # ── Sticky header injection ───────────────────────────────────────────────────
 components.html("""
@@ -8136,6 +8383,136 @@ with main_tab_advisor:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
+        # ── Forecasting (Agent 22 · FRED projections) ─────────────────────────
+        _fc_cache = read_cache("forecast") or {}
+        _fc_data  = _fc_cache.get("data") or {}
+        _fc_proj  = _fc_data.get("projections", {}) or {}
+        _fc_hist  = _fc_data.get("historical",  {}) or {}
+
+        if _fc_proj:
+            section(" Forecasting — Macro Projections")
+            st.markdown(
+                '<div style="color:#a09880;font-size:0.86rem;margin-top:-6px;margin-bottom:14px;">'
+                'Forward-looking macro drivers: Atlanta Fed GDPNow, FOMC Summary of Economic Projections '
+                '(real GDP & Fed funds), and market-implied 10-year breakeven inflation. '
+                'Feed into exit cap rate, debt service, and rent growth assumptions.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
+            # ── Projections table ─────────────────────────────────────────────
+            _fc_header = (
+                '<tr style="background:#1a1408;">'
+                '  <th style="text-align:left;padding:10px 14px;color:#d4a843;'
+                '      font-size:0.8rem;letter-spacing:0.06em;border-bottom:1px solid #2a2208;">'
+                '      INDICATOR</th>'
+                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
+                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">CURRENT</th>'
+                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
+                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">Q2 2026</th>'
+                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
+                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">Q3 2026</th>'
+                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
+                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">Q4 2026</th>'
+                '</tr>'
+            )
+            _fc_rows = []
+            for _name, _p in _fc_proj.items():
+                _cur = _p.get("current")
+                _q2  = _p.get("q2_2026")
+                _q3  = _p.get("q3_2026")
+                _q4  = _p.get("q4_2026")
+                _unit = _p.get("unit", "%")
+                _delta = (_q4 - _cur) if (_q4 is not None and _cur is not None) else 0
+                _dir_col = ("#4caf50" if _delta > 0.05 else
+                            "#ef5350" if _delta < -0.05 else "#c8b890")
+                def _fmt(v):
+                    return f"{v:.2f}{_unit}" if v is not None else "—"
+                _fc_rows.append(
+                    f'<tr>'
+                    f'  <td style="padding:10px 14px;color:#e8dfc4;font-size:0.9rem;'
+                    f'      border-bottom:1px solid #2a2208;">{_name}'
+                    f'      <div style="color:#6a5228;font-size:0.72rem;">FRED {_p.get("series_id","")}</div></td>'
+                    f'  <td style="padding:10px 14px;text-align:right;color:#c8b890;'
+                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;">{_fmt(_cur)}</td>'
+                    f'  <td style="padding:10px 14px;text-align:right;color:{_dir_col};'
+                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;">{_fmt(_q2)}</td>'
+                    f'  <td style="padding:10px 14px;text-align:right;color:{_dir_col};'
+                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;">{_fmt(_q3)}</td>'
+                    f'  <td style="padding:10px 14px;text-align:right;color:{_dir_col};'
+                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;font-weight:700;">{_fmt(_q4)}</td>'
+                    f'</tr>'
+                )
+            st.markdown(
+                f'<div style="background:#0f0d06;border:1px solid #2a2208;border-radius:8px;'
+                f'overflow:hidden;margin-bottom:14px;">'
+                f'  <table style="width:100%;border-collapse:collapse;">'
+                f'    <thead>{_fc_header}</thead>'
+                f'    <tbody>{"".join(_fc_rows)}</tbody>'
+                f'  </table>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+            # ── History + forecast line chart ─────────────────────────────────
+            try:
+                import plotly.graph_objects as _go
+                _fig_fc = _go.Figure()
+                _line_colors = {
+                    "GDP Nowcast (Atlanta Fed)":  "#d4a843",
+                    "GDP Projection (FOMC)":      "#c8a040",
+                    "10Y Breakeven Inflation":    "#80a848",
+                    "Fed Funds Projection (FOMC)":"#9868b8",
+                }
+                for _name, _h in _fc_hist.items():
+                    _pts = _h.get("points", []) or []
+                    if not _pts:
+                        continue
+                    _hx = [p["date"] for p in _pts]
+                    _hy = [p["value"] for p in _pts]
+                    _clr = _line_colors.get(_name, "#d4a843")
+
+                    # Historical solid line
+                    _fig_fc.add_trace(_go.Scatter(
+                        x=_hx, y=_hy, mode="lines", name=_name,
+                        line=dict(color=_clr, width=2),
+                        hovertemplate="<b>%{fullData.name}</b><br>%{x}<br>%{y:.2f}%<extra></extra>",
+                    ))
+                    # Forecast dotted extension (last historical → Q4 2026)
+                    _p = _fc_proj.get(_name, {})
+                    _fx = [_hx[-1], "2026-06-30", "2026-09-30", "2026-12-31"]
+                    _fy = [_hy[-1], _p.get("q2_2026"), _p.get("q3_2026"), _p.get("q4_2026")]
+                    _fig_fc.add_trace(_go.Scatter(
+                        x=_fx, y=_fy, mode="lines", name=f"{_name} (forecast)",
+                        line=dict(color=_clr, width=2, dash="dot"),
+                        showlegend=False,
+                        hovertemplate="<b>%{fullData.name}</b><br>%{x}<br>%{y:.2f}%<extra></extra>",
+                    ))
+
+                _fig_fc.update_layout(
+                    plot_bgcolor="#0f0f0c",
+                    paper_bgcolor="#16160f",
+                    margin=dict(t=20, b=20, l=30, r=20),
+                    height=360,
+                    xaxis=dict(tickfont=dict(color="#e8dfc4", size=10),
+                               gridcolor="#2a2a1a", title=""),
+                    yaxis=dict(tickfont=dict(color="#e8dfc4", size=10),
+                               gridcolor="#2a2a1a", title="Rate (%)",
+                               titlefont=dict(color="#a09880")),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                                xanchor="left", x=0,
+                                font=dict(color="#c8b890", size=10),
+                                bgcolor="rgba(0,0,0,0)"),
+                )
+                st.plotly_chart(_fig_fc, use_container_width=True,
+                                config={"displayModeBar": False})
+                st.caption("Solid lines = historical (FRED). Dotted = projected Q2–Q4 2026.")
+            except Exception as _fc_err:
+                st.caption(f"Chart unavailable: {_fc_err}")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
         # ── Conditional: Climate risk detail if High/Severe ───────────────────
         if primary.get("climate_score", 0) >= 50:
             section(f" Climate Risk Alert — {primary['market']} ({primary['climate_label']})")
@@ -8460,6 +8837,8 @@ with main_tab_about:
             "opportunity_zone":("Agent 18", "Opportunity Zones",         "Every 24h"),
             "distressed":      ("Agent 19", "CMBS & Distressed",         "Every 6h"),
             "market_score":    ("Agent 20", "Market Score Composite",    "Every 6h"),
+            "rentcast":        ("Agent 21", "RentCast Property DB",      "Every 24h"),
+            "forecast":        ("Agent 22", "Economic Forecast (FRED)",  "Every 6h"),
             "manager":         ("Manager",  "System Health Supervisor",  "Every 15min"),
         }
 

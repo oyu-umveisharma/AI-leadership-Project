@@ -180,6 +180,7 @@ _agent_status = {
     "climate_risk":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "chief_of_staff":  {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "rentcast":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "forecast":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
     "manager":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
 }
 
@@ -215,8 +216,11 @@ def run_migration_agent():
     _set_status("migration", "running")
     try:
         from src.cre_population import fetch_migration_scores, get_top_metros
+        from src.data_validator import validate_migration_frame
         mig_df   = fetch_migration_scores()
         metro_df = get_top_metros()
+        # ── Pre-flight harness check (Pandera) ─────────────────────────────
+        validate_migration_frame(mig_df)
         write_cache("migration", {
             "migration": mig_df.to_dict(orient="records"),
             "metros":    metro_df.to_dict(orient="records"),
@@ -233,7 +237,10 @@ def run_pricing_agent():
     _set_status("pricing", "running")
     try:
         from src.cre_pricing import fetch_reit_prices, get_top_opportunities, get_property_type_summary
+        from src.data_validator import validate_reit_prices
         reit_df  = fetch_reit_prices()
+        # ── Pre-flight harness check (Pandera) ─────────────────────────────
+        validate_reit_prices(reit_df)
         top_opps = get_top_opportunities(10)
         pt_sum   = get_property_type_summary()
         write_cache("pricing", {
@@ -337,17 +344,21 @@ def _extract_confirmed_announcements(articles: list) -> list:
 
         SCHEMA = (
             'Each element must have these exact keys:\n'
-            '  "company"    — company name\n'
-            '  "ticker"     — stock ticker if public, else ""\n'
-            '  "type"       — "Manufacturing Plant" | "Warehouse / Distribution" | "Data Center" |\n'
-            '                 "Training Center" | "Headquarters" | "Semiconductor Fab" |\n'
-            '                 "Battery Plant" | "Research & Development" | "Other"\n'
-            '  "location"   — "City, State"\n'
-            '  "investment" — dollar amount (e.g. "$1.2B") or ""\n'
-            '  "jobs"       — job count (e.g. "2,000+") or ""\n'
-            '  "detail"     — one sentence describing the announcement\n'
-            '  "cre_impact" — one sentence on CRE demand this creates\n'
-            '  "source"     — news source or "Public Record"\n'
+            '  "company"      — company name\n'
+            '  "ticker"       — stock ticker if public, else ""\n'
+            '  "type"         — "Manufacturing Plant" | "Warehouse / Distribution" | "Data Center" |\n'
+            '                   "Training Center" | "Headquarters" | "Semiconductor Fab" |\n'
+            '                   "Battery Plant" | "Research & Development" | "Other"\n'
+            '  "location"     — "City, State"\n'
+            '  "investment"   — dollar amount (e.g. "$1.2B") or ""\n'
+            '  "jobs"         — job count (e.g. "2,000+") or ""\n'
+            '  "detail"       — one sentence describing the announcement\n'
+            '  "cre_impact"   — one sentence on CRE demand this creates\n'
+            '  "source"       — news source or "Public Record"\n'
+            '  "source_quote" — the EXACT verbatim sentence from the source article that\n'
+            '                   mentions the location. The city or state in "location"\n'
+            '                   MUST appear in this quote. If you cannot find such a\n'
+            '                   sentence, leave location="" rather than guessing.\n'
             'Return raw JSON array only — no markdown, no explanation.'
         )
 
@@ -369,33 +380,63 @@ Below are news headlines about US facility announcements:
 Extract every CONFIRMED company announcement of a new or expanded US facility.
 Only include what is clearly stated in the articles above.
 {SCHEMA}"""
+
+            def _call_pass1(prompt_text: str) -> list[dict]:
+                try:
+                    _r = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": "You are a data extraction assistant. Return a JSON object with key 'announcements' containing an array of facility objects. Only include what is explicitly stated in the articles — do not hallucinate details. The source_quote MUST be a verbatim sentence from the article text that contains the location."},
+                            {"role": "user", "content": prompt_text},
+                        ],
+                        max_tokens=1600, temperature=0.1,
+                        response_format={"type": "json_object"},
+                    )
+                    _raw = _r.choices[0].message.content.strip()
+                    _parsed = _json.loads(_raw)
+                    if isinstance(_parsed, dict):
+                        _recs = _parsed.get("announcements", _parsed.get("facilities", []))
+                        if not isinstance(_recs, list):
+                            _recs = [_parsed] if _parsed.get("company") else []
+                    else:
+                        _recs = _parsed if isinstance(_parsed, list) else []
+                    return [r for r in _recs if isinstance(r, dict) and r.get("company")]
+                except Exception:
+                    return []
+
+            results = _call_pass1(p1)
+
+            # ── Active source_quote verification (Dr. Zhang's guardrail) ──────
             try:
-                r1 = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[
-                        {"role": "system", "content": "You are a data extraction assistant. Return a JSON object with key 'announcements' containing an array of facility objects. Only include what is explicitly stated in the articles — do not hallucinate details."},
-                        {"role": "user", "content": p1},
-                    ],
-                    max_tokens=1400, temperature=0.1,
-                    response_format={"type": "json_object"},
-                )
-                raw1 = r1.choices[0].message.content.strip()
-                parsed1 = _json.loads(raw1)
-                # Handle JSON object wrapper from structured output
-                if isinstance(parsed1, dict):
-                    results = parsed1.get("announcements", parsed1.get("facilities", []))
-                    if not isinstance(results, list):
-                        results = [parsed1] if parsed1.get("company") else []
-                else:
-                    results = parsed1 if isinstance(parsed1, list) else []
-                # Validate each record has required schema keys
-                valid = []
-                for rec in results:
-                    if isinstance(rec, dict) and rec.get("company"):
-                        valid.append(rec)
-                results = valid
+                from src.cre_news import verify_and_flag_records
+                v1 = verify_and_flag_records(results, agent_name="predictions")
+
+                # If Pass 1 had any source_quote mismatches, retry ONCE with the
+                # discrepancies flagged so the model can self-correct.
+                if v1["failed"] > 0:
+                    _bad_lines = "\n".join(
+                        f"  - {r.get('company','?')}: claimed location='{r.get('location','?')}', "
+                        f"but source_quote='{(r.get('source_quote') or '')[:100]}'"
+                        for r in v1["failed_records"][:10]
+                    )
+                    retry_prompt = p1 + (
+                        f"\n\n⚠️ CRITICAL RETRY — YOUR PREVIOUS EXTRACTION HAD "
+                        f"{v1['failed']} SOURCE_QUOTE MISMATCH(ES):\n"
+                        f"{_bad_lines}\n\n"
+                        "For each flagged record, either (a) find the exact sentence in "
+                        "the articles above that mentions the claimed location and use "
+                        "it as source_quote, OR (b) if no such sentence exists, set "
+                        'location="" for that record. The city or state in location MUST '
+                        "appear verbatim in source_quote. Re-extract ALL announcements."
+                    )
+                    retry_results = _call_pass1(retry_prompt)
+                    if retry_results:
+                        v2 = verify_and_flag_records(retry_results, agent_name="predictions")
+                        # Keep whichever pass has fewer verification failures
+                        if v2["failed"] <= v1["failed"]:
+                            results = retry_results
             except Exception:
-                results = []
+                pass   # verification is additive; never block the extraction
 
         # ── Pass 2: supplement with known announcements from Groq knowledge ───
         p2 = f"""Today is {datetime.now().strftime('%B %d, %Y')}.
@@ -676,7 +717,10 @@ def run_cap_rate_agent():
     _set_status("cap_rate", "running")
     try:
         from src.cap_rate_agent import run_cap_rate_agent as _run
+        from src.data_validator import validate_cap_rate_dict
         result = _run()
+        # ── Pre-flight harness check (Pandera) ─────────────────────────────
+        validate_cap_rate_dict(result.get("market_cap_rates", {}) if isinstance(result, dict) else {})
         write_cache("cap_rate", result)
         _set_status("cap_rate", "ok")
     except Exception as e:
@@ -791,6 +835,22 @@ def run_rentcast_agent():
         _set_status("rentcast", "error", str(e))
 
 
+# ── Agent 22 · Economic Forecast (FRED projections) ──────────────────────────
+
+def run_forecast_agent():
+    _set_status("forecast", "running")
+    try:
+        from src.forecast_agent import run_forecast_agent as _run
+        result = _run()
+        write_cache("forecast", result)
+        if result.get("error"):
+            _set_status("forecast", "error", result["error"])
+        else:
+            _set_status("forecast", "ok")
+    except Exception as e:
+        _set_status("forecast", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -828,6 +888,7 @@ def start_scheduler():
         _scheduler.add_job(run_manager_agent_job,       IntervalTrigger(minutes=15),   id="manager",          replace_existing=True)
         _scheduler.add_job(run_chief_of_staff_agent,   IntervalTrigger(minutes=5),    id="chief_of_staff",   replace_existing=True)
         _scheduler.add_job(run_rentcast_agent,        IntervalTrigger(hours=24),     id="rentcast",         replace_existing=True)
+        _scheduler.add_job(run_forecast_agent,        IntervalTrigger(hours=6),      id="forecast",         replace_existing=True)
 
         _scheduler.start()
 
@@ -838,7 +899,7 @@ def start_scheduler():
                    run_vacancy_agent, run_land_market_agent, run_cap_rate_agent, run_rent_growth_agent,
                    run_opportunity_zone_agent, run_distressed_agent, run_market_score_agent,
                    run_climate_risk_agent, run_manager_agent_job, run_chief_of_staff_agent,
-                   run_rentcast_agent]:
+                   run_rentcast_agent, run_forecast_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -869,6 +930,7 @@ def force_run(agent_name: str):
         "climate_risk":     run_climate_risk_agent,
         "chief_of_staff":   run_chief_of_staff_agent,
         "rentcast":         run_rentcast_agent,
+        "forecast":         run_forecast_agent,
     }
     fn = agents.get(agent_name)
     if fn:

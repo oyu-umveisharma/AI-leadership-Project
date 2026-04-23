@@ -1,6 +1,6 @@
 # CRE Intelligence Platform
 
-> Real-time commercial real estate intelligence powered by twenty autonomous AI agents — tracking migration flows, REIT pricing, interest rates, labor markets, GDP, inflation, credit conditions, facility announcements, energy costs, ESG momentum, vacancy rates, cap rates, rent growth, climate risk, opportunity zones, and distressed assets across US markets.
+> Real-time commercial real estate intelligence powered by twenty-two autonomous AI agents — tracking migration flows, REIT pricing, interest rates, labor markets, GDP, inflation, credit conditions, facility announcements, energy costs, ESG momentum, vacancy rates, cap rates, rent growth, climate risk, opportunity zones, distressed assets, real property listings, and forward macro projections across US markets.
 
 **Purdue Daniels School of Business · MGMT 690: AI Leadership**
 
@@ -8,9 +8,9 @@
 
 ## What It Does
 
-Most CRE research tools require manual data pulls, static spreadsheets, and hours of synthesis. This platform replaces that workflow with a live dashboard backed by twenty background agents that update continuously — surfacing which markets to watch, which property types are most profitable, what macro conditions mean for CRE valuations, and delivering a personalized AI investment brief on demand.
+Most CRE research tools require manual data pulls, static spreadsheets, and hours of synthesis. This platform replaces that workflow with a live dashboard backed by twenty-two background agents that update continuously — surfacing which markets to watch, which property types are most profitable, what macro conditions mean for CRE valuations, and delivering a personalized AI investment brief on demand.
 
-The app opens with an AI-powered chatbox that asks what you are looking for. Type a simple query like `"industrial in Los Angeles"` and the entire dashboard personalizes to that search. Type a full investment query like `"build a 50,000 sqft warehouse in Texas, $8M budget, 5-year hold"` and the platform routes you directly to the **Investment Advisor**, auto-generates a scored market recommendation, and returns a full financial brief — no navigation required.
+The app opens with an AI-powered chatbox that asks what you are looking for. Type a simple query like `"industrial in Los Angeles"` and a **Quick Investment Brief** appears inline with your top 3 scored markets, cap rates, rent growth, and a Groq-generated insight — plus two CTAs to either explore the personalized dashboard or jump straight to a full P&L analysis. Type a full investment query like `"build a 50,000 sqft warehouse in Texas, $8M budget, 5-year hold"` and the platform routes you directly to the **Investment Advisor**, auto-generates a scored market recommendation, and returns a full financial brief — no navigation required.
 
 The agents run on a scheduler. Open the dashboard and the data is already there.
 
@@ -34,6 +34,8 @@ The agents run on a scheduler. Open the dashboard and the data is already there.
 | Industrial Cap Rate | 5.6% (±10bp vs CBRE Q1 2026) | 5.5% | N/A | 5.5% |
 | Opportunity zone analysis | Yes | Limited | No | Limited |
 | Metro neighborhood maps | Yes (17 metros) | Yes | No | Limited |
+| Real property listings | Yes (RentCast API, 6 states) | Yes | No | Limited |
+| Macro forecasting | Yes (FRED FOMC projections, Q2–Q4 2026) | No | Limited | Limited |
 | Pricing | Free / Open Source | $$$$ | $$$ | $$$$ |
 
 *Comparison based on publicly available feature documentation. Capabilities may vary by subscription tier.*
@@ -73,11 +75,22 @@ This platform is designed to be **validated, auditable, and trustworthy** — me
 
 See [`week5/`](week5/) for full evaluation methodology, benchmark cases, and data quality reports.
 
+### Harness Guardrails (April 2026)
+
+Two structural guardrails added in response to panelist feedback — both are harness-level (not model-level) checks that run on every agent cycle and log failures to `cache/audit_log.csv`.
+
+| Guardrail | Where | What It Catches | Log Format |
+|-----------|-------|----------------|------------|
+| **Source-quote verification loop** | `src/cre_news.py:verify_source_quote` + Pass 1 of `_extract_confirmed_announcements` | Location hallucinations (GROQ-09 failure mode) — verifies the extracted `location` actually appears in the verbatim `source_quote` sentence the model cites. On mismatch, triggers ONE retry with the discrepancy flagged in the prompt; whichever pass has fewer failures wins. | `predictions, warning, source_quote_mismatch: location 'X' not found in quote 'Y…'` |
+| **Pandera pre-flight validation** | `src/data_validator.py` — wired into `run_pricing_agent`, `run_migration_agent`, `run_cap_rate_agent` | Out-of-range numeric values BEFORE they hit cache or downstream AI steps. Schemas: REIT `Price` ∈ (0, 10 000), `cap_rate` ∈ [2.0, 15.0], `composite_score` ∈ [0, 100], `pop_growth_pct` ∈ [-10, 20]. Non-destructive — bad rows are flagged, not dropped. | `pricing, warning, pandera_validation: greater_than(0), failure_case=-5.0` |
+
+Both guardrails are active on the live pipeline. Every validation failure lands in the audit log alongside the regular run rows, so the System Monitor tab surfaces them immediately.
+
 ---
 
 ## Agent Architecture
 
-Twenty specialized agents operate independently on fixed schedules, writing to a shared JSON cache that survives Streamlit reruns.
+Twenty-two specialized agents operate independently on fixed schedules, writing to a shared JSON cache that survives Streamlit reruns.
 
 | # | Agent | Responsibility | Schedule |
 |---|-------|---------------|----------|
@@ -101,6 +114,8 @@ Twenty specialized agents operate independently on fixed schedules, writing to a
 | 18 | CMBS & Distressed | Distressed asset tracking, CMBS delinquency signals, market stress scores | Every 6 hours |
 | 19 | Market Score | Composite opportunity score per market aggregating all agent signals | Every 6 hours |
 | 20 | Climate Risk | Physical climate hazard scoring (flood, wildfire, heat, wind, sea level rise) across 51 states and 41 metros | Every 24 hours |
+| 21 | RentCast Property Database | Real for-sale and for-rent property listings from the RentCast API, covering TX, FL, AZ, NC, TN, GA (50 free calls/month; falls back to mock data when quota is exhausted) | Every 24 hours |
+| 22 | Economic Forecast | Forward-looking FRED projections — Atlanta Fed GDPNow (`GDPNOW`), FOMC Summary of Economic Projections real GDP (`GDPC1MD`) and Fed funds (`FEDTARMD`), and 10-year breakeven inflation (`T10YIE`) — producing Q2 / Q3 / Q4 2026 forecasts that feed the Investment Advisor's forecasting section and investment rationale | Every 6 hours |
 
 All agents start automatically when the app launches. No manual triggers needed.
 
@@ -108,7 +123,7 @@ All agents start automatically when the app launches. No manual triggers needed.
 
 ## AI Investment Advisor
 
-The Investment Advisor is a top-level tab that synthesizes all twenty agent data streams into a single personalized investment brief. It can be reached by navigating to the tab directly, or triggered automatically by typing a full investment query into the welcome screen or persistent chat bar.
+The Investment Advisor is a top-level tab that synthesizes all twenty-two agent data streams into a single personalized investment brief — including Agent 22's forward macro projections that feed directly into the narrative prompt. It can be reached by navigating to the tab directly, or triggered automatically by typing a full investment query into the welcome screen or persistent chat bar.
 
 ### How It Works
 
@@ -138,6 +153,7 @@ Report  ←  Narrative  ←  Financials  ←  Score Markets  ←  6 Factors
 | Climate risk alert | Conditional — shown only when primary market is High or Severe risk |
 | Runner-up comparison | Table + bar chart comparing primary vs. top 2 runner-up markets |
 | All candidates | Collapsed table of every market scored |
+| Forecasting | Macro projections table (Current / Q2 / Q3 / Q4 2026) for four FRED series, Plotly line chart with solid historical data and dotted forecast extensions, color-coded directional deltas |
 | Methodology | Factor weights, raw scores, weighted contributions, and rationales |
 
 ### Chat Bar Routing
@@ -186,6 +202,19 @@ When the app launches, a welcome screen asks: "What are you looking to invest in
 | Climate Risk | Highlights your market's risk score and relevant hazard factors for your property type. |
 
 A persistent chat bar at the top of the dashboard allows changing the query at any time without returning to the welcome screen. AI-generated insights powered by Groq appear at the top of each tab when a focus is set.
+
+### Unified AI Experience — Quick Investment Brief
+
+Any non-advisor query — whether typed on the welcome screen or the persistent chat bar — now produces a **Quick Investment Brief** panel before navigation. This closes the panelist feedback that "the AI feels disconnected" by making every query show AI-driven intelligence immediately.
+
+| Brief Element | What It Shows |
+|--------------|--------------|
+| Header | Property type and location extracted from the query (e.g., `OFFICE IN CHICAGO — QUICK BRIEF`) |
+| Top 3 markets | Best-scored candidate markets for the query — each row shows composite score (color-coded), letter grade, cap rate (for the inferred property type), and rent growth (green for positive, red for negative). When the query names a specific market, it surfaces first regardless of rank. |
+| AI Insight | 2-sentence Groq-generated insight grounded in the top-3 row data |
+| CTAs | `Explore Dashboard →` (personalizes all tabs), `Get Full P&L Analysis →` (routes to Investment Advisor with prompt pre-filled and auto-generate triggered), `Dismiss` |
+
+Queries that already contain budget + square footage + timeline signals auto-route straight to the full Investment Advisor (bypassing the brief), preserving the fast-path for serious investment queries. The brief is also surfaced as a banner on the dashboard whenever a new query comes in through the top chat bar — so the AI layer is always one input away.
 
 ---
 
@@ -285,7 +314,7 @@ python3 -m streamlit run app/cre_app.py
 python3 -m streamlit run app/cre_app.py --server.port 8503
 ```
 
-The app opens at `http://localhost:8501` by default. All twenty agents start in the background immediately. Data populates within 30–60 seconds.
+The app opens at `http://localhost:8501` by default. All twenty-two agents start in the background immediately. Data populates within 30–60 seconds.
 
 ---
 
@@ -294,7 +323,8 @@ The app opens at `http://localhost:8501` by default. All twenty agents start in 
 | Key | Required | Purpose | Get It |
 |-----|----------|---------|--------|
 | `GROQ_API_KEY` | Recommended | Company facility announcements, Investment Advisor narrative and weight reasoning (Llama 3.3-70B) | [console.groq.com](https://console.groq.com) — free tier available |
-| `FRED_API_KEY` | Recommended | Interest rates, yield curve, labor market, GDP, inflation, and credit market data from the Federal Reserve | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) — free |
+| `FRED_API_KEY` | Recommended | Interest rates, yield curve, labor market, GDP, inflation, credit markets, and Agent 22 macro forecasts | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) — free |
+| `RENTCAST_API_KEY` | Optional | Agent 21 real property listings for TX, FL, AZ, NC, TN, GA. Free tier = 50 calls/month. Falls back to mock listings when absent or quota is exhausted. | [rentcast.io](https://www.rentcast.io) — free tier available |
 
 Store keys in a `.env` file at the project root (no spaces around `=`):
 
@@ -322,6 +352,9 @@ The app runs without both keys — migration, REIT pricing, energy, sustainabili
 | AI / LLM | Groq API — llama-3.3-70b-versatile |
 | Structured Outputs | Groq JSON mode with schema validation |
 | News Sources | Reuters, Manufacturing.net, IndustryWeek, PR Newswire, Business Wire, Dept. of Energy, Dept. of Commerce, EDA, Expansion Solutions, Site Selection Magazine |
+| Property Listings | RentCast API — for-sale and for-rent listings across TX, FL, AZ, NC, TN, GA (Agent 21) |
+| Forecasting | FRED FOMC / market series — `GDPNOW`, `GDPC1MD`, `FEDTARMD`, `T10YIE` (Agent 22) |
+| Data Validation | Pandera — pre-flight schema checks on REIT prices, cap rates, migration scores, population growth |
 | Charts | Plotly — choropleth maps, heatmaps, bar, scatter, line |
 | Language | Python 3.10+ |
 
@@ -334,11 +367,12 @@ AI-leadership-Project/
 ├── app/
 │   └── cre_app.py                    # Streamlit dashboard — all tabs and visualization
 ├── src/
-│   ├── cre_agents.py                 # Agent runner, scheduler, cache helpers (20 agents)
-│   ├── recommendation_engine.py      # Investment Advisor engine (parse → score → financials → narrative)
+│   ├── cre_agents.py                 # Agent runner, scheduler, cache helpers (22 agents)
+│   ├── recommendation_engine.py      # Investment Advisor engine (parse → score → financials → narrative; macro forecast feeds into narrative prompt)
+│   ├── data_validator.py             # Pandera pre-flight schemas — REIT prices, cap rates, migration scores, population growth (logs failures to audit_log.csv)
 │   ├── cre_population.py             # Census API — migration scores, metro data
 │   ├── cre_pricing.py                # REIT universe, cap rates, profit matrix
-│   ├── cre_news.py                   # RSS feed scraper, facility keyword filter
+│   ├── cre_news.py                   # RSS feed scraper, facility keyword filter, source_quote verification loop
 │   ├── cre_listings.py               # Commercial property listings by state (28 states, 200+ cities)
 │   ├── rate_agent.py                 # FRED API — interest rates, yield curve
 │   ├── energy_analyst.py             # Commodity prices, construction cost signal
@@ -356,6 +390,8 @@ AI-leadership-Project/
 │   ├── market_score_agent.py         # Composite market opportunity scores
 │   ├── climate_risk_agent.py         # Physical climate hazard scoring (FEMA, NIFC, NOAA)
 │   ├── property_tax_agent.py         # Property tax rates by market
+│   ├── rentcast_agent.py             # Agent 21 — RentCast API property listings (TX, FL, AZ, NC, TN, GA) with mock-data fallback
+│   ├── forecast_agent.py             # Agent 22 — FRED macro projections (GDPNOW, GDPC1MD, T10YIE, FEDTARMD) for Q2–Q4 2026
 │   ├── county_migration.py           # County-level migration data (FIPS codes, 12 states seeded)
 │   └── zip_migration.py              # Neighborhood-level data (17 metros, real lat/lon)
 ├── week5/                            # Evaluation artifacts and data quality reports

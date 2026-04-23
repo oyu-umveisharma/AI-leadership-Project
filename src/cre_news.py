@@ -399,6 +399,108 @@ def fetch_facility_announcements() -> list[dict]:
     return scored
 
 
+# ── Source-quote verification loop ───────────────────────────────────────────
+#
+# Dr. Zhang's Week 5 feedback: source_quote should be an ACTIVE guardrail,
+# not passive documentation. After Groq returns a facility extraction, the
+# harness confirms the extracted `location` actually appears in the exact
+# `source_quote` sentence the model cites. Any mismatch triggers a retry with
+# the discrepancy flagged in the prompt, and the failure is logged to the
+# audit trail. This directly closes the GROQ-09 loophole (location hallucination).
+
+_VERIFY_SKIP_LOCATIONS = {"", "multiple us markets", "multiple markets",
+                          "nationwide", "various", "unknown", "n/a", "na"}
+
+
+def verify_source_quote(record: dict) -> tuple[bool, str]:
+    """
+    Active guardrail — confirm the extracted location appears in source_quote.
+
+    Returns
+    -------
+    (is_valid, reason)
+        is_valid = True  → source_quote covers the location (or location is a
+                           legitimate multi-market / blank value we can't check)
+        is_valid = False → mismatch, caller should flag the record and retry
+    """
+    location     = (record.get("location") or "").strip()
+    source_quote = (record.get("source_quote") or "").strip()
+
+    if location.lower() in _VERIFY_SKIP_LOCATIONS:
+        return True, "skipped_generic_location"
+    if not source_quote:
+        return False, "missing_source_quote"
+
+    # Break "City, State" (or "State" alone) into tokens ≥ 3 chars
+    parts = [p.strip().lower() for p in re.split(r"[,/]", location) if p.strip()]
+    tokens = [p for p in parts if len(p) >= 3]
+    if not tokens:
+        return True, "skipped_short_location"
+
+    sq_lower = source_quote.lower()
+    if not any(tok in sq_lower for tok in tokens):
+        sample = source_quote.replace("\n", " ")[:80]
+        return False, f"location '{location}' not found in quote '{sample}…'"
+    return True, ""
+
+
+def verify_and_flag_records(records: list[dict],
+                            agent_name: str = "predictions") -> dict:
+    """
+    Verify each extracted record's source_quote / location coherence.
+
+    Every failure is appended to `cache/audit_log.csv` with status='warning'
+    and error='source_quote_mismatch: <detail>'. Records are annotated with
+    `verification_ok` and (on failure) `verification_reason` keys, but NOT
+    dropped — the caller decides what to do with flagged records.
+
+    Returns
+    -------
+    {
+        "records":        records (annotated in place),
+        "passed":         count that passed,
+        "failed":         count that failed,
+        "failed_records": list of failing records (for retry prompts),
+    }
+    """
+    try:
+        from src.audit_logger import log_agent_run
+    except Exception:
+        log_agent_run = None   # type: ignore
+
+    passed, failed_recs = 0, []
+    for rec in records:
+        ok, reason = verify_source_quote(rec)
+        rec["verification_ok"] = ok
+        if ok:
+            passed += 1
+            continue
+        rec["verification_reason"] = reason
+        failed_recs.append(rec)
+        if log_agent_run:
+            try:
+                log_agent_run(
+                    agent_name=agent_name,
+                    status="warning",
+                    latency_ms=0,
+                    output_summary=(
+                        f"source_quote verification failed: "
+                        f"{rec.get('company', '?')} / {rec.get('location', '?')}"
+                    ),
+                    record_count=1,
+                    error=f"source_quote_mismatch: {reason[:160]}",
+                )
+            except Exception:
+                pass
+
+    return {
+        "records":        records,
+        "passed":         passed,
+        "failed":         len(failed_recs),
+        "failed_records": failed_recs,
+    }
+
+
 # ── Groq LLM summary (uses only MODERATE+ articles) ──────────────────────────
 
 def summarize_with_llm(articles: list[dict]) -> str:
