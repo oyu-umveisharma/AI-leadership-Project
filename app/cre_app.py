@@ -5189,8 +5189,81 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
 **Grade scale:** A ≥ 80 · B+ ≥ 70 · B ≥ 60 · C+ ≥ 50 · C ≥ 40 · D < 40
                 """)
 
+            # ── Property-type re-weighting ────────────────────────────────────
+            _ms_active_pt = _active_pt()
+            _MS_PT_WEIGHTS = {
+                "Industrial":  {"migration": 0.25, "vacancy": 0.28, "rent": 0.18, "cap_rate": 0.10, "land": 0.14, "macro": 0.05},
+                "Multifamily": {"migration": 0.35, "vacancy": 0.22, "rent": 0.25, "cap_rate": 0.10, "land": 0.03, "macro": 0.05},
+                "Office":      {"migration": 0.18, "vacancy": 0.30, "rent": 0.15, "cap_rate": 0.17, "land": 0.05, "macro": 0.15},
+                "Retail":      {"migration": 0.28, "vacancy": 0.20, "rent": 0.22, "cap_rate": 0.15, "land": 0.05, "macro": 0.10},
+                "Healthcare":  {"migration": 0.30, "vacancy": 0.18, "rent": 0.15, "cap_rate": 0.15, "land": 0.10, "macro": 0.12},
+            }
+
+            def _ms_pt_composite(ranking_row, pt):
+                f  = ranking_row.get("factors", {})
+                w  = _MS_PT_WEIGHTS.get(pt, {})
+                if not w:
+                    return float(ranking_row.get("composite", 50))
+                raw = sum(float(f.get(k, 50)) * wt for k, wt in w.items())
+                penalty = float(ranking_row.get("climate_penalty", 0) or 0)
+                return round(max(0.0, raw - penalty), 1)
+
+            if _ms_active_pt and _ms_rankings:
+                # Compute pt-weighted scores
+                _ms_pt_rows = []
+                for _r in _ms_rankings:
+                    _pts = _ms_pt_composite(_r, _ms_active_pt)
+                    _ms_pt_rows.append({**_r, "pt_composite": _pts,
+                                        "pt_grade": "A" if _pts >= 80 else ("B+" if _pts >= 70 else ("B" if _pts >= 60 else ("C+" if _pts >= 50 else ("C" if _pts >= 40 else "D"))))})
+                _ms_pt_rows.sort(key=lambda x: x["pt_composite"], reverse=True)
+                _ms_pt_top3  = [r["market"] for r in _ms_pt_rows[:3]]
+                _ms_pt_avoid = [r["market"] for r in _ms_pt_rows[-3:]]
+                _ms_pt_avg   = round(sum(r["pt_composite"] for r in _ms_pt_rows) / len(_ms_pt_rows), 1)
+
+                st.markdown(
+                    f'<div style="background:#0d1a0d;border:1px solid #2a4a2a;border-radius:8px;'
+                    f'padding:10px 16px;margin-bottom:8px;">'
+                    f'<span style="color:#4caf50;font-size:0.85rem;">Rankings re-weighted for '
+                    f'<b style="color:#a0d0a0;">{_ms_active_pt}</b></span>'
+                    f'<span style="color:#3a6a3a;font-size:0.75rem;margin-left:10px;">'
+                    + " · ".join(f"{k.title()} {int(v*100)}%" for k, v in _MS_PT_WEIGHTS[_ms_active_pt].items())
+                    + f'</span></div>',
+                    unsafe_allow_html=True,
+                )
+
+                section(f" {_ms_active_pt} Market Rankings")
+                _pt_c1, _pt_c2, _pt_c3 = st.columns(3)
+                _pt_c1.markdown(metric_card(f"Avg {_ms_active_pt} Score", f"{_ms_pt_avg}/100", "19 tracked markets"), unsafe_allow_html=True)
+                _pt_c2.markdown(metric_card("Top Markets", " · ".join(_ms_pt_top3[:2]), f"Best {_ms_active_pt} opportunity"), unsafe_allow_html=True)
+                _pt_c3.markdown(metric_card("Avoid", " · ".join(_ms_pt_avoid[:2]), f"Weakest {_ms_active_pt} signals"), unsafe_allow_html=True)
+
+                _ms_pt_df = pd.DataFrame(_ms_pt_rows)
+                _ms_pt_colors = ["#66bb6a" if s >= 70 else ("#d4a843" if s >= 50 else "#ef5350") for s in _ms_pt_df["pt_composite"]]
+                fig_ms_pt = go.Figure(go.Bar(
+                    x=_ms_pt_df["pt_composite"], y=_ms_pt_df["market"], orientation="h",
+                    marker_color=_ms_pt_colors,
+                    text=[f"{r['pt_grade']}  {r['pt_composite']}" for r in _ms_pt_rows],
+                    textposition="outside",
+                    customdata=_ms_pt_df[["composite", "market"]].values,
+                    hovertemplate="<b>%{y}</b><br>"
+                                  + f"{_ms_active_pt} Score: %{{x:.1f}}<br>"
+                                  + "Base Score: %{customdata[0]:.1f}<extra></extra>",
+                ))
+                fig_ms_pt.update_layout(
+                    xaxis=dict(range=[0, 110], title=f"{_ms_active_pt} Score (0–100)",
+                               gridcolor="#2a2208", color="#8a7040"),
+                    yaxis=dict(categoryorder="total ascending", color="#8a7040"),
+                    plot_bgcolor="#0d0b04", paper_bgcolor="#0d0b04",
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                    margin=dict(l=160, r=80, t=10, b=40), height=580,
+                )
+                st.plotly_chart(fig_ms_pt, use_container_width=True)
+                with st.expander("Show base composite rankings", expanded=False):
+                    pass  # falls through to the existing chart below
+
             # ── Summary cards ─────────────────────────────────────────────────
-            section(" Composite Market Rankings")
+            _base_section_label = "Base Composite Rankings" if _ms_active_pt else " Composite Market Rankings"
+            section(_base_section_label)
             _ms_c1, _ms_c2, _ms_c3 = st.columns(3)
             _ms_c1.markdown(metric_card("Avg Market Score", f"{_ms_avg}/100", "19 tracked markets"), unsafe_allow_html=True)
             _ms_c2.markdown(metric_card("Top Markets", " · ".join(_ms_top3[:2]) if _ms_top3 else "—", "Highest composite scores"), unsafe_allow_html=True)
