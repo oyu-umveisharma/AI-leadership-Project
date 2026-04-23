@@ -5422,6 +5422,45 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             _pt_focus_banner(_cap_pt)
             _cap_focus_col = _PT_CAP_COL.get(_cap_pt) if _cap_pt else None
 
+            # ── Best Markets For Your Type callout ───────────────────────────
+            if _cap_focus_col and _cap_mktcaps and _cap_t10y:
+                _bm_spreads = []
+                for _bm_mkt, _bm_caps in _cap_mktcaps.items():
+                    _bm_cr = _bm_caps.get(_cap_focus_col)
+                    if _bm_cr:
+                        _bm_spread = round(float(_bm_cr) - float(_cap_t10y), 2)
+                        _bm_sig    = "ATTRACTIVE" if _bm_spread > 2.5 else ("FAIR" if _bm_spread > 1.5 else "COMPRESSED")
+                        _bm_sig_c  = {"ATTRACTIVE": "#66bb6a", "FAIR": "#d4a843", "COMPRESSED": "#ef5350"}[_bm_sig]
+                        _bm_spreads.append({"market": _bm_mkt, "cap_rate": _bm_cr, "spread": _bm_spread,
+                                            "signal": _bm_sig, "sig_c": _bm_sig_c})
+                _bm_spreads.sort(key=lambda x: x["spread"], reverse=True)
+                _bm_top5 = _bm_spreads[:5]
+
+                if _bm_top5:
+                    _bm_cards = ""
+                    for _rank, _bm in enumerate(_bm_top5, 1):
+                        _bm_cards += (
+                            f'<div style="flex:1;min-width:140px;background:#0d1a0d;border:1px solid #2a4a2a;'
+                            f'border-top:3px solid {_bm["sig_c"]};border-radius:8px;padding:14px 12px;">'
+                            f'<div style="font-size:0.65rem;color:#4a7a4a;letter-spacing:0.1em;margin-bottom:6px;">#{_rank}</div>'
+                            f'<div style="font-size:0.88rem;font-weight:600;color:#c8d8c8;margin-bottom:8px;line-height:1.2;">{_bm["market"]}</div>'
+                            f'<div style="font-size:1.1rem;font-weight:700;color:#c8a040;">{_bm["cap_rate"]:.1f}%</div>'
+                            f'<div style="font-size:0.75rem;color:#7a9a7a;margin-top:2px;">Spread: {_bm["spread"]:+.2f}pp</div>'
+                            f'<div style="font-size:0.68rem;font-weight:700;color:{_bm["sig_c"]};'
+                            f'margin-top:6px;letter-spacing:0.08em;">{_bm["signal"]}</div>'
+                            f'</div>'
+                        )
+                    st.markdown(
+                        f'<div style="background:#0a120a;border:1px solid #2a4020;border-radius:10px;'
+                        f'padding:16px 20px;margin-bottom:16px;">'
+                        f'<div style="font-size:0.72rem;color:#4a7a4a;letter-spacing:0.12em;'
+                        f'text-transform:uppercase;margin-bottom:12px;">'
+                        f'Best Markets for {_cap_focus_col} — Ranked by Cap Rate Spread vs. {_cap_t10y:.2f}% Treasury</div>'
+                        f'<div style="display:flex;gap:10px;flex-wrap:wrap;">{_bm_cards}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
             # ── National cap rates ────────────────────────────────────────────
             section(" National Cap Rates by Property Type")
             _cap_ncols = st.columns(len(_cap_national))
