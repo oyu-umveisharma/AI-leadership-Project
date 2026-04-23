@@ -2693,10 +2693,39 @@ with main_tab_re:
                 counties_geojson = _load_county_geojson()
                 section(f"County Migration — {_US_STATES.get(_sel_state_abbr, _sel_state_abbr)}")
 
+                # Inline property-type selector for county view
+                _cty_PT_OPTIONS = ["None", "Industrial", "Multifamily", "Office", "Retail", "Healthcare"]
+                _cty_default_idx = _cty_PT_OPTIONS.index(_mig_pt) if _mig_pt in _cty_PT_OPTIONS else 0
+                _cty_sel_cols = st.columns([3, 1])
+                with _cty_sel_cols[0]:
+                    _cty_pt = st.selectbox(
+                        "Property Type Lens",
+                        _cty_PT_OPTIONS,
+                        index=_cty_default_idx,
+                        key="cty_pt_sel",
+                        help="Re-scores counties for the selected property type.",
+                        label_visibility="collapsed",
+                    )
+                with _cty_sel_cols[1]:
+                    if _cty_pt != "None" and _cty_pt != _mig_pt:
+                        if st.button("Apply", key="cty_pt_apply", use_container_width=True):
+                            st.session_state.user_intent["property_type"] = _cty_pt
+                            st.rerun()
+                    elif _cty_pt == "None" and _mig_pt:
+                        if st.button("Clear", key="cty_pt_clear", use_container_width=True):
+                            st.session_state.user_intent["property_type"] = None
+                            st.rerun()
+
+                _active_cty_pt = _cty_pt if _cty_pt != "None" else None
+
+                county_df["pt_score"] = county_df.apply(lambda r: _pt_county_score(r, _active_cty_pt), axis=1)
+                _cty_map_z    = county_df["pt_score"] if _active_cty_pt else county_df["migration_score"]
+                _cty_cbar_lbl = f"{_active_cty_pt}\nScore" if _active_cty_pt else "Score"
+
                 fig_county = go.Figure(go.Choroplethmapbox(
                     geojson=counties_geojson,
                     locations=county_df["fips"],
-                    z=county_df["migration_score"],
+                    z=_cty_map_z,
                     featureidkey="id",
                     colorscale=[
                         [0.0, "#7f0000"], [0.25, "#c62828"], [0.45, "#d4c5a9"],
@@ -2705,49 +2734,74 @@ with main_tab_re:
                     zmin=0, zmax=100,
                     marker_line_width=0.5, marker_line_color="#333",
                     marker_opacity=0.85,
-                    colorbar=dict(title=dict(text="Score", font=dict(size=10, color="#e8e9ed")),
+                    colorbar=dict(title=dict(text=_cty_cbar_lbl, font=dict(size=10, color="#e8e9ed")),
                                   tickfont=dict(size=9, color="#e8e9ed"), thickness=12, len=0.6,
                                   bgcolor="#171309", bordercolor="#2a2208"),
                     text=county_df.apply(
-                        lambda r: f"<b>{r['name']}</b><br>"
-                                  f"Score: {r['migration_score']}<br>"
-                                  f"Pop Growth: {r['pop_growth_pct']:+.1f}%<br>"
-                                  f"Pop: {r['population']:,}<br>"
-                                  f"{r['top_driver']}", axis=1),
+                        lambda r: (
+                            f"<b>{r['name']}</b><br>"
+                            + (f"{_active_cty_pt} Score: {r['pt_score']:.0f}<br>Migration Score: {r['migration_score']}<br>"
+                               if _active_cty_pt else f"Score: {r['migration_score']}<br>")
+                            + f"Pop Growth: {r['pop_growth_pct']:+.1f}%<br>"
+                            f"Pop: {r['population']:,}<br>{r['top_driver']}"
+                        ), axis=1),
                     hovertemplate="%{text}<extra></extra>",
                 ))
-                fig_county.update_geos(
-                    fitbounds="locations", visible=False,
-                    bgcolor="#111111",
-                    landcolor="#1a1a1a",
-                    lakecolor="#0a0a0a",
-                )
+                fig_county.update_geos(fitbounds="locations", visible=False,
+                    bgcolor="#111111", landcolor="#1a1a1a", lakecolor="#0a0a0a")
                 fig_county.update_layout(
-                    paper_bgcolor="#111111",
-                    plot_bgcolor="#111111",
+                    paper_bgcolor="#111111", plot_bgcolor="#111111",
                     geo=dict(bgcolor="#111111"),
                     margin=dict(t=10, b=10, l=0, r=0),
-                    height=520,
-                    font=dict(family="DM Sans", color="#e8e9ed"),
+                    height=520, font=dict(family="DM Sans", color="#e8e9ed"),
                 )
                 st.plotly_chart(fig_county, use_container_width=True, config={"displayModeBar": False})
 
-                # County table
+                # County rankings table
                 section(f"County Rankings — {_US_STATES.get(_sel_state_abbr, _sel_state_abbr)}")
-                county_df["pt_score"] = county_df.apply(lambda r: _pt_county_score(r, _mig_pt), axis=1)
-                _county_sort_col = "pt_score" if _mig_pt else "migration_score"
-                _cdisp = county_df.sort_values(_county_sort_col, ascending=False).copy()
-                if _mig_pt:
-                    _cdisp = _cdisp[["name", "population", "pop_growth_pct", "migration_score", "pt_score", "top_driver"]]
-                    _cdisp.columns = ["County", "Population", "Pop Growth %", "Migration Score", f"{_mig_pt} Score", "Key Driver"]
-                    _cdisp[f"{_mig_pt} Score"] = _cdisp[f"{_mig_pt} Score"].apply(lambda x: f"{x:.0f}")
-                else:
-                    _cdisp = _cdisp[["name", "population", "pop_growth_pct", "migration_score", "top_driver"]]
-                    _cdisp.columns = ["County", "Population", "Pop Growth %", "Migration Score", "Key Driver"]
-                _cdisp["Population"] = _cdisp["Population"].apply(lambda x: f"{x:,}")
-                _cdisp["Pop Growth %"] = _cdisp["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
-                _cdisp["Migration Score"] = _cdisp["Migration Score"].apply(lambda x: f"{x:.0f}")
-                st.dataframe(_cdisp, use_container_width=True, hide_index=True)
+
+                if _active_cty_pt:
+                    st.markdown(
+                        f'<div style="font-size:0.78rem;color:#5a8a5a;margin:-4px 0 8px;">'
+                        f'Ranked by <b style="color:#a0d0a0;">{_active_cty_pt} Score</b> · '
+                        f'{_pt_weights_desc.get(_active_cty_pt,"")}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                _county_sort_col = "pt_score" if _active_cty_pt else "migration_score"
+                _cdisp = county_df.sort_values(_county_sort_col, ascending=False).copy().reset_index(drop=True)
+
+                def _fmt_county_df(df):
+                    d = df.copy()
+                    if _active_cty_pt:
+                        d = d[["name", "population", "pop_growth_pct", "pt_score", "migration_score", "top_driver"]]
+                        d.columns = ["County", "Population", "Pop Growth %", f"{_active_cty_pt} Score", "Migration Score", "Key Driver"]
+                        d[f"{_active_cty_pt} Score"] = d[f"{_active_cty_pt} Score"].apply(lambda x: f"{x:.0f}")
+                    else:
+                        d = d[["name", "population", "pop_growth_pct", "migration_score", "top_driver"]]
+                        d.columns = ["County", "Population", "Pop Growth %", "Migration Score", "Key Driver"]
+                    d["Population"]      = d["Population"].apply(lambda x: f"{x:,}")
+                    d["Pop Growth %"]    = d["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
+                    d["Migration Score"] = d["Migration Score"].apply(lambda x: f"{x:.0f}")
+                    return d
+
+                _n_cty_total = len(_cdisp)
+                _n_cty_top   = max(1, (_n_cty_total + 1) // 2)
+                _cty_top     = _cdisp.iloc[:_n_cty_top]
+                _cty_rest    = _cdisp.iloc[_n_cty_top:]
+
+                st.dataframe(_fmt_county_df(_cty_top), use_container_width=True, hide_index=True)
+
+                if not _cty_rest.empty:
+                    with st.expander(
+                        f"Show lower-ranked counties ({len(_cty_rest)} counties — bottom 50%)",
+                        expanded=False,
+                    ):
+                        st.dataframe(_fmt_county_df(_cty_rest), use_container_width=True, hide_index=True)
+                        st.caption(
+                            "These counties scored in the bottom half for "
+                            + (f"**{_active_cty_pt}** demand signals." if _active_cty_pt else "overall migration strength.")
+                        )
 
         # ── METRO / NEIGHBORHOOD MAP ──────────────────────────────────────────
         elif _show_metro_map:
