@@ -2870,36 +2870,69 @@ with main_tab_re:
                 )
                 st.plotly_chart(fig_metro, use_container_width=True, config={"displayModeBar": False})
 
-                # Neighborhood table with property-type scoring
-                _nbhd_title = f"Neighborhood Rankings — {_sel_metro}"
-                if _mig_pt:
-                    _nbhd_title += f" · {_mig_pt} Lens"
-                section(_nbhd_title)
+                # ── Neighborhood Rankings table ────────────────────────────────
+                section(f"Neighborhood Rankings — {_sel_metro}")
+
+                # Inline property-type selector (reads from + writes to global intent)
+                _PT_OPTIONS = ["None", "Industrial", "Multifamily", "Office", "Retail", "Healthcare"]
+                _pt_default_idx = _PT_OPTIONS.index(_mig_pt) if _mig_pt in _PT_OPTIONS else 0
+                _nbhd_sel_cols = st.columns([3, 1])
+                with _nbhd_sel_cols[0]:
+                    _nbhd_pt = st.selectbox(
+                        "Property Type Lens",
+                        _PT_OPTIONS,
+                        index=_pt_default_idx,
+                        key="nbhd_pt_sel",
+                        help="Re-scores and re-ranks neighborhoods for the selected property type. "
+                             "Linked to your global session focus.",
+                        label_visibility="collapsed",
+                    )
+                with _nbhd_sel_cols[1]:
+                    if _nbhd_pt != "None" and _nbhd_pt != _mig_pt:
+                        if st.button("Apply", key="nbhd_pt_apply", use_container_width=True):
+                            st.session_state.user_intent["property_type"] = _nbhd_pt
+                            st.rerun()
+                    elif _nbhd_pt == "None" and _mig_pt:
+                        if st.button("Clear", key="nbhd_pt_clear", use_container_width=True):
+                            st.session_state.user_intent["property_type"] = None
+                            st.rerun()
+
+                # Use the inline selector value immediately (no rerun needed for display)
+                _active_pt = _nbhd_pt if _nbhd_pt != "None" else None
 
                 zip_df = zip_df.copy()
-                zip_df["pt_score"] = zip_df.apply(lambda r: _pt_neighborhood_score(r, _mig_pt), axis=1)
-                zip_df["zone_fit"]  = zip_df["neighborhood_type"].apply(
-                    lambda z: _PT_ZONE_LABEL.get(_PT_ZONE_RANK.get(_mig_pt, {}).get(z, 1), "Moderate")
-                    if _mig_pt else "—"
+                zip_df["pt_score"] = zip_df.apply(lambda r: _pt_neighborhood_score(r, _active_pt), axis=1)
+                # Zone fit: always show suitability label (generic if no type)
+                zip_df["zone_fit"] = zip_df["neighborhood_type"].apply(
+                    lambda z: _PT_ZONE_LABEL.get(_PT_ZONE_RANK.get(_active_pt, {}).get(z, 1), "Moderate")
+                    if _active_pt else z   # fall back to just the zone name
                 )
-                _nbhd_sort_col = "pt_score" if _mig_pt else "migration_score"
+                _nbhd_sort_col = "pt_score" if _active_pt else "migration_score"
                 zip_df = zip_df.sort_values(_nbhd_sort_col, ascending=False).reset_index(drop=True)
+
+                if _active_pt:
+                    st.markdown(
+                        f'<div style="font-size:0.78rem;color:#5a8a5a;margin:-4px 0 8px;">'
+                        f'Ranked by <b style="color:#a0d0a0;">{_active_pt} Score</b> · '
+                        f'{_pt_weights_desc.get(_active_pt,"")}</div>',
+                        unsafe_allow_html=True,
+                    )
 
                 # Split top 50% / bottom 50%
                 _n_total_nbhd = len(zip_df)
-                _n_top = max(1, _n_total_nbhd // 2 + _n_total_nbhd % 2)
+                _n_top = max(1, (_n_total_nbhd + 1) // 2)
                 _df_top  = zip_df.iloc[:_n_top]
                 _df_rest = zip_df.iloc[_n_top:]
 
                 def _fmt_neighborhood_df(df):
                     d = df.copy()
-                    if _mig_pt:
+                    if _active_pt:
                         d = d[["name", "neighborhood_type", "zone_fit", "pt_score", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]]
-                        d.columns = ["Neighborhood", "Type", "Zone Fit", f"{_mig_pt} Score", "Migration Score", "Pop Growth %", "Rent Growth %"]
-                        d[f"{_mig_pt} Score"] = d[f"{_mig_pt} Score"].apply(lambda x: f"{x:.0f}")
+                        d.columns = ["Neighborhood", "Type", "Zone Fit", f"{_active_pt} Score", "Migration Score", "Pop Growth %", "Rent Growth %"]
+                        d[f"{_active_pt} Score"] = d[f"{_active_pt} Score"].apply(lambda x: f"{x:.0f}")
                     else:
-                        d = d[["name", "neighborhood_type", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]]
-                        d.columns = ["Neighborhood", "Type", "Migration Score", "Pop Growth %", "Rent Growth %"]
+                        d = d[["name", "neighborhood_type", "zone_fit", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]]
+                        d.columns = ["Neighborhood", "Type", "Zone Type", "Migration Score", "Pop Growth %", "Rent Growth %"]
                     d["Migration Score"] = d["Migration Score"].apply(lambda x: f"{x:.0f}")
                     d["Pop Growth %"]    = d["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
                     d["Rent Growth %"]   = d["Rent Growth %"].apply(lambda x: f"{x:+.1f}%")
@@ -2908,14 +2941,14 @@ with main_tab_re:
                 st.dataframe(_fmt_neighborhood_df(_df_top), use_container_width=True, hide_index=True)
 
                 if not _df_rest.empty:
-                    _rest_label = (
-                        f"Show lower-ranked neighborhoods ({len(_df_rest)} areas — bottom 50%)"
-                    )
-                    with st.expander(_rest_label, expanded=False):
+                    with st.expander(
+                        f"Show lower-ranked neighborhoods ({len(_df_rest)} areas — bottom 50%)",
+                        expanded=False,
+                    ):
                         st.dataframe(_fmt_neighborhood_df(_df_rest), use_container_width=True, hide_index=True)
                         st.caption(
                             "These neighborhoods scored in the bottom half for "
-                            + (f"**{_mig_pt}** demand signals." if _mig_pt else "migration strength.")
+                            + (f"**{_active_pt}** demand signals." if _active_pt else "overall migration strength.")
                         )
 
         # ── NATIONAL MAP (default) ────────────────────────────────────────────
