@@ -1251,29 +1251,33 @@ if not st.session_state.onboarding_complete:
     gap: 0 !important;
   }
   .prop-card-btn > div[data-testid="stButton"] > button {
-    background: rgba(255,255,255,.018) !important;
-    border: 1px solid rgba(200,160,64,.18) !important;
+    background: #0d0b04 !important;
+    border: 1px solid rgba(200,160,64,.25) !important;
+    border-top: 2px solid rgba(200,160,64,.55) !important;
     border-radius: 10px !important;
-    padding: 18px 8px 14px !important;
-    color: #5a4820 !important;
-    font-size: .58rem !important;
+    padding: 20px 8px 16px !important;
+    color: #c8a040 !important;
+    font-size: .6rem !important;
     font-weight: 600 !important;
-    letter-spacing: 2px !important;
+    letter-spacing: 2.5px !important;
     text-transform: uppercase !important;
     width: 100% !important;
-    min-height: 80px !important;
+    min-height: 86px !important;
     transition: all .2s !important;
     cursor: pointer !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     gap: 8px !important;
+    box-shadow: 0 1px 8px rgba(0,0,0,.4) !important;
   }
   .prop-card-btn > div[data-testid="stButton"] > button:hover,
   .prop-card-btn > div[data-testid="stButton"] > button:focus {
-    background: rgba(200,160,64,.08) !important;
-    border-color: rgba(200,160,64,.45) !important;
-    color: #c8a040 !important;
+    background: #1a1500 !important;
+    border-color: #c8a040 !important;
+    border-top-color: #d4a843 !important;
+    color: #d4a843 !important;
+    box-shadow: 0 0 14px rgba(200,160,64,.18) !important;
   }
 </style>
 <div class="cre-wrap" style="padding-bottom:0;">
@@ -1513,35 +1517,105 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header banner ────────────────────────────────────────────────────────────
-st.markdown("""
-<div style="display:flex; align-items:center; justify-content:space-between;
-            padding:14px 24px; background:#1a1208;
-            border-radius:10px 10px 0 0; border-bottom:1px solid #3a2e10;
-            margin-bottom:0;">
-  <!-- Left: Brand -->
-  <div style="display:flex; align-items:center; gap:12px;">
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-      <rect width="32" height="32" rx="6" fill="#2a2008"/>
-      <rect x="6" y="18" width="4" height="8" rx="1" fill="#d4a843"/>
-      <rect x="12" y="12" width="4" height="14" rx="1" fill="#e8c060"/>
-      <rect x="18" y="6" width="4" height="20" rx="1" fill="#d4a843"/>
-      <rect x="24" y="14" width="2" height="12" rx="1" fill="#a07830"/>
-      <path d="M6 18 L14 12 L20 6 L26 14" stroke="#f0d080" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-    </svg>
-    <div>
-      <div style="font-size:16px; font-weight:500; color:#d4a843; letter-spacing:0.02em; line-height:1.2;">CRE Intelligence Platform</div>
-      <div style="font-size:10px; color:#8a7040; letter-spacing:0.12em; text-transform:uppercase; margin-top:2px;">AI-Powered Commercial Real Estate Intelligence</div>
+# ── Header banner with live data ticker ─────────────────────────────────────
+
+# Read live cache values for ticker
+_hdr_rates = read_cache("rates") or {}
+_hdr_rd    = _hdr_rates.get("data", _hdr_rates)
+try:   _hdr_tsy = f"{float(_hdr_rd.get('DGS10') or _hdr_rd.get('ten_year_yield') or _hdr_rd.get('treasury_10yr') or 4.5):.2f}%"
+except Exception: _hdr_tsy = "4.50%"
+
+_hdr_cap = read_cache("cap_rate") or {}
+_hdr_cd  = _hdr_cap.get("data", _hdr_cap)
+try:   _hdr_cap_str = f"{float(_hdr_cd.get('national_avg_cap_rate', _hdr_cd.get('cap_rate', 5.6))):.2f}%"
+except Exception: _hdr_cap_str = "5.60%"
+
+_hdr_ms   = read_cache("market_score") or {}
+_hdr_top  = "Austin, TX"
+try:
+    _hdr_sc = _hdr_ms.get("scores") or (_hdr_ms.get("data") or {}).get("rankings") or []
+    if _hdr_sc: _hdr_top = _hdr_sc[0].get("market", "Austin, TX")
+except Exception: pass
+
+_hdr_vac = read_cache("vacancy") or {}
+_hdr_vd  = _hdr_vac.get("data", {}) or {}
+try:
+    _hdr_nat_vac = _hdr_vd.get("national", {})
+    _hdr_ind_vac = _hdr_nat_vac.get("Industrial", {}).get("rate", 4.5)
+    _hdr_vac_str = f"{_hdr_ind_vac:.1f}%"
+except Exception: _hdr_vac_str = "4.5%"
+
+_hdr_rg = read_cache("rent_growth") or {}
+_hdr_rgd = (_hdr_rg.get("data") or {}).get("national", {})
+try:
+    _hdr_ind_rg  = _hdr_rgd.get("Industrial", {}).get("yoy_pct", 8.0)
+    _hdr_rg_str  = f"{_hdr_ind_rg:+.1f}%"
+    _hdr_rg_up   = _hdr_ind_rg >= 0
+except Exception:
+    _hdr_rg_str = "+8.0%"
+    _hdr_rg_up  = True
+
+st.markdown(f"""
+<div style="background:#0d0b04; border-bottom:1px solid #2a2208; margin-bottom:0;">
+
+  <!-- Brand row -->
+  <div style="display:flex; align-items:center; justify-content:space-between;
+              padding:10px 24px 10px;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="6" fill="#2a2008"/>
+        <rect x="6" y="18" width="4" height="8" rx="1" fill="#d4a843"/>
+        <rect x="12" y="12" width="4" height="14" rx="1" fill="#e8c060"/>
+        <rect x="18" y="6" width="4" height="20" rx="1" fill="#d4a843"/>
+        <rect x="24" y="14" width="2" height="12" rx="1" fill="#a07830"/>
+        <path d="M6 18 L14 12 L20 6 L26 14" stroke="#f0d080" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <div style="font-size:15px; font-weight:600; color:#d4a843; letter-spacing:0.02em; line-height:1.2;">CRE Intelligence Platform</div>
+        <div style="font-size:9px; color:#4a3820; letter-spacing:0.14em; text-transform:uppercase; margin-top:1px;">AI-Powered Commercial Real Estate Intelligence</div>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:12px; font-weight:500; color:#c8a040;">Purdue University</div>
+      <div style="font-size:10px; color:#5a4020; letter-spacing:0.08em; text-transform:uppercase; margin-top:1px;">Daniels School · MSF</div>
     </div>
   </div>
-  <!-- Divider -->
-  <div style="width:1px; height:36px; background:#3a2e10; flex-shrink:0;"></div>
-  <!-- Right: Purdue -->
-  <div style="text-align:right;">
-    <div style="font-size:14px; font-weight:500; color:#d4a843;">Purdue University</div>
-    <div style="font-size:11px; color:#8a7040; margin-top:2px;">Daniels School of Business</div>
-    <div style="font-size:10px; color:#5a4820; letter-spacing:0.1em; text-transform:uppercase; margin-top:2px;">MSF Program</div>
+
+  <!-- Live data ticker row -->
+  <div style="background:#090700; border-top:1px solid rgba(200,160,64,.1);
+              display:flex; align-items:center; height:34px; overflow:hidden;">
+    <div style="display:flex; align-items:center; gap:0; height:100%; width:100%;">
+      <div style="display:flex;align-items:center;gap:7px;padding:0 20px;border-right:1px solid rgba(200,160,64,.08);height:100%;white-space:nowrap;">
+        <span style="color:#3a3020;font-size:.6rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Ind. Cap Rate</span>
+        <span style="color:#d8d0b8;font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600;">{_hdr_cap_str}</span>
+        <span style="color:#ef5350;font-size:.62rem;">&#9660; 20bps</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;padding:0 20px;border-right:1px solid rgba(200,160,64,.08);height:100%;white-space:nowrap;">
+        <span style="color:#3a3020;font-size:.6rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Ind. Rent Growth</span>
+        <span style="color:#d8d0b8;font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600;">{_hdr_rg_str}</span>
+        <span style="color:{"#4caf50" if _hdr_rg_up else "#ef5350"};font-size:.62rem;">{"&#9650;" if _hdr_rg_up else "&#9660;"} YoY</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;padding:0 20px;border-right:1px solid rgba(200,160,64,.08);height:100%;white-space:nowrap;">
+        <span style="color:#3a3020;font-size:.6rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Ind. Vacancy</span>
+        <span style="color:#d8d0b8;font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600;">{_hdr_vac_str}</span>
+        <span style="color:#4caf50;font-size:.62rem;">&#9650; tight</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;padding:0 20px;border-right:1px solid rgba(200,160,64,.08);height:100%;white-space:nowrap;">
+        <span style="color:#3a3020;font-size:.6rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Top Market</span>
+        <span style="color:#d8d0b8;font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600;">{_hdr_top}</span>
+        <span style="background:rgba(76,175,80,.15);border:1px solid rgba(76,175,80,.3);color:#4caf50;font-size:.58rem;padding:1px 7px;border-radius:10px;font-weight:600;">High</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;padding:0 20px;border-right:1px solid rgba(200,160,64,.08);height:100%;white-space:nowrap;">
+        <span style="color:#3a3020;font-size:.6rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;">10Y Treasury</span>
+        <span style="color:#d8d0b8;font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600;">{_hdr_tsy}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;padding:0 20px;height:100%;white-space:nowrap;">
+        <span style="color:#3a3020;font-size:.6rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;">DSCR Min</span>
+        <span style="color:#d8d0b8;font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600;">1.25x</span>
+      </div>
+    </div>
   </div>
+
 </div>
 """, unsafe_allow_html=True)
 
