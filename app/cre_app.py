@@ -1995,8 +1995,6 @@ with _bar_left:
             _new_intent = _parse_intent(_new_query)
             _new_intent["raw_input"] = _new_query
             _complete_onboarding(**_new_intent)
-            # Also surface the Quick Brief on the dashboard — "always on" AI
-            st.session_state.show_brief_for = _new_intent
             st.rerun()
 with _bar_right:
     if st.button("Reset", use_container_width=True, key="reset_focus"):
@@ -2013,9 +2011,7 @@ if _cur_pt or _cur_loc:
         unsafe_allow_html=True,
     )
 
-# ── Quick Investment Brief (dashboard banner after chat-bar query) ────────────
-if st.session_state.get("show_brief_for"):
-    _render_quick_brief(st.session_state.show_brief_for, context_key="dashboard")
+# Quick brief only shown on the startup/welcome page, not on the dashboard.
 
 # ── Sticky header injection ───────────────────────────────────────────────────
 components.html("""
