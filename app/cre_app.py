@@ -2976,23 +2976,23 @@ with main_tab_re:
                             st.rerun()
 
                 # Use the inline selector value immediately (no rerun needed for display)
-                _active_pt = _nbhd_pt if _nbhd_pt != "None" else None
+                _nbhd_active_pt = _nbhd_pt if _nbhd_pt != "None" else None
 
                 zip_df = zip_df.copy()
-                zip_df["pt_score"] = zip_df.apply(lambda r: _pt_neighborhood_score(r, _active_pt), axis=1)
+                zip_df["pt_score"] = zip_df.apply(lambda r: _pt_neighborhood_score(r, _nbhd_active_pt), axis=1)
                 # Zone fit: always show suitability label (generic if no type)
                 zip_df["zone_fit"] = zip_df["neighborhood_type"].apply(
-                    lambda z: _PT_ZONE_LABEL.get(_PT_ZONE_RANK.get(_active_pt, {}).get(z, 1), "Moderate")
-                    if _active_pt else z   # fall back to just the zone name
+                    lambda z: _PT_ZONE_LABEL.get(_PT_ZONE_RANK.get(_nbhd_active_pt, {}).get(z, 1), "Moderate")
+                    if _nbhd_active_pt else z   # fall back to just the zone name
                 )
-                _nbhd_sort_col = "pt_score" if _active_pt else "migration_score"
+                _nbhd_sort_col = "pt_score" if _nbhd_active_pt else "migration_score"
                 zip_df = zip_df.sort_values(_nbhd_sort_col, ascending=False).reset_index(drop=True)
 
-                if _active_pt:
+                if _nbhd_active_pt:
                     st.markdown(
                         f'<div style="font-size:0.78rem;color:#5a8a5a;margin:-4px 0 8px;">'
-                        f'Ranked by <b style="color:#a0d0a0;">{_active_pt} Score</b> · '
-                        f'{_pt_weights_desc.get(_active_pt,"")}</div>',
+                        f'Ranked by <b style="color:#a0d0a0;">{_nbhd_active_pt} Score</b> · '
+                        f'{_pt_weights_desc.get(_nbhd_active_pt,"")}</div>',
                         unsafe_allow_html=True,
                     )
 
@@ -3004,10 +3004,10 @@ with main_tab_re:
 
                 def _fmt_neighborhood_df(df):
                     d = df.copy()
-                    if _active_pt:
+                    if _nbhd_active_pt:
                         d = d[["name", "neighborhood_type", "zone_fit", "pt_score", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]]
-                        d.columns = ["Neighborhood", "Type", "Zone Fit", f"{_active_pt} Score", "Migration Score", "Pop Growth %", "Rent Growth %"]
-                        d[f"{_active_pt} Score"] = d[f"{_active_pt} Score"].apply(lambda x: f"{x:.0f}")
+                        d.columns = ["Neighborhood", "Type", "Zone Fit", f"{_nbhd_active_pt} Score", "Migration Score", "Pop Growth %", "Rent Growth %"]
+                        d[f"{_nbhd_active_pt} Score"] = d[f"{_nbhd_active_pt} Score"].apply(lambda x: f"{x:.0f}")
                     else:
                         d = d[["name", "neighborhood_type", "zone_fit", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]]
                         d.columns = ["Neighborhood", "Type", "Zone Type", "Migration Score", "Pop Growth %", "Rent Growth %"]
@@ -3026,7 +3026,7 @@ with main_tab_re:
                         st.dataframe(_fmt_neighborhood_df(_df_rest), use_container_width=True, hide_index=True)
                         st.caption(
                             "These neighborhoods scored in the bottom half for "
-                            + (f"**{_active_pt}** demand signals." if _active_pt else "overall migration strength.")
+                            + (f"**{_nbhd_active_pt}** demand signals." if _nbhd_active_pt else "overall migration strength.")
                         )
 
         # ── NATIONAL MAP (default) ────────────────────────────────────────────
