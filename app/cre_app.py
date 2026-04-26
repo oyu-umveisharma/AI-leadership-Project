@@ -8701,6 +8701,30 @@ with main_tab_advisor:
             except Exception as _adv_err:
                 st.error(f"Error generating recommendation: {_adv_err}")
 
+    # ── Data source freshness banner ──────────────────────────────────────────
+    _mgr_report = (read_cache("manager_report").get("data") or {})
+    _adv_deps   = _mgr_report.get("advisor_dependencies", [])
+    _dep_issues = [d for d in _adv_deps if d.get("health") not in ("OK", "RUNNING")]
+    _backed_off = _mgr_report.get("backed_off_agents", [])
+    if _dep_issues:
+        _dep_names  = ", ".join(d["agent"].replace("_", " ").title() for d in _dep_issues)
+        _hints      = list({d["hint"] for d in _dep_issues if d.get("hint")})
+        _hint_txt   = f" — {_hints[0]}" if _hints else ""
+        st.warning(
+            f"Some data sources used by the Investment Advisor are stale or missing: "
+            f"**{_dep_names}**{_hint_txt}. "
+            f"Results may be less accurate until they refresh. "
+            f"Go to the **About** tab → System Health to trigger a manual refresh.",
+            icon="⚠",
+        )
+    if _backed_off:
+        _bo_names = ", ".join(a.replace("_", " ").title() for a in _backed_off)
+        st.error(
+            f"**{_bo_names}** failed 3+ times and need manual attention. "
+            f"Check your API keys in the .env file or verify network access.",
+            icon="✖",
+        )
+
     # ══════════════════════════════════════════════════════════════════════════
     #  REPORT OUTPUT
     # ══════════════════════════════════════════════════════════════════════════
@@ -10477,3 +10501,91 @@ with main_tab_about:
                         f'<span style="color:#c8b890;font-size:0.82rem;">{", ".join(_unresolved)}</span></div>',
                         unsafe_allow_html=True,
                     )
+
+                # Backed-off agents
+                _backed_off_agents = _mgr_data.get("backed_off_agents", [])
+                if _backed_off_agents:
+                    st.markdown(
+                        f'<div style="background:#2a1a00;border:1px solid #7a4000;border-radius:8px;padding:10px 14px;margin-top:6px;">'
+                        f'<span style="color:#ff9800;font-size:0.78rem;font-weight:600;">Needs manual fix (failed 3x): </span>'
+                        f'<span style="color:#c8b890;font-size:0.82rem;">{", ".join(_backed_off_agents)}</span>'
+                        f'<div style="color:#7a5820;font-size:0.74rem;margin-top:4px;">Check your API keys in .env or verify network access, then click Run Now.</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                # Restart verification results
+                _verif = _mgr_data.get("verification", {})
+                if _verif:
+                    _conf  = [k for k, v in _verif.items() if v == "CONFIRMED"]
+                    _unconf = [k for k, v in _verif.items() if v != "CONFIRMED"]
+                    if _conf:
+                        st.markdown(
+                            f'<div style="background:#0d2a12;border:1px solid #1a5020;border-radius:8px;padding:8px 14px;margin-top:6px;">'
+                            f'<span style="color:#4caf50;font-size:0.76rem;font-weight:600;">Restart verified: </span>'
+                            f'<span style="color:#a09880;font-size:0.78rem;">{", ".join(_conf)}</span></div>',
+                            unsafe_allow_html=True,
+                        )
+                    if _unconf:
+                        st.markdown(
+                            f'<div style="background:#1a1400;border:1px solid #3a3000;border-radius:8px;padding:8px 14px;margin-top:4px;">'
+                            f'<span style="color:#ffb74d;font-size:0.76rem;font-weight:600;">Restart unconfirmed: </span>'
+                            f'<span style="color:#a09880;font-size:0.78rem;">{", ".join(_unconf)} — may still be running</span></div>',
+                            unsafe_allow_html=True,
+                        )
+
+                # Investment Advisor dependency chain
+                _adv_dep_checks = _mgr_data.get("advisor_dependencies", [])
+                _adv_ok_count   = _mgr_data.get("advisor_ok", 0)
+                if _adv_dep_checks:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div style="color:#6a5228;font-size:0.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">'
+                        f'Investment Advisor Data Sources ({_adv_ok_count}/{len(_adv_dep_checks)} healthy)</div>',
+                        unsafe_allow_html=True,
+                    )
+                    _dep_rows = ""
+                    for _dep in _adv_dep_checks:
+                        _dh  = _dep.get("health", "?")
+                        _dot_c = "#4caf50" if _dh == "OK" else ("#ff9800" if _dh in ("STALE", "RUNNING") else "#f44336")
+                        _hint  = _dep.get("hint", "")
+                        _dep_rows += (
+                            f'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e1a08;">'
+                            f'<span style="width:8px;height:8px;border-radius:50%;background:{_dot_c};display:inline-block;flex-shrink:0;"></span>'
+                            f'<span style="color:#c8b890;font-size:0.82rem;">{_dep["agent"].replace("_"," ").title()}</span>'
+                            f'<span style="margin-left:auto;color:{_dot_c};font-size:0.76rem;font-weight:600;">{_dh}</span>'
+                            + (f'<span style="color:#7a5820;font-size:0.72rem;margin-left:8px;">{_hint}</span>' if _hint else '')
+                            + '</div>'
+                        )
+                    st.markdown(
+                        f'<div style="background:#13110a;border:1px solid #2a2208;border-radius:8px;padding:12px 16px;">'
+                        f'{_dep_rows}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                # Per-agent detail: show any with hints or consecutive failures
+                _problem_agents = [a for a in _mgr_data.get("agents", [])
+                                   if a.get("consecutive_failures", 0) > 0 or a.get("missing_fields") or a.get("hint")]
+                if _problem_agents:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown(
+                        '<div style="color:#6a5228;font-size:0.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Agent Diagnostics</div>',
+                        unsafe_allow_html=True,
+                    )
+                    for _pa in _problem_agents:
+                        _pa_c = "#ff9800" if _pa.get("consecutive_failures", 0) < 3 else "#f44336"
+                        _mf   = ", ".join(_pa.get("missing_fields", []))
+                        _hint = _pa.get("hint", "")
+                        _cf   = _pa.get("consecutive_failures", 0)
+                        _detail = []
+                        if _cf:   _detail.append(f"{_cf} consecutive failure{'s' if _cf>1 else ''}")
+                        if _mf:   _detail.append(f"missing fields: {_mf}")
+                        if _hint: _detail.append(_hint)
+                        st.markdown(
+                            f'<div style="background:#1a1208;border-left:3px solid {_pa_c};border-radius:4px;'
+                            f'padding:7px 12px;margin-bottom:4px;font-size:0.8rem;">'
+                            f'<span style="color:{_pa_c};font-weight:600;">{_pa["agent"].replace("_"," ").title()}</span>'
+                            f'<span style="color:#7a6040;margin-left:10px;">{" · ".join(_detail)}</span>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )

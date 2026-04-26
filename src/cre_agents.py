@@ -156,32 +156,33 @@ def cache_age_label(key: str) -> str:
 # ── Agent Status Log ──────────────────────────────────────────────────────────
 
 _status_lock = threading.Lock()
+_AGENT_DEFAULT = {"status": "idle", "last_run": None, "last_error": None, "runs": 0, "consecutive_failures": 0}
 _agent_status = {
-    "migration":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "pricing":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "predictions":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "debugger":       {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "news":           {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "rates":          {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "energy":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "sustainability": {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "labor_market":   {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "gdp":            {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "inflation":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "credit":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "land_market":     {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "cap_rate":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "rent_growth":     {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "opportunity_zone":{"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "distressed":      {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "market_score":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "vacancy":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "property_tax":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "climate_risk":    {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "chief_of_staff":  {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "rentcast":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "forecast":        {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
-    "manager":         {"status": "idle",    "last_run": None, "last_error": None, "runs": 0},
+    "migration":       dict(_AGENT_DEFAULT),
+    "pricing":         dict(_AGENT_DEFAULT),
+    "predictions":     dict(_AGENT_DEFAULT),
+    "debugger":        dict(_AGENT_DEFAULT),
+    "news":            dict(_AGENT_DEFAULT),
+    "rates":           dict(_AGENT_DEFAULT),
+    "energy":          dict(_AGENT_DEFAULT),
+    "sustainability":  dict(_AGENT_DEFAULT),
+    "labor_market":    dict(_AGENT_DEFAULT),
+    "gdp":             dict(_AGENT_DEFAULT),
+    "inflation":       dict(_AGENT_DEFAULT),
+    "credit":          dict(_AGENT_DEFAULT),
+    "land_market":     dict(_AGENT_DEFAULT),
+    "cap_rate":        dict(_AGENT_DEFAULT),
+    "rent_growth":     dict(_AGENT_DEFAULT),
+    "opportunity_zone":dict(_AGENT_DEFAULT),
+    "distressed":      dict(_AGENT_DEFAULT),
+    "market_score":    dict(_AGENT_DEFAULT),
+    "vacancy":         dict(_AGENT_DEFAULT),
+    "property_tax":    dict(_AGENT_DEFAULT),
+    "climate_risk":    dict(_AGENT_DEFAULT),
+    "chief_of_staff":  dict(_AGENT_DEFAULT),
+    "rentcast":        dict(_AGENT_DEFAULT),
+    "forecast":        dict(_AGENT_DEFAULT),
+    "manager":         dict(_AGENT_DEFAULT),
 }
 
 def get_status() -> dict:
@@ -196,9 +197,13 @@ def _set_status(agent: str, status: str, error: str = None):
             _agent_status[agent]["_start_time"] = datetime.now()
         if error:
             _agent_status[agent]["last_error"] = error
+            _agent_status[agent]["consecutive_failures"] = (
+                _agent_status[agent].get("consecutive_failures", 0) + 1
+            )
         else:
             _agent_status[agent]["last_error"] = None
             _agent_status[agent]["runs"] += 1
+            _agent_status[agent]["consecutive_failures"] = 0
         # Audit logging on completion (ok or error)
         if status in ("ok", "error"):
             try:
