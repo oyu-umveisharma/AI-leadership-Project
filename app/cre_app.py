@@ -9230,14 +9230,26 @@ with main_tab_advisor:
                 "<b>Blue dashed (Cash Flow)</b> = what's left after paying the loan."),
             unsafe_allow_html=True,
         )
-        _hold_yrs = int(financials.get("hold_years", params.get("timeline_years", 5)) or 5)
+        _hold_yrs  = int(financials.get("hold_years", params.get("timeline_years", 5)) or 5)
         _base_noi  = financials.get("annual_noi", 0)
-        _base_egi  = _base_noi / 0.65 if _base_noi else 0   # back-calc EGI at ~35% opex ratio
+        _total_cost = financials.get("total_cost", 0)
+        _equity     = _adv_result.get("financing", {}).get("equity_required", _total_cost)
+        _base_egi  = _base_noi / 0.65 if _base_noi else 0
         _base_opex = _base_egi - _base_noi
         _ann_ds    = _adv_result.get("financing", {}).get("annual_debt_service", 0)
-        _chart_yrs, _chart_egi, _chart_exp, _chart_noi, _chart_cf = [], [], [], [], []
+
+        # Year 0 = construction / equity deployment (no income yet)
+        _chart_yrs = [0]
+        _chart_egi = [0]
+        _chart_exp = [_equity]          # initial equity outlay shown as Year-0 expense
+        _chart_noi = [0]
+        _chart_cf  = [-_equity]         # negative — money going out
+
+        _chart_opex_only = [0]          # for hover detail
+        _chart_ds_only   = [0]
+
         for _yr in range(1, _hold_yrs + 1):
-            _g = (1.03 ** (_yr - 1))
+            _g    = 1.03 ** (_yr - 1)
             _egi  = round(_base_egi  * _g)
             _opex = round(_base_opex * (1.025 ** (_yr - 1)))
             _noi  = _egi - _opex
@@ -9247,37 +9259,77 @@ with main_tab_advisor:
             _chart_exp.append(_opex + _ann_ds)
             _chart_noi.append(_noi)
             _chart_cf.append(_cf)
+            _chart_opex_only.append(_opex)
+            _chart_ds_only.append(_ann_ds)
+
         _fin_fig = go.Figure()
+        # Income line — hover shows gross rent components
         _fin_fig.add_trace(go.Scatter(
-            x=_chart_yrs, y=_chart_egi, name="Income (EGI)",
+            x=_chart_yrs, y=_chart_egi,
+            name="Revenue (EGI = Gross Rent − Vacancy)",
             line=dict(color="#d4a843", width=2.5),
-            hovertemplate="Year %{x}<br>Income: $%{y:,.0f}<extra></extra>",
+            customdata=list(zip(
+                [round(v / 0.92) for v in _chart_egi],   # approx gross rent (8% vacancy)
+                [round(v * 0.08) for v in _chart_egi],   # approx vacancy loss
+            )),
+            hovertemplate=(
+                "<b>Year %{x} — Revenue</b><br>"
+                "Gross Rent: $%{customdata[0]:,.0f}<br>"
+                "− Vacancy Loss: $%{customdata[1]:,.0f}<br>"
+                "<b>= EGI: $%{y:,.0f}</b><extra></extra>"
+            ),
         ))
+        # Expense line — hover shows OpEx + debt breakdown
         _fin_fig.add_trace(go.Scatter(
-            x=_chart_yrs, y=_chart_exp, name="Total Expenses",
+            x=_chart_yrs, y=_chart_exp,
+            name="Expenses (OpEx + Debt Service)",
             line=dict(color="#ef5350", width=2.5),
-            hovertemplate="Year %{x}<br>Expenses: $%{y:,.0f}<extra></extra>",
+            customdata=list(zip(_chart_opex_only, _chart_ds_only)),
+            hovertemplate=(
+                "<b>Year %{x} — Expenses</b><br>"
+                "Operating Costs: $%{customdata[0]:,.0f}<br>"
+                "+ Debt Service: $%{customdata[1]:,.0f}<br>"
+                "<b>= Total: $%{y:,.0f}</b><extra></extra>"
+            ),
         ))
         _fin_fig.add_trace(go.Scatter(
-            x=_chart_yrs, y=_chart_noi, name="NOI",
+            x=_chart_yrs, y=_chart_noi,
+            name="NOI (Revenue − OpEx)",
             line=dict(color="#4caf50", width=2, dash="dot"),
-            hovertemplate="Year %{x}<br>NOI: $%{y:,.0f}<extra></extra>",
+            hovertemplate="<b>Year %{x} — NOI</b><br>$%{y:,.0f}<extra></extra>",
         ))
         _fin_fig.add_trace(go.Scatter(
-            x=_chart_yrs, y=_chart_cf, name="Cash Flow After Debt",
+            x=_chart_yrs, y=_chart_cf,
+            name="Cash Flow After Debt",
             line=dict(color="#64b5f6", width=2, dash="dash"),
-            hovertemplate="Year %{x}<br>Cash Flow: $%{y:,.0f}<extra></extra>",
+            hovertemplate="<b>Year %{x} — Cash Flow</b><br>$%{y:,.0f}<extra></extra>",
         ))
+        # Year-0 annotation
+        _fin_fig.add_annotation(
+            x=0, y=_equity,
+            text=f"Equity In<br>${_equity/1e6:.1f}M",
+            showarrow=True, arrowhead=2, arrowcolor="#ef5350",
+            font=dict(color="#ef5350", size=10),
+            bgcolor="#1a1208", bordercolor="#ef5350", borderwidth=1,
+            ax=40, ay=-30,
+        )
         _fin_fig.update_layout(
             plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
             font=dict(color="#a09880", size=11),
             xaxis=dict(title="Hold Year", gridcolor="#2a2a20", tickmode="linear", dtick=1),
             yaxis=dict(title="$ Amount", gridcolor="#2a2a20", tickformat="$,.0f"),
-            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10), orientation="h", y=-0.2),
-            margin=dict(l=10, r=10, t=10, b=60),
-            height=330,
+            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10), orientation="h", y=-0.22),
+            margin=dict(l=10, r=10, t=10, b=70),
+            height=360,
         )
         st.plotly_chart(_fin_fig, use_container_width=True, key="fin_proj_chart", config={"displayModeBar": False})
+        st.caption(
+            "Revenue = Gross Rent − Vacancy Loss = EGI (Effective Gross Income).  "
+            "Expenses = Operating Costs (mgmt, taxes, insurance, maintenance) + Annual Debt Service.  "
+            "NOI = Revenue − Operating Costs only.  "
+            "Cash Flow = NOI − Debt Service.  "
+            "Year 0 = equity deployed at construction/close."
+        )
 
 
         # ── Financing Structure ───────────────────────────────────────────────
