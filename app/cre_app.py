@@ -9220,10 +9220,10 @@ with main_tab_advisor:
         )
 
         # ── Income vs Expense Line Chart ──────────────────────────────────────
-        _pf_chart = _adv_result.get("proforma", [])
+        _pf_chart = _adv_result.get("proforma") or _adv_result.get("pro_forma", [])
         st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
         st.markdown(
-            _tt("📈 Income vs Expense Projection",
+            _tt("Income vs Expense Projection",
                 "Year-by-year forecast over the hold period.<br>"
                 "<b>Gold (EGI)</b> = rent collected after vacancy.<br>"
                 "<b>Red (Expenses)</b> = operating costs + loan payments.<br>"
@@ -9271,8 +9271,6 @@ with main_tab_advisor:
                 height=330,
             )
             st.plotly_chart(_fin_fig, use_container_width=True, key="fin_proj_chart", config={"displayModeBar": False})
-        else:
-            st.info("Run a prompt above to generate the income & expense projection.")
 
         # ── Financing Structure ───────────────────────────────────────────────
         financing = _adv_result.get("financing", {})
