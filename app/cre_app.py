@@ -1707,7 +1707,7 @@ st.markdown(f"""
     text-align: center;
     transition: box-shadow 0.2s;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
   }}
   .metric-card:hover {{ box-shadow: 0 2px 16px rgba(212,168,67,0.12); border-color: {GOLD}; }}
   .metric-card .label {{ font-size: 0.68rem; color: #6a5228; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }}
@@ -3659,7 +3659,7 @@ with main_tab_re:
                 ]:
                     _exp_formula, _exp_desc = _KPI_EXPLAIN[_lbl]
                     _col.markdown(f"""
-<div style="background:#171309;border:1px solid #2a2208;border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;min-height:130px;">
+<div style="background:#171309;border:1px solid #2a2208;border-radius:10px;padding:18px 16px;position:relative;overflow:visible;min-height:130px;">
   <div style="position:absolute;top:0;left:0;right:0;height:2px;background:{_border};border-radius:10px 10px 0 0;"></div>
   <div style="font-size:10px;color:#6a5228;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">{_tt(_lbl, _exp_desc)}</div>
   <div style="font-size:34px;font-weight:500;color:{_border};line-height:1;margin-bottom:4px;">{_val_str}</div>
@@ -9967,3 +9967,81 @@ with main_tab_about:
             "All agents run in APScheduler background threads. Caches are JSON files in cache/. "
             "Status reflects the in-memory agent_status dict — resets on app restart."
         )
+
+        # ── Manager Agent Report ───────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" System Health Supervisor — Last Report")
+
+        _mgr_col, _mgr_btn_col = st.columns([5, 1])
+        with _mgr_btn_col:
+            if st.button("Run Now", key="run_manager_now"):
+                from src.cre_agents import force_run as _force_run
+                _force_run("manager")
+                st.toast("Manager agent triggered — refresh in ~10 seconds", icon="✓")
+
+        _mgr_cache = read_cache("manager_report")
+        _mgr_data  = _mgr_cache.get("data") or {}
+
+        if not _mgr_data:
+            with _mgr_col:
+                st.info("No manager report yet — click 'Run Now' or wait up to 15 minutes for the first scheduled run.")
+        else:
+            with _mgr_col:
+                _mgr_age = cache_age_label("manager_report")
+                _mgr_pct = _mgr_data.get("health_pct", 0)
+                _mgr_ok  = _mgr_data.get("ok", 0)
+                _mgr_tot = _mgr_data.get("total_agents", 0)
+                _mgr_heal= _mgr_data.get("healed", 0)
+                _mgr_iss = _mgr_data.get("issues", 0)
+                _mgr_keys= _mgr_data.get("key_issues", 0)
+
+                _pct_clr = "#4caf50" if _mgr_pct >= 80 else ("#ff9800" if _mgr_pct >= 50 else "#f44336")
+                st.markdown(f"""
+<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:18px 24px;margin-bottom:12px;">
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
+    <div style="font-size:2.2rem;font-weight:700;color:{_pct_clr};font-family:monospace;">{_mgr_pct}%</div>
+    <div>
+      <div style="color:#c8b890;font-size:0.95rem;font-weight:600;">System Health</div>
+      <div style="color:#5a4820;font-size:0.78rem;">Last checked: {_mgr_age} · {_mgr_ok}/{_mgr_tot} agents OK</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;">
+      <div style="text-align:center;"><div style="color:#4caf50;font-size:1.3rem;font-weight:700;">{_mgr_heal}</div><div style="color:#5a4820;font-size:0.72rem;">Auto-healed</div></div>
+      <div style="text-align:center;"><div style="color:{"#f44336" if _mgr_iss else "#4caf50"};font-size:1.3rem;font-weight:700;">{_mgr_iss}</div><div style="color:#5a4820;font-size:0.72rem;">Unresolved</div></div>
+      <div style="text-align:center;"><div style="color:{"#f44336" if _mgr_keys else "#4caf50"};font-size:1.3rem;font-weight:700;">{_mgr_keys}</div><div style="color:#5a4820;font-size:0.72rem;">Missing API keys</div></div>
+    </div>
+  </div>
+""", unsafe_allow_html=True)
+
+                # API key status
+                _api_keys = _mgr_data.get("api_keys", [])
+                if _api_keys:
+                    _key_rows = "".join([
+                        f'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e1a08;">'
+                        f'<span style="width:8px;height:8px;border-radius:50%;background:{"#4caf50" if k["status"]=="OK" else "#f44336"};display:inline-block;flex-shrink:0;"></span>'
+                        f'<span style="color:#c8b890;font-size:0.82rem;font-family:monospace;">{k["key"]}</span>'
+                        f'<span style="color:#5a4820;font-size:0.78rem;margin-left:4px;">{k["description"]}</span>'
+                        f'<span style="margin-left:auto;color:{"#4caf50" if k["status"]=="OK" else "#f44336"};font-size:0.78rem;font-weight:600;">{k["status"]}</span>'
+                        f'</div>'
+                        for k in _api_keys
+                    ])
+                    st.markdown(f'<div style="margin-top:8px;"><div style="color:#6a5228;font-size:0.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">API Keys</div>{_key_rows}</div></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                # Healed / issue agents
+                _healed_agents = _mgr_data.get("healed_agents", [])
+                _unresolved    = _mgr_data.get("unresolved", [])
+                if _healed_agents:
+                    st.markdown(
+                        f'<div style="background:#0d2a12;border:1px solid #1a5020;border-radius:8px;padding:10px 14px;margin-top:8px;">'
+                        f'<span style="color:#4caf50;font-size:0.78rem;font-weight:600;">Auto-healed: </span>'
+                        f'<span style="color:#c8b890;font-size:0.82rem;">{", ".join(_healed_agents)}</span></div>',
+                        unsafe_allow_html=True,
+                    )
+                if _unresolved:
+                    st.markdown(
+                        f'<div style="background:#2a0d0d;border:1px solid #5a1010;border-radius:8px;padding:10px 14px;margin-top:6px;">'
+                        f'<span style="color:#f44336;font-size:0.78rem;font-weight:600;">Unresolved: </span>'
+                        f'<span style="color:#c8b890;font-size:0.82rem;">{", ".join(_unresolved)}</span></div>',
+                        unsafe_allow_html=True,
+                    )
