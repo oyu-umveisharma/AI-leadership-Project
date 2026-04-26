@@ -2488,16 +2488,14 @@ if st.session_state.get("nav_to_tab"):
     """, height=0)
 
 with main_tab_re:
-    tab1, tab2, tab3, tab4, tab5, tab_vacancy, tab_land, tab_caprate, tab_rent, tab_oz, tab_score, tab_climate = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab_supply, tab_returns, tab_oz, tab_score, tab_climate = st.tabs([
         "Migration Intelligence",
         "Pricing & Profit",
         "Company Predictions",
         "Cheapest Buildings",
         "Industry Announcements",
-        "Vacancy Monitor",
-        "Land & Development",
-        "Cap Rate Monitor",
-        "Rent Growth",
+        "Supply & Demand",
+        "Returns & Fundamentals",
         "Opportunity Zones",
         "Market Score",
         "Climate Risk",
@@ -4467,7 +4465,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
     # ═══════════════════════════════════════════════════════════════════════════════
     #  TAB 7 — VACANCY RATE MONITOR
     # ═══════════════════════════════════════════════════════════════════════════════
-    with tab_vacancy:
+    with tab_supply:
         vac_cache = read_cache("vacancy")
         vac_data  = vac_cache["data"]
 
@@ -5000,10 +4998,10 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 "Markets like New York and Los Angeles require 3-5 years; Sun Belt typically 12-20 months."
             )
 
-    # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB — LAND & DEVELOPMENT SITES
-    # ═══════════════════════════════════════════════════════════════════════════════
-    with tab_land:
+        st.markdown(
+            '<hr style="border:none;border-top:1px solid #2a2208;margin:32px 0 24px;">',
+            unsafe_allow_html=True,
+        )
         st.markdown("#### Land & Development Sites")
         st.markdown(
             "Browse empty land parcels across top CRE markets. Agent 13 tracks entitlement "
@@ -5571,7 +5569,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
     # ═══════════════════════════════════════════════════════════════════════════════
     #  TAB — CAP RATE MONITOR
     # ═══════════════════════════════════════════════════════════════════════════════
-    with tab_caprate:
+    with tab_returns:
         st.markdown("#### Are cap rates offering attractive spreads over the risk-free rate?")
         st.markdown(
             "Agent 14 pulls live commercial mortgage rates and 10-year treasury yields from FRED, "
@@ -5810,10 +5808,10 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                     unsafe_allow_html=True,
                 )
 
-    # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB — RENT GROWTH TRACKER
-    # ═══════════════════════════════════════════════════════════════════════════════
-    with tab_rent:
+        st.markdown(
+            '<hr style="border:none;border-top:1px solid #2a2208;margin:32px 0 24px;">',
+            unsafe_allow_html=True,
+        )
         st.markdown("#### Where is rent growth accelerating — and where is it declining?")
         st.markdown(
             "Agent 15 tracks YoY rent growth across multifamily, industrial, office, and retail "
