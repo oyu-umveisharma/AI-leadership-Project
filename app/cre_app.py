@@ -8757,6 +8757,74 @@ with main_tab_advisor:
 </div>
 """, unsafe_allow_html=True)
 
+        # ── "What does this mean for me?" AI explanation ─────────────────────
+        if "adv_plain_english" not in st.session_state:
+            st.session_state.adv_plain_english = None
+
+        _wtm_col, _wtm_btn_col = st.columns([5, 1])
+        with _wtm_btn_col:
+            if st.button("What does this mean for me?", key="wtm_btn",
+                         help="Get a plain-English explanation of these results — no jargon"):
+                st.session_state.adv_plain_english = None   # clear previous
+                with st.spinner("Generating plain-English explanation..."):
+                    try:
+                        import os as _wtm_os
+                        from groq import Groq as _WGroq
+                        _wtm_key = _wtm_os.getenv("GROQ_API_KEY", "")
+                        if not _wtm_key:
+                            st.session_state.adv_plain_english = "GROQ_API_KEY not set — add it to .env to enable AI explanations."
+                        else:
+                            _wtm_client = _WGroq(api_key=_wtm_key)
+                            _wtm_fin    = _adv_result.get("financials", {})
+                            _wtm_prim   = _adv_result.get("primary", {})
+                            _wtm_params = _adv_result.get("params", {})
+                            _wtm_prompt = (
+                                f"An investor asked: '{st.session_state.get('adv_prompt_submitted', _wtm_params.get('location_raw',''))}'\n\n"
+                                f"The AI recommended: {_wtm_prim.get('market','N/A')} for {_wtm_params.get('property_type','CRE')} development.\n"
+                                f"Key numbers:\n"
+                                f"- Total project cost: ${_wtm_fin.get('total_cost',0)/1e6:.1f}M\n"
+                                f"- Estimated IRR: {_wtm_fin.get('irr_est',0):.1f}%\n"
+                                f"- Annual NOI: ${_wtm_fin.get('annual_noi',0)/1e3:.0f}K\n"
+                                f"- Total profit over hold: ${_wtm_fin.get('total_profit',0)/1e6:.1f}M\n"
+                                f"- Opportunity score: {_wtm_prim.get('opportunity_score',0):.0f}/100\n"
+                                f"- Market grade: {_wtm_prim.get('grade','N/A')}\n"
+                                f"- Climate risk: {_wtm_prim.get('climate_label','N/A')}\n"
+                                f"- Hold period: {_wtm_params.get('timeline_years',5)} years\n"
+                            )
+                            _wtm_resp = _wtm_client.chat.completions.create(
+                                model="llama-3.3-70b-versatile",
+                                messages=[
+                                    {"role": "system", "content": (
+                                        "You are a patient, friendly real estate advisor explaining a CRE investment "
+                                        "recommendation to someone with no finance background. Use plain English — no jargon. "
+                                        "Structure your response as:\n"
+                                        "1. What the AI is recommending and why (2 sentences)\n"
+                                        "2. What the numbers mean in simple terms (3-4 sentences — explain IRR, NOI, profit in everyday language)\n"
+                                        "3. The biggest opportunity (1 sentence)\n"
+                                        "4. The biggest risk to watch (1 sentence)\n"
+                                        "Be encouraging but honest. Write like you're talking to a friend, not writing a report."
+                                    )},
+                                    {"role": "user", "content": _wtm_prompt},
+                                ],
+                                max_tokens=400,
+                                temperature=0.4,
+                            )
+                            st.session_state.adv_plain_english = _wtm_resp.choices[0].message.content.strip()
+                    except Exception as _wtm_err:
+                        st.session_state.adv_plain_english = f"Could not generate explanation: {_wtm_err}"
+
+        if st.session_state.adv_plain_english:
+            with _wtm_col:
+                st.markdown(f"""
+<div style="background:linear-gradient(135deg,#0d1a0d 0%,#111a08 100%);
+            border:1px solid #2a4020;border-left:4px solid #4caf50;
+            border-radius:8px;padding:18px 22px;margin-bottom:16px;">
+  <div style="color:#80c858;font-size:0.78rem;font-weight:600;letter-spacing:.08em;
+              text-transform:uppercase;margin-bottom:10px;">Plain-English Explanation</div>
+  <div style="color:#d4e8c4;font-size:0.92rem;line-height:1.65;white-space:pre-wrap;">{st.session_state.adv_plain_english}</div>
+</div>
+""", unsafe_allow_html=True)
+
         # ── Summary metric cards ─────────────────────────────────────────────
         section(" Summary")
         _c1, _c2, _c3, _c4, _c5 = st.columns(5)
