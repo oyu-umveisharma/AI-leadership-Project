@@ -28,6 +28,7 @@ Schedule: every 6 hours
 import json
 import os
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
 import requests as _req
@@ -145,13 +146,18 @@ def fetch_fred_labor() -> dict:
     """Fetch all FRED labor series."""
     print("[LaborAgent] Fetching FRED labor series ...")
     result = {}
-    for series_id, label, unit, _ in FRED_LABOR_SERIES:
-        print(f"  -> {label}")
+
+    def _fetch_one_labor(args):
+        series_id, label, unit, _ = args
         series = _fred_fetch(series_id)
         r = _latest_and_delta(series)
         r["label"] = label
         r["unit"]  = unit
-        result[label] = r
+        return label, r
+
+    with ThreadPoolExecutor(max_workers=4) as _pool:
+        for label, r in _pool.map(_fetch_one_labor, FRED_LABOR_SERIES):
+            result[label] = r
     return result
 
 
@@ -237,20 +243,24 @@ def fetch_metro_unemployment() -> list[dict]:
     Uses state-level FRED series as proxies for key migration-destination metros.
     """
     print("[LaborAgent] Fetching state unemployment rates (CRE destination markets) ...")
-    rows = []
-    for label, series_id in METRO_UNEMPLOYMENT.items():
+    def _fetch_metro(args):
+        label, series_id = args
         series = _fred_fetch(series_id, lookback_years=1)
         if not series:
-            continue
+            return None
         current = series[-1]["value"]
         prev    = series[-2]["value"] if len(series) > 1 else current
-        rows.append({
-            "market":      label,
-            "unemp_rate":  round(current, 1),
-            "delta_1m":    round(current - prev, 1),
-            "period":      series[-1]["date"],
-            "signal":      "TIGHT" if current < 4.0 else ("LOOSE" if current > 6.0 else "BALANCED"),
-        })
+        return {
+            "market":     label,
+            "unemp_rate": round(current, 1),
+            "delta_1m":   round(current - prev, 1),
+            "period":     series[-1]["date"],
+            "signal":     "TIGHT" if current < 4.0 else ("LOOSE" if current > 6.0 else "BALANCED"),
+        }
+
+    with ThreadPoolExecutor(max_workers=5) as _pool:
+        results = list(_pool.map(_fetch_metro, METRO_UNEMPLOYMENT.items()))
+    rows = [r for r in results if r is not None]
     return sorted(rows, key=lambda x: x["unemp_rate"])
 
 

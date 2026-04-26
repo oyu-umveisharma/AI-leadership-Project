@@ -23,6 +23,7 @@ import os
 import json
 import time
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
 import requests as _requests
@@ -365,14 +366,18 @@ def run_rate_agent() -> dict:
         }
 
     # ── Fetch all FRED series ─────────────────────────────────────────────────
-    raw = {}
-    for sid, name, unit, factor in FRED_SERIES:
+    def _fetch_one(args):
+        sid, name, unit, factor = args
         series = _fetch_fred(sid, api_key, limit=500)
         if factor != 1.0:
             for o in series:
                 o["value"] = round(o["value"] * factor, 2)
-        raw[name] = series
-        time.sleep(0.1)   # respect FRED rate limits
+        return name, series
+
+    raw = {}
+    with ThreadPoolExecutor(max_workers=4) as _pool:
+        for name, series in _pool.map(_fetch_one, FRED_SERIES):
+            raw[name] = series
 
     # ── Build rates summary dict (current + deltas) ───────────────────────────
     rates_summary = {}

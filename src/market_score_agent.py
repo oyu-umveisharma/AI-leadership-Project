@@ -214,6 +214,76 @@ def _grade(score: float) -> str:
     return "D"
 
 
+_FACTOR_LABELS = {
+    "migration": "Population Growth",
+    "vacancy":   "Vacancy & Absorption",
+    "rent":      "Rent Growth",
+    "cap_rate":  "Cap Rate Attractiveness",
+    "land":      "Land Availability",
+    "macro":     "Macro Environment",
+}
+
+_FACTOR_HIGH = {
+    "migration": "Strong population inflow — growing renter and occupier base",
+    "vacancy":   "Tight vacancy — landlord pricing power, low supply risk",
+    "rent":      "Rents rising faster than inflation — strong income growth",
+    "cap_rate":  "Cap rates well above Treasury — attractive risk-adjusted returns",
+    "land":      "Ample land with fast entitlement — development is feasible",
+    "macro":     "Low rates and easy credit — cheap financing and high valuations",
+}
+
+_FACTOR_LOW = {
+    "migration": "Population outflow or stagnation — weak demand growth",
+    "vacancy":   "High vacancy or negative absorption — oversupplied market",
+    "rent":      "Rents flat or declining — income growth at risk",
+    "cap_rate":  "Cap rates near Treasury yields — poor risk-adjusted returns",
+    "land":      "Scarce land or slow permitting — development pipeline constrained",
+    "macro":     "High rates or tight credit — expensive financing, compressed values",
+}
+
+
+def _build_breakdown(factors: dict) -> dict:
+    """
+    Identify strengths, weaknesses, and plain-English notes per factor.
+    Returns strengths list, weaknesses list, drag_factor, lift_factor.
+    """
+    strengths  = []
+    weaknesses = []
+    notes      = {}
+
+    for key, score in factors.items():
+        label = _FACTOR_LABELS.get(key, key.title())
+        if score >= 65:
+            strengths.append(label)
+            notes[key] = _FACTOR_HIGH.get(key, f"{label} is strong")
+        elif score <= 40:
+            weaknesses.append(label)
+            notes[key] = _FACTOR_LOW.get(key, f"{label} is weak")
+        else:
+            notes[key] = f"{label} is neutral ({score:.0f}/100)"
+
+    # Find the single biggest drag and biggest lift
+    sorted_factors = sorted(factors.items(), key=lambda x: x[1])
+    drag_key  = sorted_factors[0][0]  if sorted_factors else None
+    lift_key  = sorted_factors[-1][0] if sorted_factors else None
+
+    drag_note = _FACTOR_LOW.get(drag_key, "")  if drag_key else ""
+    lift_note = _FACTOR_HIGH.get(lift_key, "") if lift_key else ""
+
+    drag_label = _FACTOR_LABELS.get(drag_key, "") if drag_key else ""
+    lift_label = _FACTOR_LABELS.get(lift_key, "") if lift_key else ""
+
+    return {
+        "strengths":   strengths,
+        "weaknesses":  weaknesses,
+        "notes":       notes,
+        "drag_factor": drag_label,
+        "drag_note":   drag_note,
+        "lift_factor": lift_label,
+        "lift_note":   lift_note,
+    }
+
+
 def run_market_score_agent() -> dict:
     """
     Aggregate signals from all caches into per-market composite scores.
@@ -273,6 +343,7 @@ def run_market_score_agent() -> dict:
         penalty  = climate_penalty.get(mkt, 0.0)
         composite = round(max(0.0, raw - penalty), 1)
 
+        breakdown = _build_breakdown(factors)
         rankings.append({
             "market":          mkt,
             "state":           _MARKET_STATE.get(mkt, ""),
@@ -281,6 +352,7 @@ def run_market_score_agent() -> dict:
             "climate_penalty": penalty,
             "grade":           _grade(composite),
             "factors":         factors,
+            "breakdown":       breakdown,
             "rank":            0,  # filled in below
         })
 

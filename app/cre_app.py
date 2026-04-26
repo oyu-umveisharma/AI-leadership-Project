@@ -8789,6 +8789,68 @@ with main_tab_advisor:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
+        # ── Cross-Agent Signal Correlator ─────────────────────────────────────
+        section(" Cross-Agent Market Signal")
+        try:
+            from src.signal_correlator import run_signal_correlator as _run_corr
+            _corr = _run_corr()
+            _ov   = _corr["overall"]
+            _ov_c = _corr["color"]
+            _conf = _corr["confidence"]
+            _align = _corr["alignment"]
+            _sigs  = _corr["signals"]
+            _reasons = _corr["top_reasons"]
+            _risks   = _corr["top_risks"]
+
+            # Direction icon per signal
+            _dir_icon = {1: "▲", -1: "▼", 0: "→"}
+            _dir_clr  = {1: "#4caf50", -1: "#f44336", 0: "#ffb74d"}
+
+            _sig_rows = "".join([
+                f'<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;'
+                f'border-bottom:1px solid #1e1a08;">'
+                f'<span style="color:{_dir_clr[s["direction"]]};font-size:1rem;flex-shrink:0;width:14px;">{_dir_icon[s["direction"]]}</span>'
+                f'<div>'
+                f'<span style="color:#c8b890;font-size:0.82rem;font-weight:600;">{s["dimension"]}</span>'
+                f'<span style="color:{_dir_clr[s["direction"]]};font-size:0.76rem;margin-left:8px;">{s["verdict"]}'
+                + (f' · {s["label"]}' if s.get("label") and s["label"] not in ("N/A", "") else "")
+                + f'</span>'
+                f'<div style="color:#6a5630;font-size:0.76rem;margin-top:2px;">{s["reason"]}</div>'
+                f'</div></div>'
+                for s in _sigs if s.get("label") != "N/A"
+            ])
+
+            _reasons_html = "".join([f'<div style="color:#80c858;font-size:0.8rem;padding:3px 0;">+ {r}</div>' for r in _reasons])
+            _risks_html   = "".join([f'<div style="color:#ef9a9a;font-size:0.8rem;padding:3px 0;">− {r}</div>' for r in _risks])
+
+            st.markdown(f"""
+<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:20px 24px;margin-bottom:8px;">
+  <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;flex-wrap:wrap;">
+    <div style="font-size:1.6rem;font-weight:700;color:{_ov_c};letter-spacing:1px;">{_ov}</div>
+    <div>
+      <div style="color:#a09880;font-size:0.82rem;">Confidence: <span style="color:{_ov_c};font-weight:600;">{_conf}%</span></div>
+      <div style="color:#5a4820;font-size:0.76rem;">{_align}</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:16px;">
+      <div style="text-align:center;"><div style="color:#4caf50;font-size:1.2rem;font-weight:700;">{_corr['n_positive']}</div><div style="color:#3a3010;font-size:0.7rem;">Bullish</div></div>
+      <div style="text-align:center;"><div style="color:#ffb74d;font-size:1.2rem;font-weight:700;">{_corr['n_neutral']}</div><div style="color:#3a3010;font-size:0.7rem;">Neutral</div></div>
+      <div style="text-align:center;"><div style="color:#f44336;font-size:1.2rem;font-weight:700;">{_corr['n_negative']}</div><div style="color:#3a3010;font-size:0.7rem;">Cautionary</div></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div>{_sig_rows}</div>
+    <div>
+      {"<div style='color:#6a5228;font-size:0.7rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;'>Top Reasons</div>" + _reasons_html if _reasons_html else ""}
+      {"<div style='color:#6a5228;font-size:0.7rem;letter-spacing:.08em;text-transform:uppercase;margin:10px 0 6px;'>Key Risks</div>" + _risks_html if _risks_html else ""}
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+        except Exception as _ce:
+            st.caption(f"Signal correlator unavailable: {_ce}")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
         # ══════════════════════════════════════════════════════════════════════
         #  LOCATION MARKET INTELLIGENCE
         # ══════════════════════════════════════════════════════════════════════
@@ -9185,6 +9247,53 @@ with main_tab_advisor:
     <tr><td style="color:#a09880;padding:5px 0;">Migration Score</td>
         <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_mig:.0f}/100</td></tr>
   </table>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── Market Score Breakdown ────────────────────────────────────────────
+        _ms_cache_adv = read_cache("market_score")
+        _ms_data_adv  = (_ms_cache_adv.get("data") or {})
+        _ms_rankings  = _ms_data_adv.get("rankings", [])
+        _ms_entry     = next((r for r in _ms_rankings if r.get("market") == primary.get("market")), None)
+        if _ms_entry and _ms_entry.get("breakdown"):
+            _bd2 = _ms_entry["breakdown"]
+            _strengths = _bd2.get("strengths", [])
+            _weaknesses = _bd2.get("weaknesses", [])
+            _drag  = _bd2.get("drag_factor", "")
+            _drag_note = _bd2.get("drag_note", "")
+            _lift  = _bd2.get("lift_factor", "")
+            _lift_note = _bd2.get("lift_note", "")
+            _factor_notes = _bd2.get("notes", {})
+
+            _str_pills  = "".join([f'<span style="background:rgba(76,175,80,.2);color:#80c858;border-radius:12px;padding:3px 10px;font-size:0.75rem;margin:2px;">{s}</span>' for s in _strengths])
+            _weak_pills = "".join([f'<span style="background:rgba(244,67,54,.15);color:#ef9a9a;border-radius:12px;padding:3px 10px;font-size:0.75rem;margin:2px;">{w}</span>' for w in _weaknesses])
+
+            _factor_rows = "".join([
+                f'<tr><td style="color:#a09880;padding:4px 0;font-size:0.8rem;">{_factor_notes.get(k, "").split(" — ")[0] if " — " not in str(_factor_notes.get(k,"")) else k.title()}</td>'
+                f'<td style="text-align:right;"><div style="display:inline-block;background:{"#4caf50" if v>=65 else "#f44336" if v<=40 else "#ffb74d"};'
+                f'height:6px;width:{max(4,int(v*0.6))}px;border-radius:3px;"></div>'
+                f'<span style="color:#a09880;font-size:0.75rem;margin-left:6px;">{v:.0f}</span></td></tr>'
+                for k, v in _ms_entry.get("factors", {}).items()
+            ])
+
+            st.markdown(f"""
+<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:18px 22px;margin:12px 0;">
+  <div style="color:#d4a843;font-weight:600;font-size:0.9rem;margin-bottom:12px;">
+    Market Score Breakdown — {_ms_entry['market']}
+    <span style="color:#a09880;font-weight:400;font-size:0.82rem;margin-left:10px;">Composite: {_ms_entry['composite']}/100 · Grade: {_ms_entry['grade']}</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div>
+      <table style="width:100%;border-collapse:collapse;">{_factor_rows}</table>
+      {"<div style='margin-top:10px;'><span style='color:#6a5228;font-size:0.7rem;text-transform:uppercase;letter-spacing:.08em;'>Strengths</span><div style='margin-top:4px;'>" + _str_pills + "</div></div>" if _strengths else ""}
+      {"<div style='margin-top:8px;'><span style='color:#6a5228;font-size:0.7rem;text-transform:uppercase;letter-spacing:.08em;'>Weaknesses</span><div style='margin-top:4px;'>" + _weak_pills + "</div></div>" if _weaknesses else ""}
+    </div>
+    <div>
+      {"<div style='background:#0d2a12;border-left:3px solid #4caf50;border-radius:4px;padding:10px 14px;margin-bottom:8px;'><div style='color:#4caf50;font-size:0.76rem;font-weight:600;margin-bottom:4px;'>Biggest Lift: " + _lift + "</div><div style='color:#a09880;font-size:0.78rem;'>" + _lift_note + "</div></div>" if _lift else ""}
+      {"<div style='background:#2a0d0d;border-left:3px solid #f44336;border-radius:4px;padding:10px 14px;'><div style='color:#f44336;font-size:0.76rem;font-weight:600;margin-bottom:4px;'>Biggest Drag: " + _drag + "</div><div style='color:#a09880;font-size:0.78rem;'>" + _drag_note + "</div></div>" if _drag else ""}
+      {"<div style='margin-top:8px;background:#1a1208;border-left:3px solid #ff9800;border-radius:4px;padding:8px 14px;'><div style='color:#ff9800;font-size:0.74rem;font-weight:600;'>Climate Adjustment</div><div style='color:#a09880;font-size:0.76rem;'>−" + str(_ms_entry.get('climate_penalty', 0)) + " pts applied to composite score</div></div>" if _ms_entry.get("climate_penalty", 0) > 0 else ""}
+    </div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
