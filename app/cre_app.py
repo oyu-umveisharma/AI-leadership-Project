@@ -9221,8 +9221,17 @@ with main_tab_advisor:
 
         # ── Income vs Expense Line Chart ──────────────────────────────────────
         _pf_chart = _adv_result.get("proforma", [])
+        st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
+        st.markdown(
+            _tt("📈 Income vs Expense Projection",
+                "Year-by-year forecast over the hold period.<br>"
+                "<b>Gold (EGI)</b> = rent collected after vacancy.<br>"
+                "<b>Red (Expenses)</b> = operating costs + loan payments.<br>"
+                "<b>Green dotted (NOI)</b> = income before debt service.<br>"
+                "<b>Blue dashed (Cash Flow)</b> = what's left after paying the loan."),
+            unsafe_allow_html=True,
+        )
         if _pf_chart:
-            import plotly.graph_objects as _go_fin
             _pf_years  = [r["year"] for r in _pf_chart]
             _pf_income = [r.get("egi", r.get("gross_revenue", 0)) for r in _pf_chart]
             _pf_opex   = [r.get("opex", 0) for r in _pf_chart]
@@ -9231,47 +9240,39 @@ with main_tab_advisor:
             _pf_noi    = [r.get("noi", 0) for r in _pf_chart]
             _pf_cf     = [r.get("cf_after_ds", 0) for r in _pf_chart]
 
-            _fin_fig = _go_fin.Figure()
-            _fin_fig.add_trace(_go_fin.Scatter(
-                x=_pf_years, y=_pf_income, name="Effective Gross Income",
+            _fin_fig = go.Figure()
+            _fin_fig.add_trace(go.Scatter(
+                x=_pf_years, y=_pf_income, name="Effective Gross Income (EGI)",
                 line=dict(color="#d4a843", width=2.5),
                 hovertemplate="Year %{x}<br>EGI: $%{y:,.0f}<extra></extra>",
             ))
-            _fin_fig.add_trace(_go_fin.Scatter(
+            _fin_fig.add_trace(go.Scatter(
                 x=_pf_years, y=_pf_total_exp, name="Total Expenses (OpEx + Debt)",
                 line=dict(color="#ef5350", width=2.5),
                 hovertemplate="Year %{x}<br>Expenses: $%{y:,.0f}<extra></extra>",
             ))
-            _fin_fig.add_trace(_go_fin.Scatter(
+            _fin_fig.add_trace(go.Scatter(
                 x=_pf_years, y=_pf_noi, name="NOI",
                 line=dict(color="#4caf50", width=2, dash="dot"),
                 hovertemplate="Year %{x}<br>NOI: $%{y:,.0f}<extra></extra>",
             ))
-            _fin_fig.add_trace(_go_fin.Scatter(
+            _fin_fig.add_trace(go.Scatter(
                 x=_pf_years, y=_pf_cf, name="Cash Flow After Debt",
                 line=dict(color="#64b5f6", width=2, dash="dash"),
                 hovertemplate="Year %{x}<br>Cash Flow: $%{y:,.0f}<extra></extra>",
             ))
             _fin_fig.update_layout(
-                title=dict(text="Income & Expense Projection (10-Year Hold)", font=dict(color="#c8a040", size=13)),
                 plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
                 font=dict(color="#a09880", size=11),
-                xaxis=dict(title="Year", gridcolor="#2a2a20", tickmode="linear"),
+                xaxis=dict(title="Hold Year", gridcolor="#2a2a20", tickmode="linear", dtick=1),
                 yaxis=dict(title="$ Amount", gridcolor="#2a2a20", tickformat="$,.0f"),
-                legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10)),
-                margin=dict(l=10, r=10, t=40, b=10),
-                height=320,
+                legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10), orientation="h", y=-0.2),
+                margin=dict(l=10, r=10, t=20, b=60),
+                height=330,
             )
-            st.markdown(
-                '<div style="position:relative;">'
-                + _tt("", "This chart shows how income and costs evolve year-by-year.<br>"
-                          "<b>Gold (EGI)</b> = rent collected after vacancy.<br>"
-                          "<b>Red (Expenses)</b> = operating costs + loan payments.<br>"
-                          "<b>Green (NOI)</b> = income before debt. <b>Blue (Cash Flow)</b> = what's left after paying the loan.")
-                + "</div>",
-                unsafe_allow_html=True,
-            )
-            st.plotly_chart(_fin_fig, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(_fin_fig, use_container_width=True, key="fin_proj_chart", config={"displayModeBar": False})
+        else:
+            st.info("Run a prompt above to generate the income & expense projection.")
 
         # ── Financing Structure ───────────────────────────────────────────────
         financing = _adv_result.get("financing", {})
