@@ -10542,7 +10542,7 @@ with main_tab_about:
             if st.button("Run Now", key="run_manager_now"):
                 from src.cre_agents import force_run as _force_run
                 _force_run("manager")
-                st.toast("Manager agent triggered — refresh in ~10 seconds", icon="✓")
+                st.toast("Manager agent triggered — refresh in ~10 seconds", icon="✅")
 
         _mgr_cache = read_cache("manager_report")
         _mgr_data  = _mgr_cache.get("data") or {}
