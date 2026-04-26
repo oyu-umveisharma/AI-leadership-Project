@@ -9170,17 +9170,21 @@ with main_tab_advisor:
         section(" Financial Estimates")
 
         _fc1, _fc2, _fc3, _fc4 = st.columns(4)
-        for _fc, (_lbl, _val, _clr) in zip(
+        for _fc, (_lbl, _tip, _val, _clr) in zip(
             [_fc1, _fc2, _fc3, _fc4],
             [
-                ("Land Cost",          f"${financials['land_cost']/1e6:.2f}M",         "#e8dfc4"),
-                ("Construction",       f"${financials['construction_cost']/1e6:.2f}M", "#e8dfc4"),
-                ("Soft Costs",         f"${financials['soft_costs']/1e6:.2f}M",         "#e8dfc4"),
-                ("Total Project Cost", f"${financials['total_cost']/1e6:.2f}M",         "#d4a843"),
+                ("Land Cost",          "Estimated cost to acquire the land parcel. Based on $/sqft land comps for the selected market and property type.",
+                 f"${financials['land_cost']/1e6:.2f}M",         "#e8dfc4"),
+                ("Construction",       "Hard construction cost — materials, labor, and contractor fees. Adjusted by the platform's energy cost signal (LOW/MODERATE/HIGH).",
+                 f"${financials['construction_cost']/1e6:.2f}M", "#e8dfc4"),
+                ("Soft Costs",         "Architecture, engineering, permits, legal, financing fees, and contingency (typically 15–20% of hard costs).",
+                 f"${financials['soft_costs']/1e6:.2f}M",         "#e8dfc4"),
+                ("Total Project Cost", "All-in development cost: Land + Construction + Soft Costs. This is the capital you need to deploy before the project generates income.",
+                 f"${financials['total_cost']/1e6:.2f}M",         "#d4a843"),
             ]
         ):
             _fc.markdown(
-                f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                f'<div class="metric-card"><div class="label">{_tt(_lbl, _tip)}</div>'
                 f'<div class="value" style="color:{_clr};">{_val}</div></div>',
                 unsafe_allow_html=True,
             )
@@ -9189,17 +9193,21 @@ with main_tab_advisor:
         _fc5, _fc6, _fc7, _fc8 = st.columns(4)
         _irr_c = "#4caf50" if financials["irr_est"] > 10 else "#ff9800"
         _pft_c = "#4caf50" if financials["total_profit"] > 0 else "#f44336"
-        for _fc, (_lbl, _val, _clr) in zip(
+        for _fc, (_lbl, _tip, _val, _clr) in zip(
             [_fc5, _fc6, _fc7, _fc8],
             [
-                ("Annual NOI",     f"${financials['annual_noi']/1e3:.0f}K",     "#e8dfc4"),
-                ("Cumulative NOI", f"${financials['total_noi']/1e6:.2f}M",       "#e8dfc4"),
-                ("Estimated IRR",  f"{financials['irr_est']:.1f}%",              _irr_c),
-                ("Total Profit",   f"${financials['total_profit']/1e6:.2f}M",    _pft_c),
+                ("Annual NOI",     "Net Operating Income per year: Effective Gross Income minus operating expenses (management, insurance, taxes, maintenance). Does NOT include debt service.",
+                 f"${financials['annual_noi']/1e3:.0f}K",     "#e8dfc4"),
+                ("Cumulative NOI", "Total NOI earned over the full hold period (typically 10 years). Measures how much income the property generates before financing costs.",
+                 f"${financials['total_noi']/1e6:.2f}M",       "#e8dfc4"),
+                ("Estimated IRR",  "Internal Rate of Return — annualized return on your total investment including both cash flows and projected exit proceeds. A target of 10%+ is generally considered strong for CRE development.",
+                 f"{financials['irr_est']:.1f}%",              _irr_c),
+                ("Total Profit",   "Total cash profit over the hold period: Cumulative NOI + Exit Value − Total Project Cost. A positive number means the deal made money; negative means a loss.",
+                 f"${financials['total_profit']/1e6:.2f}M",    _pft_c),
             ]
         ):
             _fc.markdown(
-                f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                f'<div class="metric-card"><div class="label">{_tt(_lbl, _tip)}</div>'
                 f'<div class="value" style="color:{_clr};">{_val}</div></div>',
                 unsafe_allow_html=True,
             )
@@ -9210,6 +9218,60 @@ with main_tab_advisor:
             f"Construction cost signal: **{_esig}** (platform energy agent). "
             f"Cost multiplier: {_emult}. Buildout estimate: {financials['buildout_months']} months."
         )
+
+        # ── Income vs Expense Line Chart ──────────────────────────────────────
+        _pf_chart = _adv_result.get("proforma", [])
+        if _pf_chart:
+            import plotly.graph_objects as _go_fin
+            _pf_years  = [r["year"] for r in _pf_chart]
+            _pf_income = [r.get("egi", r.get("gross_revenue", 0)) for r in _pf_chart]
+            _pf_opex   = [r.get("opex", 0) for r in _pf_chart]
+            _pf_ds     = [r.get("debt_service", 0) for r in _pf_chart]
+            _pf_total_exp = [o + d for o, d in zip(_pf_opex, _pf_ds)]
+            _pf_noi    = [r.get("noi", 0) for r in _pf_chart]
+            _pf_cf     = [r.get("cf_after_ds", 0) for r in _pf_chart]
+
+            _fin_fig = _go_fin.Figure()
+            _fin_fig.add_trace(_go_fin.Scatter(
+                x=_pf_years, y=_pf_income, name="Effective Gross Income",
+                line=dict(color="#d4a843", width=2.5),
+                hovertemplate="Year %{x}<br>EGI: $%{y:,.0f}<extra></extra>",
+            ))
+            _fin_fig.add_trace(_go_fin.Scatter(
+                x=_pf_years, y=_pf_total_exp, name="Total Expenses (OpEx + Debt)",
+                line=dict(color="#ef5350", width=2.5),
+                hovertemplate="Year %{x}<br>Expenses: $%{y:,.0f}<extra></extra>",
+            ))
+            _fin_fig.add_trace(_go_fin.Scatter(
+                x=_pf_years, y=_pf_noi, name="NOI",
+                line=dict(color="#4caf50", width=2, dash="dot"),
+                hovertemplate="Year %{x}<br>NOI: $%{y:,.0f}<extra></extra>",
+            ))
+            _fin_fig.add_trace(_go_fin.Scatter(
+                x=_pf_years, y=_pf_cf, name="Cash Flow After Debt",
+                line=dict(color="#64b5f6", width=2, dash="dash"),
+                hovertemplate="Year %{x}<br>Cash Flow: $%{y:,.0f}<extra></extra>",
+            ))
+            _fin_fig.update_layout(
+                title=dict(text="Income & Expense Projection (10-Year Hold)", font=dict(color="#c8a040", size=13)),
+                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                font=dict(color="#a09880", size=11),
+                xaxis=dict(title="Year", gridcolor="#2a2a20", tickmode="linear"),
+                yaxis=dict(title="$ Amount", gridcolor="#2a2a20", tickformat="$,.0f"),
+                legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10)),
+                margin=dict(l=10, r=10, t=40, b=10),
+                height=320,
+            )
+            st.markdown(
+                '<div style="position:relative;">'
+                + _tt("", "This chart shows how income and costs evolve year-by-year.<br>"
+                          "<b>Gold (EGI)</b> = rent collected after vacancy.<br>"
+                          "<b>Red (Expenses)</b> = operating costs + loan payments.<br>"
+                          "<b>Green (NOI)</b> = income before debt. <b>Blue (Cash Flow)</b> = what's left after paying the loan.")
+                + "</div>",
+                unsafe_allow_html=True,
+            )
+            st.plotly_chart(_fin_fig, use_container_width=True, config={"displayModeBar": False})
 
         # ── Financing Structure ───────────────────────────────────────────────
         financing = _adv_result.get("financing", {})
