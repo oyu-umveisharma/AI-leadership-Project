@@ -1831,6 +1831,56 @@ st.markdown(f"""
 
   /* Keep Streamlit's own topbar hidden so our header shows cleanly */
   [data-testid="stHeader"] {{ background: transparent !important; }}
+
+  /* ── Tooltips ── */
+  .cre-tt {{
+    position: relative; display: inline-flex; align-items: center;
+    gap: 4px; cursor: default;
+  }}
+  .cre-tt-icon {{
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: rgba(200,160,64,.15); border: 1px solid rgba(200,160,64,.3);
+    color: {GOLD}; font-size: 8px; font-weight: 700;
+    cursor: help; flex-shrink: 0; line-height: 1;
+  }}
+  .cre-tt .cre-tt-box {{
+    visibility: hidden; opacity: 0;
+    position: absolute; z-index: 9999; bottom: calc(100% + 6px); left: 0;
+    min-width: 220px; max-width: 300px;
+    background: #1e1a0a; border: 1px solid rgba(200,160,64,.3);
+    border-radius: 8px; padding: 10px 13px;
+    font-size: 11px; color: #c8b890; line-height: 1.55;
+    font-weight: 400; text-transform: none; letter-spacing: 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,.5);
+    transition: opacity .15s; pointer-events: none;
+  }}
+  .cre-tt:hover .cre-tt-box {{ visibility: visible; opacity: 1; }}
+
+  /* ── Signal pills ── */
+  .sig-pill {{
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 10px; font-weight: 600; letter-spacing: .05em;
+  }}
+  .sig-EXPANDING  {{ background: rgba(27,94,32,.25);  color: #4caf50; border: 1px solid rgba(76,175,80,.3); }}
+  .sig-STRONG     {{ background: rgba(27,94,32,.25);  color: #4caf50; border: 1px solid rgba(76,175,80,.3); }}
+  .sig-TIGHT      {{ background: rgba(27,94,32,.25);  color: #4caf50; border: 1px solid rgba(76,175,80,.3); }}
+  .sig-MODERATE   {{ background: rgba(230,81,0,.15);  color: #ffb74d; border: 1px solid rgba(255,152,0,.3); }}
+  .sig-BALANCED   {{ background: rgba(230,81,0,.15);  color: #ffb74d; border: 1px solid rgba(255,152,0,.3); }}
+  .sig-FLAT       {{ background: rgba(230,81,0,.15);  color: #ffb74d; border: 1px solid rgba(255,152,0,.3); }}
+  .sig-SOFT       {{ background: rgba(183,28,28,.2);  color: #ef5350; border: 1px solid rgba(239,83,80,.3); }}
+  .sig-CONTRACTING{{ background: rgba(183,28,28,.2);  color: #ef5350; border: 1px solid rgba(239,83,80,.3); }}
+  .sig-LOOSE      {{ background: rgba(183,28,28,.2);  color: #ef5350; border: 1px solid rgba(239,83,80,.3); }}
+
+  /* ── Freshness badge ── */
+  .fresh-dot {{
+    display: inline-block; width: 7px; height: 7px;
+    border-radius: 50%; margin-right: 5px; vertical-align: middle;
+  }}
+  .fresh-ok   {{ background: #4caf50; box-shadow: 0 0 4px rgba(76,175,80,.5); }}
+  .fresh-warn {{ background: #ffb74d; box-shadow: 0 0 4px rgba(255,183,77,.4); }}
+  .fresh-stale{{ background: #ef5350; box-shadow: 0 0 4px rgba(239,83,80,.4); }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -2257,17 +2307,79 @@ def _pt_focus_banner(pt: str | None):
 def stale_banner(cache_key: str):
     c = read_cache(cache_key)
     if c["data"] is None:
-        st.warning(f" Agent is fetching {cache_key} data for the first time — please wait ~30 seconds and refresh.")
+        st.warning(f"Agent is fetching {cache_key} data for the first time — please wait ~30 seconds and refresh.")
         return False
     age = cache_age_label(cache_key)
     if c.get("stale"):
-        st.warning(f" Data is stale (last updated {age}). Agent may be restarting.")
+        dot = '<span class="fresh-dot fresh-stale"></span>'
+        st.markdown(
+            f'<div style="font-size:11px;color:#8a6030;padding:6px 0;">'
+            f'{dot}Data is stale (last updated {age}) — agent may be restarting</div>',
+            unsafe_allow_html=True,
+        )
     else:
-        st.caption(f" Last updated: {age} · Auto-refreshes in background")
+        dot = '<span class="fresh-dot fresh-ok"></span>'
+        st.markdown(
+            f'<div style="font-size:11px;color:#5a4820;padding:4px 0;">'
+            f'{dot}Live data · last updated {age} · auto-refreshes in background</div>',
+            unsafe_allow_html=True,
+        )
     return True
 
 def agent_last_updated(agent_name: str):
-    st.caption(f"Last updated: {cache_age_label(agent_name)}")
+    age = cache_age_label(agent_name)
+    dot = '<span class="fresh-dot fresh-ok"></span>'
+    st.markdown(
+        f'<div style="font-size:11px;color:#5a4820;padding:4px 0;">{dot}Last updated: {age}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+# ── Tooltip helper ────────────────────────────────────────────────────────────
+def _tt(label: str, tip: str) -> str:
+    """Wrap a label with a hoverable ? tooltip. Returns HTML string."""
+    return (
+        f'<span class="cre-tt">{label}'
+        f'<span class="cre-tt-icon">?</span>'
+        f'<span class="cre-tt-box">{tip}</span>'
+        f'</span>'
+    )
+
+
+# ── Signal pill helper ────────────────────────────────────────────────────────
+_SIG_DESCRIPTIONS = {
+    "EXPANDING":   ("▲", "Sector ETF up >2% — corporate hiring is growing, driving more leasing demand"),
+    "FLAT":        ("→", "Sector ETF within ±2% — demand is stable, no strong expansion or contraction"),
+    "CONTRACTING": ("▼", "Sector ETF down >2% — hiring is slowing, leasing demand may soften"),
+    "STRONG":      ("▲", "Score ≥65 — low unemployment, rising payrolls, high job openings. Landlords hold pricing power"),
+    "MODERATE":    ("→", "Score 41–64 — mixed signals. Demand present but softening. Be selective"),
+    "SOFT":        ("▼", "Score ≤40 — rising unemployment or falling payrolls. Tenants downsizing, concessions rising"),
+    "TIGHT":       ("▲", "Unemployment <4% — strong local economy, higher occupier demand and rent growth potential"),
+    "BALANCED":    ("→", "Unemployment 4–6% — stable absorption, neutral for CRE demand"),
+    "LOOSE":       ("▼", "Unemployment >6% — weaker absorption, potential vacancy risk and lease concessions"),
+    "HIGH":        ("▲", "Costs rising faster than average — construction budgets at risk of overrun"),
+    "LOW":         ("▼", "Costs below average — favorable for development margins"),
+    "HOT":         ("▲", "CPI well above 2% — replacement cost support for values, but rate uncertainty rising"),
+    "COOLING":     ("▼", "Inflation trending back toward target — rate pressure may ease"),
+    "LOOSE_CREDIT":("▲", "Spreads narrow, banks easing — debt cheap and available, deal volume high"),
+    "TIGHT_CREDIT":("▼", "Spreads wide, banks tightening — higher equity requirements, fewer loans closing"),
+}
+
+def _sig_pill(signal: str, credit_context: bool = False) -> str:
+    """Return a colored HTML pill with a plain-English tooltip for a signal label."""
+    key = signal.upper()
+    if credit_context and key == "LOOSE":
+        key = "LOOSE_CREDIT"
+    if credit_context and key == "TIGHT":
+        key = "TIGHT_CREDIT"
+    arrow, desc = _SIG_DESCRIPTIONS.get(key, ("·", signal))
+    css_key = key.replace("_CREDIT", "").replace("_", "")
+    return (
+        f'<span class="cre-tt">'
+        f'<span class="sig-pill sig-{css_key}">{arrow} {signal}</span>'
+        f'<span class="cre-tt-box">{desc}</span>'
+        f'</span>'
+    )
 
 
 def gauge_card(title: str, label: str, score: int, summary: str,
@@ -3532,10 +3644,10 @@ with main_tab_re:
                 _noi_sub  = "After opex, before CapEx"
 
                 _KPI_EXPLAIN = {
-                    "AVG CAP RATE":   ("NOI ÷ Property Value",       "A lower cap rate = higher asset value. Compressed cap rates signal strong investor demand. Rises when interest rates climb or asset values fall."),
-                    "NOI MARGIN":     ("NOI ÷ Gross Revenue",        "Measures operating efficiency after expenses (insurance, maintenance, mgmt fees) but before CapEx and debt service. Higher = more cash flow per dollar of revenue."),
-                    "RENT GROWTH YOY":("(Rent Now − Rent Yr Ago) ÷ Rent Yr Ago", "Positive rent growth compounds NOI over time. Driven by supply/demand imbalance, lease rollovers at market rates, and inflation passthroughs."),
-                    "AVG VACANCY":    ("Unleased SF ÷ Total Rentable SF", "Lower vacancy tightens rent pricing power. Rising vacancy signals oversupply or demand softness — a leading indicator of cap rate expansion."),
+                    "AVG CAP RATE":   ("NOI ÷ Property Value",       "A lower cap rate = higher asset value (investors paying more per dollar of income). Compressed cap rates signal strong demand. Rises when interest rates climb or asset values fall."),
+                    "NOI MARGIN":     ("NOI ÷ Gross Revenue",        "Net Operating Income margin — what's left after operating expenses (insurance, maintenance, mgmt fees) but before CapEx and debt payments. Higher = more efficient property."),
+                    "RENT GROWTH YOY":("(Rent Now − Rent Yr Ago) ÷ Rent Yr Ago", "How much rents have risen over 12 months. Positive rent growth means existing leases rolling to market rates generate higher NOI over time."),
+                    "AVG VACANCY":    ("Unleased SF ÷ Total Rentable SF", "Share of space sitting empty. Lower vacancy = landlords have pricing power. Rising vacancy = oversupply or weak demand — a leading indicator of cap rate expansion."),
                 }
 
                 _kc1, _kc2, _kc3, _kc4 = st.columns(4)
@@ -3549,14 +3661,10 @@ with main_tab_re:
                     _col.markdown(f"""
 <div style="background:#171309;border:1px solid #2a2208;border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;min-height:130px;">
   <div style="position:absolute;top:0;left:0;right:0;height:2px;background:{_border};border-radius:10px 10px 0 0;"></div>
-  <div style="font-size:10px;color:#6a5228;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">{_lbl}</div>
+  <div style="font-size:10px;color:#6a5228;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">{_tt(_lbl, _exp_desc)}</div>
   <div style="font-size:34px;font-weight:500;color:{_border};line-height:1;margin-bottom:4px;">{_val_str}</div>
-  <div style="font-size:11px;color:#6a5228;margin-bottom:2px;">{_sub}</div>
+  <div style="font-size:11px;color:#6a5228;margin-bottom:2px;font-family:monospace;">{_exp_formula}</div>
   {_badge_html}
-</div>
-<div style="margin-top:6px;padding:10px 12px;background:#0f0c05;border:1px solid #1e1a08;border-radius:8px;">
-  <div style="font-size:10px;color:#d4a843;letter-spacing:0.05em;margin-bottom:4px;font-family:monospace;">{_exp_formula}</div>
-  <div style="font-size:11px;color:#5a4820;line-height:1.5;">{_exp_desc}</div>
 </div>""", unsafe_allow_html=True)
 
                 st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
@@ -7187,6 +7295,14 @@ Cap Rate (adjusted) = Benchmark Cap Rate + (Current 10Y Treasury - 3.5% historic
 
         # ── KPI Strip — National Labor ──────────────────────────────────────────
         section(" National Labor Market Snapshot")
+        _KPI_TIP = {
+            "Unemployment Rate":        "Share of the labor force actively looking for work. Below 4% = tight market → strong CRE demand. Above 6% = slack → weaker tenant absorption.",
+            "Nonfarm Payrolls":         "Total US jobs excluding farm workers. Monthly gains >150K = strong economy. Rising payrolls directly drive office, industrial and retail leasing.",
+            "Job Openings (JOLTS)":     "Job Openings and Labor Turnover Survey — number of unfilled positions. High openings (>8M) = companies expanding → more space needed.",
+            "Quits Rate":               "Percentage of workers voluntarily leaving jobs. High quits = confident workers, tight labor market, wage pressure. Good for multifamily (wage growth → rent growth).",
+            "Labor Force Participation":"Share of working-age population employed or seeking work. Rising = more potential tenants and consumers. Declining = structural demand headwinds.",
+            "Avg Hourly Earnings":      "Average pay per hour in the private sector. Rising wages → stronger household balance sheets → supports multifamily rent growth and retail spending.",
+        }
         kpi_keys = [
             ("Unemployment Rate",         "%",  "Civilian U-3"),
             ("Nonfarm Payrolls",           "K",  "Total employed"),
@@ -7225,7 +7341,7 @@ Cap Rate (adjusted) = Benchmark Cap Rate + (Current 10Y Treasury - 3.5% historic
                 delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {d_s} 1M</span>"
             col.markdown(f"""
             <div class="metric-card">
-              <div class="label">{key}</div>
+              <div class="label">{_tt(key, _KPI_TIP.get(key, key))}</div>
               <div class="value">{val_s}</div>
               <div class="sub">{delta_html or sub}</div>
             </div>""", unsafe_allow_html=True)
@@ -7326,16 +7442,25 @@ Cap Rate (adjusted) = Benchmark Cap Rate + (Current 10Y Treasury - 3.5% historic
                 if pt not in pt_summary:
                     pt_summary[pt] = []
                 pt_summary[pt].append(row["return_6mo"])
-            pt_rows = [{"CRE Property Type": pt,
-                        "Avg Sector Return": f"{sum(v)/len(v):+.1f}%",
-                        "Demand Signal": "EXPANDING" if sum(v)/len(v) > 2 else ("CONTRACTING" if sum(v)/len(v) < -2 else "FLAT")}
+            pt_rows = [(pt, f"{sum(v)/len(v):+.1f}%",
+                        "EXPANDING" if sum(v)/len(v) > 2 else ("CONTRACTING" if sum(v)/len(v) < -2 else "FLAT"))
                        for pt, v in sorted(pt_summary.items(), key=lambda x: sum(x[1])/len(x[1]), reverse=True)]
-            st.dataframe(pd.DataFrame(pt_rows), use_container_width=True, hide_index=True)
-            st.caption(
-                "Rising sector ETFs signal expanding corporate employment → more office/industrial/retail leasing. "
-                "EXPANDING > +2% return, CONTRACTING < -2%, FLAT in between. "
-                "Data: Yahoo Finance (6-month trailing). Rate-limited — refreshes on scheduled runs."
-            )
+            _etf_rows_html = "".join([
+                f'<tr><td style="padding:7px 12px;color:#c8b890;font-size:12px;">{pt}</td>'
+                f'<td style="padding:7px 12px;font-family:monospace;font-size:12px;color:{("#4caf50" if "+" in ret else "#ef5350")};">{ret}</td>'
+                f'<td style="padding:7px 12px;">{_sig_pill(sig)}</td></tr>'
+                for pt, ret, sig in pt_rows
+            ])
+            st.markdown(f"""
+<table style="width:100%;border-collapse:collapse;background:#171309;border-radius:8px;overflow:hidden;border:1px solid #2a2208;">
+  <thead><tr style="border-bottom:1px solid #2a2208;">
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">CRE Property Type</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Avg Sector Return","6-month total return of sector ETFs linked to this property type. Rising ETFs signal expanding corporate employment and leasing demand.")}</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Demand Signal","EXPANDING = avg return >+2% · FLAT = ±2% · CONTRACTING = <-2%. Hover a pill for plain-English meaning.")}</th>
+  </tr></thead>
+  <tbody>{_etf_rows_html}</tbody>
+</table>""", unsafe_allow_html=True)
+            st.caption("Data: Yahoo Finance (6-month trailing). Hover column headers or signal pills for definitions.")
         else:
             st.info("Sector ETF data temporarily unavailable (Yahoo Finance rate limit). Will populate on next scheduled run.")
 
@@ -7386,23 +7511,29 @@ Cap Rate (adjusted) = Benchmark Cap Rate + (Current 10Y Treasury - 3.5% historic
             )
             st.plotly_chart(fig_mu, use_container_width=True)
 
-            # Table
-            mu_disp = mu_df[["market", "unemp_rate", "delta_1m", "signal", "period"]].copy()
-            mu_disp.columns = ["State / Key Metros", "Unemployment %", "MoM Δ (pp)", "Labor Market", "Period"]
-            mu_disp["Unemployment %"] = mu_disp["Unemployment %"].apply(lambda x: f"{x:.1f}%")
-            mu_disp["MoM Δ (pp)"] = mu_disp["MoM Δ (pp)"].apply(lambda x: f"{x:+.1f}")
-
-            def _tight_style(val):
-                return {"TIGHT": "color:#1b5e20;font-weight:700",
-                        "BALANCED": "color:#e65100",
-                        "LOOSE": "color:#b71c1c;font-weight:700"}.get(val, "")
-            styled_mu = mu_disp.style.applymap(_tight_style, subset=["Labor Market"])
-            st.dataframe(styled_mu, use_container_width=True, hide_index=True)
-            st.caption(
-                "TIGHT labor markets (<4% unemployment) indicate strong local economies — higher occupier demand "
-                "and rent growth potential. LOOSE (>6%) may signal weaker absorption. "
-                "Data: FRED state unemployment rates (BLS LAUS). Updated monthly."
-            )
+            # Table with signal pills
+            _mu_rows_html = "".join([
+                f'<tr style="border-bottom:1px solid #1e1a08;">'
+                f'<td style="padding:7px 12px;color:#c8b890;font-size:12px;">{row["market"]}</td>'
+                f'<td style="padding:7px 12px;font-family:monospace;font-size:12px;color:#d4a843;">{row["unemp_rate"]:.1f}%</td>'
+                f'<td style="padding:7px 12px;font-family:monospace;font-size:12px;color:{"#ef5350" if row["delta_1m"]>0 else "#4caf50"};">{row["delta_1m"]:+.1f}pp</td>'
+                f'<td style="padding:7px 12px;">{_sig_pill(row["signal"])}</td>'
+                f'<td style="padding:7px 12px;color:#5a4820;font-size:11px;">{row["period"]}</td>'
+                f'</tr>'
+                for row in metro_unemp
+            ])
+            st.markdown(f"""
+<table style="width:100%;border-collapse:collapse;background:#171309;border-radius:8px;overflow:hidden;border:1px solid #2a2208;">
+  <thead><tr style="border-bottom:1px solid #2a2208;">
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">State / Key Metros</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Unemployment %","Share of the labor force actively seeking work but unemployed. Below 4% = tight market, above 6% = loose.")}</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("MoM Δ","Month-over-month change in unemployment rate, in percentage points. Green = falling (improving), red = rising.")}</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Labor Market","Hover the signal pill for a plain-English explanation of what this means for CRE demand.")}</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Period</th>
+  </tr></thead>
+  <tbody>{_mu_rows_html}</tbody>
+</table>""", unsafe_allow_html=True)
+            st.caption("Data: FRED state unemployment rates (BLS LAUS). Updated monthly. Hover column headers or signal pills for definitions.")
         else:
             st.info("Metro unemployment data not yet available.")
 
