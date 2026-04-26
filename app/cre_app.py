@@ -8909,7 +8909,7 @@ with main_tab_advisor:
                 _rg_types  = list(_rg_chart_data.keys())
                 _rg_vals   = [_rg_chart_data[t] for t in _rg_types]
                 _rg_colors = ["#4caf50" if v > 2 else ("#ff9800" if v > 0 else "#ef5350") for v in _rg_vals]
-                _highlight  = [1.4 if t == _pt_rg_key else 0.8 for t in _rg_types]
+                _highlight  = [1.0 if t == _pt_rg_key else 0.5 for t in _rg_types]
                 _fig_rg = go.Figure(go.Bar(
                     x=_rg_types, y=_rg_vals,
                     marker=dict(color=_rg_colors, opacity=_highlight),
