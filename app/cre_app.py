@@ -8765,6 +8765,319 @@ with main_tab_advisor:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
+        # ══════════════════════════════════════════════════════════════════════
+        #  LOCATION MARKET INTELLIGENCE
+        # ══════════════════════════════════════════════════════════════════════
+        _loc_raw   = (params.get("location_raw") or "").lower().strip()
+        _prop_type = params.get("property_type", "Industrial")
+
+        # State name → abbr lookup for display and filtering
+        _STATE_ABBR = {
+            "alabama":"AL","alaska":"AK","arizona":"AZ","arkansas":"AR","california":"CA",
+            "colorado":"CO","connecticut":"CT","delaware":"DE","florida":"FL","georgia":"GA",
+            "hawaii":"HI","idaho":"ID","illinois":"IL","indiana":"IN","iowa":"IA","kansas":"KS",
+            "kentucky":"KY","louisiana":"LA","maine":"ME","maryland":"MD","massachusetts":"MA",
+            "michigan":"MI","minnesota":"MN","mississippi":"MS","missouri":"MO","montana":"MT",
+            "nebraska":"NE","nevada":"NV","new hampshire":"NH","new jersey":"NJ","new mexico":"NM",
+            "new york":"NY","north carolina":"NC","north dakota":"ND","ohio":"OH","oklahoma":"OK",
+            "oregon":"OR","pennsylvania":"PA","rhode island":"RI","south carolina":"SC",
+            "south dakota":"SD","tennessee":"TN","texas":"TX","utah":"UT","vermont":"VT",
+            "virginia":"VA","washington":"WA","west virginia":"WV","wisconsin":"WI","wyoming":"WY",
+            "sunbelt":"TX","southeast":"TN","midwest":"IL","northeast":"NY","southwest":"AZ",
+        }
+        _STATE_TAX = {
+            "TX":("0%","No state income tax — highest net operating income retention in the US"),
+            "FL":("0%","No state income tax — strong for REIT structures and passive investors"),
+            "NV":("0%","No state income tax — favorable for holding entities"),
+            "TN":("0%","No state income tax on wages — eliminated Hall Tax in 2021"),
+            "WY":("0%","No state income tax — minimal regulatory burden"),
+            "SD":("0%","No state income tax"),
+            "AK":("0%","No state income tax"),
+            "WA":("0%","No state personal income tax (capital gains tax enacted 2023)"),
+            "AZ":("2.5%","Flat 2.5% state income tax — among the lowest rates nationally"),
+            "CO":("4.4%","Flat 4.4% rate — Enterprise Zone credits available for development"),
+            "NC":("4.5%","Competitive flat tax with phased reductions through 2026"),
+            "GA":("5.49%","Flat tax trajectory; QOZ-heavy state with strong Job Tax Credits"),
+            "UT":("4.65%","Flat 4.65% — strong OZ pipeline in Salt Lake corridor"),
+            "SC":("6.4%","Standard rate but aggressive OZ and county incentive programs"),
+            "IN":("3.05%","One of the lowest flat rates in the Midwest"),
+            "OH":("3.75%","Progressive up to 3.75%; municipal taxes apply in metro areas"),
+            "IL":("4.95%","Flat rate; higher property taxes offset income tax savings"),
+            "CA":("13.3%","Highest marginal rate nationally — factor into hold period net returns"),
+            "NY":("10.9%","Combined city + state can exceed 14% in NYC"),
+        }
+
+        # Pull from caches
+        _lmi_lm   = (read_cache("labor_market").get("data") or {})
+        _lmi_rg   = (read_cache("rent_growth").get("data") or {})
+        _lmi_cap  = (read_cache("cap_rate").get("data") or {})
+        _lmi_vac  = (read_cache("vacancy").get("data") or {})
+        _lmi_oz   = (read_cache("opportunity_zone").get("data") or {})
+        _lmi_ms   = (read_cache("market_score").get("data") or {})
+
+        # Match state
+        _matched_abbr = None
+        for _sname, _sabb in _STATE_ABBR.items():
+            if _sname in _loc_raw:
+                _matched_abbr = _sabb; break
+
+        # Prop-type → cache key mapping
+        _pt_vac_key = {
+            "Industrial":"Industrial / Logistics","Multifamily":"Multifamily / Residential",
+            "Office":"Office","Retail":"Retail","Healthcare":"Healthcare / Medical Office",
+        }.get(_prop_type, "Industrial / Logistics")
+        _pt_rg_key = {
+            "Industrial":"Industrial","Multifamily":"Multifamily",
+            "Office":"Office","Retail":"Retail","Healthcare":"Office",
+        }.get(_prop_type, "Industrial")
+
+        section(f" Location Intelligence — {_location or 'Target Market'}")
+
+        # ── Row 1: live KPI stats ─────────────────────────────────────────────
+        _li1, _li2, _li3, _li4, _li5 = st.columns(5)
+
+        # Unemployment
+        _unemp_data = _lmi_lm.get("metro_unemployment", [])
+        _unemp_match = next((r for r in _unemp_data
+                             if _loc_raw and any(w in r["market"].lower() for w in _loc_raw.split()
+                             if len(w) > 3)), None)
+        _unemp_val = f"{_unemp_match['unemp_rate']:.1f}%" if _unemp_match else (
+            _lmi_lm.get("fred_labor", {}).get("Unemployment Rate", {}).get("current") or "—")
+        if isinstance(_unemp_val, float): _unemp_val = f"{_unemp_val:.1f}%"
+        _unemp_sig = _unemp_match.get("signal","") if _unemp_match else ""
+        _unemp_clr = "#4caf50" if _unemp_sig == "TIGHT" else ("#ff9800" if _unemp_sig == "BALANCED" else "#c8b890")
+
+        # Rent growth for property type
+        _rg_nat = _lmi_rg.get("national", {})
+        _rg_val = _rg_nat.get(_pt_rg_key, {}).get("yoy_pct") or _rg_nat.get(_pt_rg_key, {}).get("yoy") or "—"
+        _rg_clr = "#4caf50" if isinstance(_rg_val, (int,float)) and _rg_val > 2 else ("#ff9800" if isinstance(_rg_val, (int,float)) and _rg_val > 0 else "#ef5350")
+        _rg_fmt = f"{_rg_val:+.1f}%" if isinstance(_rg_val, (int,float)) else str(_rg_val)
+
+        # Cap rate
+        _cap_nat = _lmi_cap.get("national", {})
+        _cap_val = _cap_nat.get(_prop_type, {}).get("cap_rate") or _cap_nat.get(_prop_type, {}).get("rate")
+        if not _cap_val:
+            for _k, _v in _cap_nat.items():
+                if _prop_type.lower() in _k.lower():
+                    _cap_val = _v.get("cap_rate") or _v.get("rate"); break
+        _cap_fmt = f"{_cap_val:.2f}%" if isinstance(_cap_val, (int,float)) else f"{primary.get('cap_rate',0):.2f}%"
+
+        # Vacancy
+        _vac_nat = _lmi_vac.get("national", NATIONAL_VACANCY)
+        _vac_entry = _vac_nat.get(_pt_vac_key, {})
+        _vac_val = _vac_entry.get("rate") or _vac_entry.get("vacancy_rate") if isinstance(_vac_entry, dict) else _vac_entry
+        _vac_fmt = f"{_vac_val:.1f}%" if isinstance(_vac_val, (int,float)) else "—"
+
+        # Migration score
+        _mig_score = primary.get("mig_score", 0)
+
+        for _col, (_lbl, _val, _clr, _sub) in zip(
+            [_li1, _li2, _li3, _li4, _li5],
+            [
+                ("Unemployment",       _unemp_val,                  _unemp_clr,    _unemp_sig or "State rate"),
+                (f"{_prop_type} Rent Growth", _rg_fmt,             _rg_clr,       "YoY national"),
+                (f"{_prop_type} Cap Rate",    _cap_fmt,            "#d4a843",     "National benchmark"),
+                (f"{_prop_type} Vacancy",     _vac_fmt,            "#c8b890",     "National avg"),
+                ("Migration Score",   f"{_mig_score:.0f}/100",     "#d4a843",     "Demand proxy"),
+            ]
+        ):
+            _col.markdown(
+                f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                f'<div class="value" style="color:{_clr};font-size:1.35rem;">{_val}</div>'
+                f'<div class="sub">{_sub}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Row 2: Rent growth chart + Suggested markets ──────────────────────
+        _li_left, _li_right = st.columns([1, 1], gap="large")
+
+        with _li_left:
+            st.markdown(
+                f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;'
+                f'letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px;">'
+                f'Rent Growth by Property Type (National YoY)</div>',
+                unsafe_allow_html=True,
+            )
+            _rg_chart_data = {
+                k: v.get("yoy_pct") or v.get("yoy") or 0
+                for k, v in _rg_nat.items()
+                if isinstance(v, dict) and (v.get("yoy_pct") or v.get("yoy")) is not None
+            }
+            if _rg_chart_data:
+                _rg_types  = list(_rg_chart_data.keys())
+                _rg_vals   = [_rg_chart_data[t] for t in _rg_types]
+                _rg_colors = ["#4caf50" if v > 2 else ("#ff9800" if v > 0 else "#ef5350") for v in _rg_vals]
+                _highlight  = [1.4 if t == _pt_rg_key else 0.8 for t in _rg_types]
+                _fig_rg = go.Figure(go.Bar(
+                    x=_rg_types, y=_rg_vals,
+                    marker=dict(color=_rg_colors, opacity=_highlight),
+                    text=[f"{v:+.1f}%" for v in _rg_vals],
+                    textposition="outside",
+                    textfont=dict(color="#c8b890", size=11),
+                    hovertemplate="<b>%{x}</b><br>YoY: %{y:+.1f}%<extra></extra>",
+                ))
+                _fig_rg.add_hline(y=0, line_color="#555", line_width=1)
+                _fig_rg.update_layout(
+                    plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                    margin=dict(t=30, b=10, l=10, r=10), height=240,
+                    xaxis=dict(tickfont=dict(color="#c8b890", size=10), tickangle=-15),
+                    yaxis=dict(ticksuffix="%", gridcolor="#2a2a1a", tickfont=dict(color="#c8b890", size=10)),
+                    showlegend=False,
+                )
+                st.plotly_chart(_fig_rg, use_container_width=True, config={"displayModeBar": False})
+                st.caption(f"Highlighted bar = {_prop_type} (your target type). Source: Agent 15 / Zillow–CoStar benchmarks.")
+            else:
+                st.info("Rent growth data populating — refresh in ~30 seconds.")
+
+        with _li_right:
+            # Top markets from all_scored filtered to location, or just top overall
+            st.markdown(
+                f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;'
+                f'letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px;">'
+                f'Top Scored Markets{f" — {_location}" if _location else ""}</div>',
+                unsafe_allow_html=True,
+            )
+            # Filter all_scored by location if possible, else show top 6
+            _loc_words = [w for w in _loc_raw.split() if len(w) > 3]
+            _loc_filtered = [
+                m for m in all_scored
+                if any(w in m["market"].lower() for w in _loc_words)
+            ] if _loc_words else []
+            _show_markets = (_loc_filtered or all_scored)[:6]
+
+            if _show_markets:
+                _sm_rows = "".join([
+                    f'<tr style="border-bottom:1px solid #1e1a08;">'
+                    f'<td style="padding:7px 10px;color:#c8b890;font-size:12px;font-weight:{"700" if i==0 else "400"};">'
+                    f'{"★ " if i==0 else f"{i+1}. "}{m["market"]}</td>'
+                    f'<td style="padding:7px 10px;text-align:right;font-family:monospace;font-size:12px;'
+                    f'color:{"#4caf50" if m["opportunity_score"]>=75 else "#ff9800" if m["opportunity_score"]>=55 else "#ef5350"};">'
+                    f'{m["opportunity_score"]:.0f}</td>'
+                    f'<td style="padding:7px 10px;text-align:right;font-family:monospace;font-size:11px;color:#d4a843;">'
+                    f'{m.get("cap_rate",0):.2f}%</td>'
+                    f'<td style="padding:7px 10px;text-align:right;font-family:monospace;font-size:11px;'
+                    f'color:{"#4caf50" if m.get("rent_growth",0)>2 else "#ff9800"};">'
+                    f'{m.get("rent_growth",0):+.1f}%</td>'
+                    f'</tr>'
+                    for i, m in enumerate(_show_markets)
+                ])
+                st.markdown(f"""
+<table style="width:100%;border-collapse:collapse;background:#171309;border-radius:8px;overflow:hidden;border:1px solid #2a2208;">
+  <thead><tr style="border-bottom:1px solid #2a2208;">
+    <th style="padding:8px 10px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Market</th>
+    <th style="padding:8px 10px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Score</th>
+    <th style="padding:8px 10px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Cap Rate</th>
+    <th style="padding:8px 10px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Rent Δ</th>
+  </tr></thead>
+  <tbody>{_sm_rows}</tbody>
+</table>""", unsafe_allow_html=True)
+                st.caption("★ = top recommended market for your prompt. Score 0–100 composite.")
+            else:
+                st.info("Market scoring data loading.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Tax Advantages ─────────────────────────────────────────────────────
+        section(" Tax Advantages for This Location")
+
+        _tax_left, _tax_right = st.columns([1, 1], gap="large")
+
+        with _tax_left:
+            # State tax info
+            _st_tax_info = _STATE_TAX.get(_matched_abbr, None)
+            _st_display  = _matched_abbr or _location or "Target State"
+            if _st_tax_info:
+                _st_rate, _st_note = _st_tax_info
+                _st_color = "#4caf50" if _st_rate == "0%" else ("#ff9800" if float(_st_rate.replace("%","")) < 5 else "#ef5350")
+                st.markdown(f"""
+<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:18px 20px;margin-bottom:12px;">
+  <div style="color:#d4a843;font-size:0.82rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:12px;">State Tax Environment — {_st_display}</div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+    <div style="font-size:2rem;font-weight:700;color:{_st_color};font-family:monospace;">{_st_rate}</div>
+    <div style="color:#a09880;font-size:0.88rem;">State Income Tax Rate</div>
+  </div>
+  <div style="color:#c8b890;font-size:0.84rem;line-height:1.6;">{_st_note}</div>
+</div>""", unsafe_allow_html=True)
+
+            # Federal tax benefits
+            _fed_tax_rows = [
+                ("Cost Segregation",       "Accelerate depreciation on personal property (5-yr) and land improvements (15-yr). Year-1 deduction can offset 20–30% of building value."),
+                ("Bonus Depreciation",     "60% bonus depreciation in 2025 on qualifying assets — phases to 40% in 2026. Front-loads the tax shield into early hold years."),
+                ("1031 Exchange",          "Defer 100% of capital gains tax by rolling proceeds into a like-kind property within 45-day identification / 180-day close windows."),
+                ("Depreciation Recapture Strategy", "Structure the exit via an installment sale or OZ re-investment to manage 25% recapture tax on straight-line depreciation."),
+            ]
+            for _fed_name, _fed_desc in _fed_tax_rows:
+                st.markdown(
+                    f'<div style="background:#16140a;border-left:3px solid #705020;border-radius:4px;'
+                    f'padding:10px 14px;margin-bottom:8px;">'
+                    f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;margin-bottom:4px;">{_fed_name}</div>'
+                    f'<div style="color:#a09880;font-size:0.82rem;line-height:1.5;">{_fed_desc}</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+        with _tax_right:
+            # OZ markets near the location
+            _oz_mkts = _lmi_oz.get("oz_markets", {})
+            _oz_ranked_all = _lmi_oz.get("top_markets_by_score", [])
+
+            # Filter OZ markets by location
+            _loc_oz = [
+                (name, info) for name, info in _oz_mkts.items()
+                if any(w in name.lower() for w in _loc_words) or
+                   (_matched_abbr and _matched_abbr.lower() in name.lower())
+            ] if (_loc_words or _matched_abbr) else []
+            _show_oz = sorted(_loc_oz, key=lambda x: x[1].get("opportunity_score", 0), reverse=True)[:4]
+
+            # Fall back to top OZ markets if no location match
+            if not _show_oz and _oz_ranked_all:
+                _show_oz = [(r[0], {"opportunity_score": r[1], "key_zones": [], "property_focus": [], "highlights": []})
+                            for r in _oz_ranked_all[:4]]
+
+            if _show_oz:
+                st.markdown(
+                    f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;'
+                    f'letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;">'
+                    f'Opportunity Zone Markets{f" — {_location}" if _location else ""}</div>',
+                    unsafe_allow_html=True,
+                )
+                for _oz_name, _oz_info in _show_oz:
+                    _oz_sc   = _oz_info.get("opportunity_score", 0)
+                    _oz_sc_c = "#4caf50" if _oz_sc >= 80 else ("#d4a843" if _oz_sc >= 70 else "#ef5350")
+                    _oz_zones = " · ".join((_oz_info.get("key_zones") or [])[:2])
+                    _oz_focus = ", ".join((_oz_info.get("property_focus") or [])[:2])
+                    _oz_hi    = (_oz_info.get("highlights") or [""])[0]
+                    st.markdown(f"""
+<div style="background:#0a1e0a;border:1px solid #2a4a2a;border-left:3px solid #4caf50;
+            border-radius:6px;padding:12px 16px;margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="color:#80c858;font-weight:600;font-size:0.88rem;">{_oz_name}</div>
+    <div style="color:{_oz_sc_c};font-weight:700;font-family:monospace;font-size:1rem;">{_oz_sc}</div>
+  </div>
+  {"<div style='color:#5a9050;font-size:0.78rem;margin-top:4px;'>Zones: " + _oz_zones + "</div>" if _oz_zones else ""}
+  {"<div style='color:#5a9050;font-size:0.78rem;'>Focus: " + _oz_focus + "</div>" if _oz_focus else ""}
+  {"<div style='color:#a09880;font-size:0.78rem;margin-top:4px;'>" + _oz_hi + "</div>" if _oz_hi else ""}
+</div>""", unsafe_allow_html=True)
+
+                st.markdown(
+                    '<div style="background:#16140a;border:1px solid #3a3020;border-radius:6px;'
+                    'padding:10px 14px;margin-top:4px;">'
+                    '<div style="color:#d4a843;font-size:0.78rem;font-weight:600;margin-bottom:4px;">OZ 10-Year Benefit</div>'
+                    '<div style="color:#a09880;font-size:0.78rem;line-height:1.5;">'
+                    'Hold a QOF investment for 10+ years and pay <strong style="color:#4caf50;">zero capital gains tax</strong> '
+                    'on all appreciation inside the fund. A $5M gain on a $10M development = $0 federal tax at exit. '
+                    'Must invest unrealized gains within 180 days.</div></div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.info("Opportunity Zone data loading — check the Opportunity Zones tab for full detail.")
+
+        st.markdown(
+            '<hr style="border:none;border-top:1px solid #2a2208;margin:28px 0 24px;">',
+            unsafe_allow_html=True,
+        )
+
         # ── Primary recommendation ────────────────────────────────────────────
         section(f" Primary Recommendation — {primary['market']}")
         _col_left, _col_right = st.columns([1.05, 0.95], gap="large")
