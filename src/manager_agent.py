@@ -66,6 +66,8 @@ REQUIRED_FIELDS = {
     "climate_risk":    ["data"],
     "opportunity_zone":["data"],
     "distressed":      ["data"],
+    "rentcast":        ["data"],
+    "forecast":        ["data"],
 }
 
 # ── Investment Advisor dependency chain ───────────────────────────────────────
@@ -73,7 +75,7 @@ REQUIRED_FIELDS = {
 ADVISOR_DEPENDENCIES = [
     "labor_market", "rates", "cap_rate", "rent_growth",
     "vacancy", "market_score", "migration", "gdp",
-    "inflation", "credit", "climate_risk",
+    "inflation", "credit", "climate_risk", "forecast",
 ]
 
 # ── Agent registry: key → (cache_file, max_stale_hours) ──────────────────────
@@ -97,6 +99,8 @@ AGENT_REGISTRY = {
     "distressed":       ("distressed",         7),
     "market_score":     ("market_score",       7),
     "climate_risk":     ("climate_risk",       25),
+    "rentcast":         ("rentcast",           25),
+    "forecast":         ("forecast",           7),
 }
 
 # Max consecutive failures before backing off restarts
