@@ -8699,7 +8699,9 @@ with main_tab_advisor:
                 st.session_state.adv_result = result
                 st.session_state.adv_show_followup = False
             except Exception as _adv_err:
+                import traceback as _tb
                 st.error(f"Error generating recommendation: {_adv_err}")
+                st.code(_tb.format_exc(), language="python")
 
     # ── Data source freshness banner ──────────────────────────────────────────
     _mgr_report = (read_cache("manager_report").get("data") or {})
@@ -8729,7 +8731,14 @@ with main_tab_advisor:
     #  REPORT OUTPUT
     # ══════════════════════════════════════════════════════════════════════════
     _adv_result = st.session_state.adv_result
+    # Validate stored result has required keys (clears stale results from old code versions)
     if _adv_result and "error" not in _adv_result:
+        _required_keys = {"primary", "financials", "runners", "weights", "narrative", "params"}
+        if not _required_keys.issubset(_adv_result.keys()):
+            st.session_state.adv_result = None
+            _adv_result = None
+    if _adv_result and "error" not in _adv_result:
+      try:
         primary    = _adv_result["primary"]
         runners    = _adv_result["runners"]
         financials = _adv_result["financials"]
@@ -9998,6 +10007,15 @@ with main_tab_advisor:
                 st.dataframe(pd.DataFrame(_wt_rows), use_container_width=True, hide_index=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
+
+      except Exception as _render_err:
+        import traceback as _tb2
+        st.error(f"**Render error** — this usually means a stale result is cached. Click **Generate Recommendation** to refresh.")
+        with st.expander("Technical details"):
+            st.code(_tb2.format_exc(), language="python")
+        if st.button("Clear cached result", key="adv_clear_cache"):
+            st.session_state.adv_result = None
+            st.rerun()
 
     elif _adv_result and "error" in _adv_result:
         st.error(_adv_result["error"])
