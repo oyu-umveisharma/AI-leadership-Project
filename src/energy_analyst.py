@@ -119,27 +119,46 @@ def construction_cost_signal(momentum: list[dict]) -> str:
     return signal
 
 
+_FALLBACK_MOMENTUM = [
+    {"ticker": "USO",  "label": "Oil (USO)",          "latest_price": 73.50, "sma_60": 73.50, "pct_above_sma": 0.0},
+    {"ticker": "UNG",  "label": "Natural Gas (UNG)",   "latest_price": 14.20, "sma_60": 14.20, "pct_above_sma": 0.0},
+    {"ticker": "XLE",  "label": "Energy Sector (XLE)", "latest_price": 88.00, "sma_60": 88.00, "pct_above_sma": 0.0},
+    {"ticker": "CPER", "label": "Copper (CPER)",        "latest_price": 25.10, "sma_60": 25.10, "pct_above_sma": 0.0},
+    {"ticker": "SLX",  "label": "Steel (SLX)",          "latest_price": 62.00, "sma_60": 62.00, "pct_above_sma": 0.0},
+]
+
+
 def run_energy_analyst():
-    """Main entry point — fetch, analyse, cache."""
+    """Main entry point — fetch, analyse, cache. Falls back to neutral values if market data is unavailable."""
     print("=" * 60)
     print("[Energy Analyst] Starting run ...")
     print("=" * 60)
 
-    df = fetch_energy_prices()
-    momentum = compute_momentum(df)
+    fallback_used = False
+    try:
+        df = fetch_energy_prices()
+        momentum = compute_momentum(df)
+        trading_days = len(df)
+    except Exception as e:
+        print(f"[Energy Analyst] Market data unavailable ({e}) — using neutral fallback values")
+        momentum     = _FALLBACK_MOMENTUM
+        trading_days = 0
+        fallback_used = True
+
     signal = construction_cost_signal(momentum)
 
     data = {
-        "commodities": momentum,
+        "commodities":              momentum,
         "construction_cost_signal": signal,
-        "avg_momentum_pct": round(
+        "avg_momentum_pct":         round(
             sum(r["pct_above_sma"] for r in momentum) / len(momentum), 2
         ) if momentum else None,
-        "trading_days_analysed": len(df),
+        "trading_days_analysed":    trading_days,
+        "fallback_used":            fallback_used,
     }
 
     _write_cache(data, signal)
-    print(f"[Energy Analyst] Results saved to cache/energy_data.json")
+    print(f"[Energy Analyst] Results saved to cache/energy_data.json (fallback={fallback_used})")
     print("=" * 60)
     return data
 

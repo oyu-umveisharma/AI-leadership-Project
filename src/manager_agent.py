@@ -176,6 +176,18 @@ def _check_cache(cache_key: str, max_stale_hours: int) -> dict:
             age_hours = (datetime.now() - ts).total_seconds() / 3600
             stale = age_hours > max_stale_hours
 
+        # Check for error payload written into the cache
+        inner = data.get("data") or data
+        cached_error = data.get("error") or inner.get("error")
+        if cached_error:
+            return {
+                "status":    "INVALID",
+                "age_hours": round(age_hours, 1) if age_hours else None,
+                "updated_at": ts_raw,
+                "missing_fields": [],
+                "error":     str(cached_error)[:200],
+            }
+
         # Required field validation
         missing_fields = []
         for field in REQUIRED_FIELDS.get(cache_key, []):
