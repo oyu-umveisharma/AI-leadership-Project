@@ -2439,6 +2439,162 @@ def _render_neighborhood_table(df, active_pt=None, title="Neighborhood Rankings"
     return _tbl_container(title, f'{len(df)} neighborhoods tracked', col_hdrs, rows_html)
 
 
+def _render_generic_table(df, title, count_label="", hints=None, scrollable=False, max_height=400) -> str:
+    """
+    Universal flex-div table renderer matching the Top Metro Areas style.
+
+    hints: dict of col_name -> {
+      type: "text"|"name"|"pct_bar"|"score_bar"|"badge"|"tag"|"colored"|"price"|"dots"
+      flex: float (default 1)
+      badge_map: {value: "css_string"}
+      bar_max: float
+    }
+    scrollable: wrap rows in a scrollable div
+    max_height: height in px for scrollable
+    """
+    if hints is None:
+        hints = {}
+    if df.empty:
+        return ""
+
+    _RGT_ROW_BORDER = "border-bottom:1px solid #1e1a08;"
+    _RGT_COL_HDR    = "font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;"
+    _RGT_RANK_STYLE = "width:24px;font-size:12px;color:#4a3e18;flex-shrink:0;text-align:center;"
+
+    cols = list(df.columns)
+
+    # Auto-compute bar_max for pct_bar columns
+    auto_bar_max = {}
+    for c in cols:
+        h = hints.get(c, {})
+        if h.get("type") == "pct_bar" and "bar_max" not in h:
+            try:
+                vals = df[c].apply(lambda v: abs(float(
+                    str(v).replace("%","").replace("pp","").replace("+","").strip()
+                )))
+                auto_bar_max[c] = max(vals.max(), 0.01)
+            except Exception:
+                auto_bar_max[c] = 1.0
+
+    def _rgt_cell_html(col, val):
+        h = hints.get(col, {})
+        t = h.get("type", "text")
+        raw = str(val) if val is not None else "—"
+
+        if t == "name":
+            return f'<span style="font-size:13px;font-weight:500;color:#d4a843;">{raw}</span>'
+
+        if t == "pct_bar":
+            try:
+                clean = raw.replace("%","").replace("pp","").strip()
+                num = float(clean)
+                mx = h.get("bar_max", auto_bar_max.get(col, 1.0))
+                color_g = "#2a7a38,#4a9e58" if num >= 0 else "#8b2a2a,#ef5350"
+                w = min(100, abs(num)/max(mx,0.01)*100)
+                sign = "+" if num > 0 else ""
+                unit = "%" if "%" in raw else "pp"
+                label = f"{sign}{num:.1f}{unit}"
+                return (f'<div style="display:flex;flex-direction:column;gap:3px;">'
+                        f'<span style="font-size:12px;color:#c8b890;">{label}</span>'
+                        f'<div style="height:4px;background:#1e1a08;border-radius:2px;width:80px;">'
+                        f'<div style="height:100%;width:{w:.0f}%;background:linear-gradient(90deg,{color_g});border-radius:2px;"></div>'
+                        f'</div></div>')
+            except Exception:
+                pass
+
+        if t == "score_bar":
+            try:
+                num = float(str(val).split("/")[0])
+                mx = h.get("bar_max", 100.0)
+                color_g = "#2a7a38,#4a9e58" if num >= mx*0.6 else ("#7a6a20,#c8a040" if num >= mx*0.4 else "#8b2a2a,#ef5350")
+                w = min(100, num/max(mx,1)*100)
+                return (f'<div style="display:flex;flex-direction:column;gap:3px;">'
+                        f'<span style="font-size:12px;color:#c8b890;">{num:.0f}</span>'
+                        f'<div style="height:4px;background:#1e1a08;border-radius:2px;width:80px;">'
+                        f'<div style="height:100%;width:{w:.0f}%;background:linear-gradient(90deg,{color_g});border-radius:2px;"></div>'
+                        f'</div></div>')
+            except Exception:
+                pass
+
+        if t == "badge":
+            bmap = h.get("badge_map", {})
+            s = bmap.get(raw, "background:#1a1a0a;color:#6a6a4a")
+            return f'<span style="{s};font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;">{raw}</span>'
+
+        if t == "tag":
+            return f'<span style="background:#1a1505;color:#6a5228;font-size:11px;padding:3px 10px;border-radius:20px;">{raw}</span>'
+
+        if t == "colored":
+            try:
+                clean = str(val).replace("%","").replace("pp","").replace("bps","").strip()
+                num = float(clean)
+                color = "#4a9e58" if num > 0 else ("#ef5350" if num < 0 else "#8a7040")
+                return f'<span style="font-size:12px;color:{color};font-weight:500;">{raw}</span>'
+            except Exception:
+                pass
+
+        if t == "price":
+            return f'<span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;color:#c8b890;">{raw}</span>'
+
+        if t == "dots":
+            try:
+                num = float(str(val))
+                mx = h.get("bar_max", 100.0)
+                filled = max(0, min(5, round(num/max(mx,1)*5)))
+                dots = "".join(
+                    f'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;'
+                    f'background:{"#4a9e58" if i < filled else "#2a2208"};margin-right:2px;"></span>'
+                    for i in range(5)
+                )
+                return f'<div style="display:flex;align-items:center;">{dots}</div>'
+            except Exception:
+                pass
+
+        # Default plain text — first column gets gold, rest muted
+        is_first = (col == cols[0])
+        clr = "#d4a843" if is_first else "#8a7040"
+        return f'<span style="font-size:12px;color:{clr};">{raw}</span>'
+
+    # Column headers
+    col_hdr_html = '<div style="width:24px;"></div>'
+    for c in cols:
+        flex = hints.get(c, {}).get("flex", 1)
+        col_hdr_html += f'<div style="flex:{flex};{_RGT_COL_HDR}">{c.upper()}</div>'
+
+    # Data rows
+    rows_html = ""
+    for i, (_, row) in enumerate(df.iterrows()):
+        r = f'<div style="display:flex;align-items:center;padding:10px 16px;{_RGT_ROW_BORDER}gap:8px;">'
+        r += f'<div style="{_RGT_RANK_STYLE}">{i+1}</div>'
+        for c in cols:
+            flex = hints.get(c, {}).get("flex", 1)
+            r += f'<div style="flex:{flex};">{_rgt_cell_html(c, row[c])}</div>'
+        r += '</div>'
+        rows_html += r
+
+    if not count_label:
+        count_label = f"{len(df)} records"
+
+    if scrollable:
+        scroll_rows = f'<div style="max-height:{max_height}px;overflow-y:auto;">{rows_html}</div>'
+        return (
+            f'<div style="background:#131008;border:1px solid #221e0a;border-radius:10px;overflow:hidden;margin:4px 0 12px 0;">'
+            f'<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #1e1a08;">'
+            f'  <div style="display:flex;align-items:center;gap:10px;">'
+            f'    <div style="width:3px;height:20px;background:#d4a843;border-radius:2px;flex-shrink:0;"></div>'
+            f'    <span style="font-size:11px;font-weight:600;color:#d4a843;letter-spacing:0.08em;text-transform:uppercase;">{title}</span>'
+            f'  </div>'
+            f'  <span style="font-size:11px;color:#6a5228;">{count_label}</span>'
+            f'</div>'
+            f'<div style="display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #1e1a08;gap:8px;">'
+            f'  {col_hdr_html}'
+            f'</div>'
+            f'{scroll_rows}'
+            f'</div>'
+        )
+    return _tbl_container(title, count_label, col_hdr_html, rows_html)
+
+
 # Maps user_intent property_type → column/key names used in each tab
 _PT_VAC_COL  = {"Industrial": "Industrial", "Multifamily": "Multifamily",
                 "Office": "Office", "Retail": "Retail"}
@@ -4135,7 +4291,19 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                       "biz_score": "Business Score", "key_companies": "Recent Corporate Moves",
                       "growth_drivers": "Growth Drivers"}
             top5_df.rename(columns=rename, inplace=True)
-            st.dataframe(top5_df, use_container_width=True, hide_index=True)
+            st.markdown(_render_generic_table(
+                top5_df,
+                title="Top 5 States Attracting Corporate Investment",
+                count_label=f"{len(top5_df)} states",
+                hints={
+                    "State":                  {"type": "name", "flex": 1.5},
+                    "Abbr":                   {"type": "text", "flex": 0.5},
+                    "Pop Growth":             {"type": "pct_bar", "flex": 1.2},
+                    "Business Score":         {"type": "score_bar", "flex": 1.2},
+                    "Recent Corporate Moves": {"type": "text", "flex": 2},
+                    "Growth Drivers":         {"type": "text", "flex": 2},
+                },
+            ), unsafe_allow_html=True)
             st.caption(
                 "These states rank highest on combined population growth and business migration scores. "
                 "Cross-reference with announcements above to identify where CRE demand is building fastest."
@@ -5260,7 +5428,19 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 "est_months_to_shovel": "Est. Months to Shovel-Ready",
                 "filed": "Filed",
             })
-            st.dataframe(_ent_df, use_container_width=True, hide_index=True)
+            st.markdown(_render_generic_table(
+                _ent_df,
+                title="Recent Entitlement Filings — Q1 2025",
+                count_label=f"{len(_ent_df)} filings",
+                hints={
+                    "Market":                    {"type": "name", "flex": 1.2},
+                    "Acres":                     {"type": "text", "flex": 0.7},
+                    "Zoning":                    {"type": "tag",  "flex": 1},
+                    "Applicant":                 {"type": "text", "flex": 1},
+                    "Est. Months to Shovel-Ready": {"type": "text", "flex": 1.2},
+                    "Filed":                     {"type": "text", "flex": 0.8},
+                },
+            ), unsafe_allow_html=True)
             st.caption(
                 "Months to shovel-ready = estimated time from filing to all permits in hand. "
                 "Corp. User = company buying land for its own facility. REIT = speculative development."
@@ -5842,7 +6022,21 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                         "10Y Spread":    f"{_sp['treasury_spread']:+.2f}pp",
                         "Signal":        _sp["signal"].upper(),
                     })
-                st.dataframe(pd.DataFrame(_sp_rows).set_index("Property Type"), use_container_width=True, height=220)
+                st.markdown(_render_generic_table(
+                    pd.DataFrame(_sp_rows),
+                    title="Treasury Spread Analysis",
+                    count_label=f"{len(_sp_rows)} property types",
+                    hints={
+                        "Property Type": {"type": "name", "flex": 1.2},
+                        "Cap Rate":      {"type": "text", "flex": 0.8},
+                        "10Y Spread":    {"type": "colored", "flex": 0.8},
+                        "Signal":        {"type": "badge", "flex": 1, "badge_map": {
+                            "ATTRACTIVE":  "background:#0d2a12;color:#4a9e58",
+                            "FAIR":        "background:#2a1a04;color:#a07830",
+                            "COMPRESSED":  "background:#2a0d0d;color:#9e4a4a",
+                        }},
+                    },
+                ), unsafe_allow_html=True)
                 st.caption("Spread > 2.5pp = Attractive · 1.5–2.5pp = Fair · < 1.5pp = Compressed vs. current 10Y Treasury.")
 
             # ── Market cap rate heatmap ───────────────────────────────────────
@@ -6638,12 +6832,29 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 if val >= 26:   return "color:#ffa726;font-weight:600"
                 return "color:#66bb6a;font-weight:600"
 
-            st.dataframe(
-                tbl_df.style.map(_style_score, subset=["Score", "Flood", "Wildfire", "Heat", "Wind", "Sea Level Rise"]),
-                use_container_width=True,
-                hide_index=True,
-                height=500,
-            )
+            st.markdown(_render_generic_table(
+                tbl_df,
+                title="Metro Climate Risk Scores",
+                count_label=f"{len(tbl_df)} markets",
+                scrollable=True, max_height=480,
+                hints={
+                    "Metro":         {"type": "name",      "flex": 2},
+                    "State":         {"type": "text",      "flex": 0.6},
+                    "Score":         {"type": "score_bar", "flex": 1},
+                    "Risk Level":    {"type": "badge",     "flex": 1, "badge_map": {
+                        "Low":      "background:#0d2a12;color:#4a9e58",
+                        "Moderate": "background:#2a1a04;color:#a07830",
+                        "High":     "background:#2a0d0d;color:#ef5350",
+                        "Severe":   "background:#2a0d2a;color:#ce93d8",
+                        "Extreme":  "background:#1a0d2a;color:#ce93d8",
+                    }},
+                    "Flood":         {"type": "score_bar", "flex": 0.8},
+                    "Wildfire":      {"type": "score_bar", "flex": 0.8},
+                    "Heat":          {"type": "score_bar", "flex": 0.8},
+                    "Wind":          {"type": "score_bar", "flex": 0.8},
+                    "Sea Level Rise":{"type": "score_bar", "flex": 0.9},
+                },
+            ), unsafe_allow_html=True)
             st.caption("Scores 0–100. Green = Low | Orange = Moderate | Red = High | Purple = Severe.")
 
         # ── Trend Chart — disaster events per year for focused market ─────
@@ -6786,7 +6997,17 @@ with main_tab_energy:
             disp_comm["Latest Price"] = disp_comm["Latest Price"].apply(lambda x: f"${x:.2f}")
             disp_comm["SMA-60"] = disp_comm["SMA-60"].apply(lambda x: f"${x:.2f}")
             disp_comm["% vs SMA"] = disp_comm["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
-            st.dataframe(disp_comm, use_container_width=True, hide_index=True)
+            st.markdown(_render_generic_table(
+                disp_comm,
+                title="Commodity Detail",
+                count_label=f"{len(disp_comm)} commodities",
+                hints={
+                    "Commodity":    {"type": "name",    "flex": 1.5},
+                    "Latest Price": {"type": "price",   "flex": 1},
+                    "SMA-60":       {"type": "price",   "flex": 1},
+                    "% vs SMA":     {"type": "colored", "flex": 1},
+                },
+            ), unsafe_allow_html=True)
 
         st.caption(
             "Data sourced from Yahoo Finance (USO, UNG, XLE, CPER, SLX). "
@@ -6941,7 +7162,18 @@ with main_tab_energy:
             disp_esg["6mo Return"] = disp_esg["6mo Return"].apply(lambda x: f"{x:+.1f}%")
             disp_esg["SMA-60"] = disp_esg["SMA-60"].apply(lambda x: f"${x:.2f}")
             disp_esg["% vs SMA"] = disp_esg["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
-            st.dataframe(disp_esg, use_container_width=True, hide_index=True)
+            st.markdown(_render_generic_table(
+                disp_esg,
+                title="Full Detail — Clean Energy & Green REITs",
+                count_label=f"{len(disp_esg)} securities",
+                hints={
+                    "Security":  {"type": "name",    "flex": 1.5},
+                    "Price":     {"type": "price",   "flex": 0.8},
+                    "6mo Return":{"type": "pct_bar", "flex": 1.2},
+                    "SMA-60":    {"type": "price",   "flex": 0.8},
+                    "% vs SMA":  {"type": "colored", "flex": 0.8},
+                },
+            ), unsafe_allow_html=True)
 
         st.caption(
             "Data sourced from Yahoo Finance. ESG Momentum Signal: STRONG (clean energy outperforms SPY by >2pp), "
@@ -7140,7 +7372,18 @@ with main_tab_macro:
                 })
             if tbl_rows:
                 tbl_df = pd.DataFrame(tbl_rows)
-                st.dataframe(tbl_df, use_container_width=True, hide_index=True, height=280)
+                st.markdown(_render_generic_table(
+                    tbl_df,
+                    title="Interest Rate Monitor",
+                    count_label=f"{len(tbl_df)} rates tracked",
+                    hints={
+                        "Rate": {"type": "name",    "flex": 2},
+                        "Now":  {"type": "price",   "flex": 0.8},
+                        "1W Δ": {"type": "colored", "flex": 0.8},
+                        "1M Δ": {"type": "colored", "flex": 0.8},
+                        "1Y Δ": {"type": "colored", "flex": 0.8},
+                    },
+                ), unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -7263,8 +7506,20 @@ with main_tab_macro:
                         return ["background-color: #f5f0e6; font-weight: 700"] * len(row)
                     return [""] * len(row)
 
-                styled = disp_adj.style.applymap(_colour_delta, subset=["Margin Delta bps"]).apply(_highlight_focus_row, axis=1)
-                st.dataframe(styled, use_container_width=True, hide_index=True, height=290)
+                st.markdown(_render_generic_table(
+                    disp_adj,
+                    title="Profit Margin Impact by Property Type",
+                    count_label=f"{len(disp_adj)} property types",
+                    hints={
+                        "Property Type":      {"type": "name",    "flex": 1.5},
+                        "Baseline Cap Rate":  {"type": "text",    "flex": 1},
+                        "Adjusted Cap Rate":  {"type": "text",    "flex": 1},
+                        "Rate Adjustment bps":{"type": "colored", "flex": 1},
+                        "Static Margin %":    {"type": "text",    "flex": 1},
+                        "Adj Margin %":       {"type": "text",    "flex": 1},
+                        "Margin Delta bps":   {"type": "colored", "flex": 1},
+                    },
+                ), unsafe_allow_html=True)
                 delta_10y = (current_10y or 0) - baseline
                 direction = "above" if delta_10y > 0 else "below"
                 st.caption(
@@ -7322,12 +7577,24 @@ with main_tab_macro:
                 )
 
             with col_tbl2:
-                def _risk_style(val):
-                    return {"High": "color:#b71c1c;font-weight:700",
-                            "Medium": "color:#e65100;font-weight:600",
-                            "Low": "color:#1b5e20"}.get(val, "")
-                styled_debt = debt_df.style.applymap(_risk_style, subset=["Risk Level"])
-                st.dataframe(styled_debt, use_container_width=True, hide_index=True, height=460)
+                st.markdown(_render_generic_table(
+                    debt_df,
+                    title="REIT Refinancing Risk",
+                    count_label=f"{len(debt_df)} REITs",
+                    scrollable=True, max_height=440,
+                    hints={
+                        "Ticker":           {"type": "name",    "flex": 0.7},
+                        "Name":             {"type": "text",    "flex": 2},
+                        "Risk %":           {"type": "pct_bar", "flex": 1},
+                        "Near-Term Debt $B":{"type": "price",   "flex": 1},
+                        "Total Debt $B":    {"type": "price",   "flex": 1},
+                        "Risk Level":       {"type": "badge",   "flex": 0.8, "badge_map": {
+                            "High":   "background:#2a0d0d;color:#ef5350",
+                            "Medium": "background:#2a1500;color:#ffa726",
+                            "Low":    "background:#0d2a12;color:#4a9e58",
+                        }},
+                    },
+                ), unsafe_allow_html=True)
 
             high_risk = debt_df[debt_df["Risk Level"] == "High"]
             if not high_risk.empty:
@@ -7532,7 +7799,18 @@ Cap Rate (adjusted) = Benchmark Cap Rate + (Current 10Y Treasury - 3.5% historic
             disp_sec.columns = ["Sector", "Employment (K)", "MoM %", "CRE Demand Driver", "Period"]
             disp_sec["Employment (K)"] = disp_sec["Employment (K)"].apply(lambda x: f"{x:,.0f}K")
             disp_sec["MoM %"] = disp_sec["MoM %"].apply(lambda x: f"{x:+.2f}%")
-            st.dataframe(disp_sec, use_container_width=True, hide_index=True)
+            st.markdown(_render_generic_table(
+                disp_sec,
+                title="Employment by Sector",
+                count_label=f"{len(disp_sec)} sectors",
+                hints={
+                    "Sector":             {"type": "name",    "flex": 2},
+                    "Employment (K)":     {"type": "price",   "flex": 1},
+                    "MoM %":              {"type": "pct_bar", "flex": 1.2},
+                    "CRE Demand Driver":  {"type": "tag",     "flex": 1.5},
+                    "Period":             {"type": "text",    "flex": 0.8},
+                },
+            ), unsafe_allow_html=True)
             st.caption(
                 "BLS Supersector payrolls (monthly). Positive MoM = expanding employment = rising tenant demand. "
                 "Professional & Business Services and Financial Activities drive Office demand; "
@@ -7946,7 +8224,18 @@ Composite score based on four equally weighted components:
             ],
         }
         outlook_df = pd.DataFrame(outlook_data)
-        st.dataframe(outlook_df, use_container_width=True, hide_index=True)
+        st.markdown(_render_generic_table(
+            outlook_df,
+            title="CRE Property Type Outlook by Cycle Phase",
+            count_label=f"{len(outlook_df)} property types",
+            hints={
+                "Property Type":  {"type": "name", "flex": 1.8},
+                "Expansion":      {"type": "text", "flex": 1},
+                "Slowdown":       {"type": "text", "flex": 1},
+                "Contraction":    {"type": "text", "flex": 1},
+                "Current Outlook":{"type": "text", "flex": 1},
+            },
+        ), unsafe_allow_html=True)
         st.caption(
             " Favorable · Neutral · Cautious. Based on current economic cycle classification. "
             "Industrial and Healthcare tend to be more defensive; Office and Retail more cyclical."
@@ -8507,7 +8796,18 @@ The cycle phase is determined by combining multiple indicators:
                         "Trend":         f"{_dst_ta.get(_dst_d['trend'],'')} {_dst_d['trend']}",
                     })
                 if _dst_dlq_rows:
-                    st.dataframe(pd.DataFrame(_dst_dlq_rows).set_index("Property Type"), use_container_width=True, height=260)
+                    st.markdown(_render_generic_table(
+                        pd.DataFrame(_dst_dlq_rows),
+                        title="CMBS Delinquency Rates by Property Type",
+                        count_label=f"{len(_dst_dlq_rows)} property types",
+                        hints={
+                            "Property Type": {"type": "name",    "flex": 1.2},
+                            "Rate":          {"type": "pct_bar", "flex": 1},
+                            "Prior Year":    {"type": "text",    "flex": 0.8},
+                            "YoY":           {"type": "colored", "flex": 0.8},
+                            "Trend":         {"type": "tag",     "flex": 1},
+                        },
+                    ), unsafe_allow_html=True)
                 for _dst_pt, _dst_d in _dst_dlq.items():
                     _dst_t_c = _dst_tc.get(_dst_d["trend"], "#d4a843")
                     _dst_t_a = _dst_ta.get(_dst_d["trend"], "")
@@ -8555,7 +8855,26 @@ The cycle phase is determined by combining multiple indicators:
                         "Market":      _dst_a["market"],
                         "Opportunity": _dst_a["opportunity"],
                     })
-                st.dataframe(pd.DataFrame(_dst_pipe_rows).set_index("Asset"), use_container_width=True, height=380)
+                st.markdown(_render_generic_table(
+                    pd.DataFrame(_dst_pipe_rows),
+                    title="Known Distressed Asset Pipeline",
+                    count_label=f"{len(_dst_pipe_rows)} assets",
+                    scrollable=True, max_height=360,
+                    hints={
+                        "Asset":       {"type": "name",  "flex": 2},
+                        "Type":        {"type": "tag",   "flex": 0.8},
+                        "Loan":        {"type": "price", "flex": 0.8},
+                        "Status":      {"type": "badge", "flex": 1, "badge_map": {
+                            "Matured / Non-Performing": "background:#2a0d0d;color:#ef5350",
+                            "90+ Days Delinquent":      "background:#2a0d0d;color:#ef5350",
+                            "REO":                      "background:#2a0d2a;color:#ce93d8",
+                            "Watchlist":                "background:#2a1500;color:#ffa726",
+                            "Performing":               "background:#0d2a12;color:#4a9e58",
+                        }},
+                        "Market":      {"type": "text",  "flex": 1},
+                        "Opportunity": {"type": "text",  "flex": 2},
+                    },
+                ), unsafe_allow_html=True)
 
             # ── FRED live credit indicators ───────────────────────────────────
             if _dst_fred or _dst_bbb:
@@ -10063,13 +10382,23 @@ with main_tab_advisor:
                 if score < 75:   return "color:#f44336;font-weight:600"
                 return "color:#9c27b0;font-weight:700"
 
-            st.dataframe(
-                _cmp_df.style
-                       .map(_adv_style_rank,    subset=["Rank"])
-                       .map(_adv_style_climate, subset=["Climate Risk"]),
-                use_container_width=True,
-                hide_index=True,
-            )
+            st.markdown(_render_generic_table(
+                _cmp_df,
+                title="Primary vs Runner-Up Markets",
+                count_label=f"{len(_cmp_df)} markets",
+                hints={
+                    "Rank":             {"type": "badge", "flex": 0.9, "badge_map": {
+                        "Primary": "background:#2a1a04;color:#d4a843",
+                    }},
+                    "Market":           {"type": "name",      "flex": 1.8},
+                    "Opp. Score":       {"type": "score_bar", "flex": 1.2},
+                    "Cap Rate":         {"type": "text",      "flex": 0.8},
+                    "Rent Growth":      {"type": "pct_bar",   "flex": 1.2},
+                    "Climate Risk":     {"type": "text",      "flex": 1.2},
+                    "Mkt Fundamentals": {"type": "score_bar", "flex": 1},
+                    "Migration Score":  {"type": "score_bar", "flex": 1},
+                },
+            ), unsafe_allow_html=True)
 
             # Composite score bar chart
             _cmp_names  = [_m["market"] for _m in _compare]
@@ -10113,17 +10442,21 @@ with main_tab_advisor:
                         "Migration":      f"{_m.get('mig_score', 0):.0f}",
                     })
                 _all_df = pd.DataFrame(_all_rows)
-                def _adv_style_score(val):
-                    if val >= 75: return "color:#4caf50;font-weight:600"
-                    if val >= 55: return "color:#ff9800;font-weight:600"
-                    if val >= 35: return "color:#f44336;font-weight:600"
-                    return "color:#9e9e9e"
-                st.dataframe(
-                    _all_df.style.map(_adv_style_score, subset=["Score"]),
-                    use_container_width=True,
-                    hide_index=True,
-                    height=420,
-                )
+                st.markdown(_render_generic_table(
+                    _all_df,
+                    title="All Candidate Markets — Scored & Ranked",
+                    count_label=f"{len(_all_df)} markets",
+                    scrollable=True, max_height=400,
+                    hints={
+                        "Rank":          {"type": "text",      "flex": 0.5},
+                        "Market":        {"type": "name",      "flex": 1.8},
+                        "Score":         {"type": "score_bar", "flex": 1.2},
+                        "Cap Rate":      {"type": "text",      "flex": 0.8},
+                        "Rent Growth":   {"type": "pct_bar",   "flex": 1.2},
+                        "Climate Score": {"type": "score_bar", "flex": 1},
+                        "Migration":     {"type": "text",      "flex": 0.8},
+                    },
+                ), unsafe_allow_html=True)
 
         # ── Methodology & weights ─────────────────────────────────────────────
         with st.expander("Scoring Methodology & Factor Weights"):
@@ -10149,7 +10482,18 @@ with main_tab_advisor:
                         "Contribution":   f"{_bd_f.get('weighted', 0):.1f} pts",
                         "Rationale":      _rat_data.get(_f, ""),
                     })
-                st.dataframe(pd.DataFrame(_wt_rows), use_container_width=True, hide_index=True)
+                st.markdown(_render_generic_table(
+                    pd.DataFrame(_wt_rows),
+                    title="Factor Weights & Scores",
+                    count_label=f"{len(_wt_rows)} factors",
+                    hints={
+                        "Factor":       {"type": "name",    "flex": 1.2},
+                        "Weight":       {"type": "pct_bar", "flex": 0.8},
+                        "Raw Score":    {"type": "text",    "flex": 0.8},
+                        "Contribution": {"type": "text",    "flex": 0.8},
+                        "Rationale":    {"type": "text",    "flex": 2.5},
+                    },
+                ), unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
