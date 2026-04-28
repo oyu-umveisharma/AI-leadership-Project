@@ -2280,133 +2280,120 @@ def _active_pt() -> str | None:
     return st.session_state.user_intent.get("property_type")
 
 
-# ── Custom table renderers ────────────────────────────────────────────────────
+# ── Custom table renderers (flex-div layout matching Top Metro Areas style) ───
+
+_ROW_BORDER  = "border-bottom:1px solid #1e1a08;"
+_COL_HDR     = "font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;"
+_RANK_STYLE  = "width:24px;font-size:12px;color:#4a3e18;flex-shrink:0;text-align:center;"
+_NAME_STYLE  = "font-size:13px;font-weight:500;color:#d4a843;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+_MUTED_STYLE = "font-size:11px;color:#6a5228;"
+
+def _tbl_container(title: str, count_label: str, col_hdr_html: str, rows_html: str) -> str:
+    return (
+        f'<div style="background:#131008;border:1px solid #221e0a;border-radius:10px;overflow:hidden;margin:4px 0 12px 0;">'
+        # Header bar
+        f'<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;{_ROW_BORDER}">'
+        f'  <div style="display:flex;align-items:center;gap:10px;">'
+        f'    <div style="width:3px;height:20px;background:#d4a843;border-radius:2px;flex-shrink:0;"></div>'
+        f'    <span style="font-size:11px;font-weight:600;color:#d4a843;letter-spacing:0.08em;text-transform:uppercase;">{title}</span>'
+        f'  </div>'
+        f'  <span style="font-size:11px;color:#6a5228;">{count_label}</span>'
+        f'</div>'
+        # Column headers
+        f'<div style="display:flex;align-items:center;padding:8px 16px;{_ROW_BORDER}gap:8px;">'
+        f'  {col_hdr_html}'
+        f'</div>'
+        # Rows
+        f'{rows_html}'
+        f'</div>'
+    )
 
 def _dot_indicator(score: float, total: int = 5, max_val: float = 100.0) -> str:
     filled = max(0, min(total, round(score / max(max_val, 1) * total)))
-    return (
-        '<span style="font-size:0.75rem;letter-spacing:3px;line-height:1;">'
-        + f'<span style="color:#4caf50;">{"●" * filled}</span>'
-        + f'<span style="color:#2a2a1a;">{"●" * (total - filled)}</span>'
-        + '</span>'
+    return "".join(
+        f'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;'
+        f'background:{"#4a9e58" if i < filled else "#2a2208"};margin-right:2px;"></span>'
+        for i in range(total)
     )
 
-def _mini_bar_cell(value: float, max_abs: float) -> str:
-    color = "#4caf50" if value >= 0 else "#ef5350"
+def _bar_cell(value: float, max_abs: float, show_pct: bool = True) -> str:
+    color = "#4a9e58" if value >= 0 else "#ef5350"
     w = min(100, abs(value) / max(max_abs, 0.01) * 100)
     sign = "+" if value > 0 else ""
+    label = f"{sign}{value:.1f}%" if show_pct else f"{value:.0f}"
     return (
-        f'<div style="font-size:0.78rem;color:{color};font-weight:500;white-space:nowrap;">{sign}{value:.1f}%</div>'
-        f'<div style="background:{color};height:3px;width:{w:.0f}%;border-radius:2px;margin-top:3px;opacity:0.75;min-width:4px;"></div>'
+        f'<div style="display:flex;flex-direction:column;gap:3px;">'
+        f'  <span style="font-size:12px;color:#c8b890;">{label}</span>'
+        f'  <div style="height:4px;background:#1e1a08;border-radius:2px;width:80px;">'
+        f'    <div style="height:100%;width:{w:.0f}%;background:linear-gradient(90deg,{"#2a7a38,#4a9e58" if value >= 0 else "#8b2a2a,#ef5350"});border-radius:2px;"></div>'
+        f'  </div>'
+        f'</div>'
     )
 
-def _score_bar_cell(score: float, max_val: float = 100.0) -> str:
-    color = "#4caf50" if score >= 60 else ("#c8a040" if score >= 40 else "#ef7070")
-    w = min(100, score / max(max_val, 1) * 100)
+def _score_bar_cell(score: float) -> str:
+    color_g = "#2a7a38,#4a9e58" if score >= 60 else ("#7a6a20,#c8a040" if score >= 40 else "#8b2a2a,#ef5350")
+    w = min(100, score)
     return (
-        f'<div style="font-size:0.78rem;color:{color};font-weight:600;white-space:nowrap;">{score:.0f}</div>'
-        f'<div style="background:{color};height:3px;width:{w:.0f}%;border-radius:2px;margin-top:3px;opacity:0.75;min-width:4px;"></div>'
+        f'<div style="display:flex;flex-direction:column;gap:3px;">'
+        f'  <span style="font-size:12px;color:#c8b890;">{score:.0f}</span>'
+        f'  <div style="height:4px;background:#1e1a08;border-radius:2px;width:80px;">'
+        f'    <div style="height:100%;width:{w:.0f}%;background:linear-gradient(90deg,{color_g});border-radius:2px;"></div>'
+        f'  </div>'
+        f'</div>'
     )
 
 def _zone_pill(zone: str) -> str:
     styles = {
-        "Best Fit": "background:#0d2a0d;border:1px solid #2a5a2a;color:#4caf50;",
-        "Moderate": "background:#2a1e05;border:1px solid #5a3e10;color:#c8a040;",
-        "Low":      "background:#2a0d0d;border:1px solid #5a2a2a;color:#ef7070;",
+        "Best Fit": "background:#0d2a12;color:#4a9e58",
+        "Moderate": "background:#2a1a04;color:#a07830",
+        "Low":      "background:#2a0d0d;color:#9e4a4a",
     }
-    s = styles.get(zone, "background:#1a1a0a;border:1px solid #2a2a1a;color:#6a6a4a;")
-    return (
-        f'<span style="{s}border-radius:12px;padding:2px 9px;font-size:0.63rem;'
-        f'font-weight:600;letter-spacing:0.05em;">{zone}</span>'
-    )
+    s = styles.get(zone, "background:#1a1a0a;color:#6a6a4a")
+    return f'<span style="{s};font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;">{zone}</span>'
 
 def _driver_tag(text: str) -> str:
-    return (
-        f'<span style="background:transparent;border:1px solid #2a2208;color:#6a5828;'
-        f'border-radius:4px;padding:2px 8px;font-size:0.67rem;letter-spacing:0.02em;">{text}</span>'
-    )
+    return f'<span style="background:#1a1505;color:#6a5228;font-size:11px;padding:3px 10px;border-radius:20px;">{text}</span>'
 
-_TBL_CSS = """
-<style>
-.cre-tbl { width:100%; border-collapse:collapse; font-family:'DM Sans',-apple-system,sans-serif; }
-.cre-tbl thead th {
-  padding:6px 12px; text-align:left; font-size:0.60rem; font-weight:600;
-  color:#3a3020; letter-spacing:0.12em; text-transform:uppercase;
-  border-bottom:1px solid #1e1a08; white-space:nowrap;
-}
-.cre-tbl thead th.r { text-align:right; }
-.cre-tbl tbody tr { border-bottom:1px solid #131008; transition:background 0.12s; }
-.cre-tbl tbody tr:hover { background:rgba(200,160,64,0.04); }
-.cre-tbl tbody td {
-  padding:10px 12px; vertical-align:middle; font-size:0.78rem; color:#8a7040;
-}
-.cre-tbl tbody td.rank { color:#2e2810; font-size:0.70rem; font-weight:600; width:28px; }
-.cre-tbl tbody td.name { color:#e8e4d8; font-weight:500; }
-.cre-tbl tbody td.mono { font-family:'JetBrains Mono',monospace; color:#8a7040; font-size:0.76rem; }
-.cre-tbl-wrap {
-  background:#0d0b04; border:1px solid #1e1a08; border-radius:8px;
-  overflow:hidden; margin:4px 0 12px 0;
-}
-.cre-tbl-hdr {
-  display:flex; justify-content:space-between; align-items:center;
-  padding:9px 14px; border-bottom:1px solid #1e1a08;
-  border-left:3px solid #d4a843; background:#111008;
-}
-.cre-tbl-hdr-title {
-  font-size:0.65rem; font-weight:700; color:#d4a843;
-  letter-spacing:0.14em; text-transform:uppercase;
-}
-.cre-tbl-hdr-count { font-size:0.62rem; color:#3a3020; letter-spacing:0.06em; }
-</style>
-"""
 
 def _render_county_table(df, active_pt=None, title="County Rankings", start_rank=1) -> str:
     if df.empty:
         return ""
     max_pop = max(df["pop_growth_pct"].abs().max(), 0.1)
-    th = '<th class="r">' if False else '<th>'  # placeholder
 
-    # Header row
-    h_cells = [
-        '<th style="width:28px;"></th>',
-        '<th>County</th>',
-        '<th>Population</th>',
-        '<th>Pop Growth</th>',
-    ]
+    # Column header row
+    col_hdrs = (
+        f'<div style="width:24px;"></div>'
+        f'<div style="flex:2.5;{_COL_HDR}">COUNTY</div>'
+        f'<div style="flex:1.2;{_COL_HDR}">POPULATION</div>'
+        f'<div style="flex:1.5;{_COL_HDR}">POP GROWTH</div>'
+    )
     if active_pt:
-        h_cells.append(f'<th>{active_pt} Score</th>')
-    h_cells += ['<th>Migration</th>', '<th>Key Driver</th>']
+        col_hdrs += f'<div style="flex:1.5;{_COL_HDR}">{active_pt.upper()} SCORE</div>'
+    col_hdrs += (
+        f'<div style="flex:1.2;{_COL_HDR}">MIGRATION</div>'
+        f'<div style="flex:2;{_COL_HDR}">KEY DRIVER</div>'
+    )
 
-    rows = []
+    rows_html = ""
     for i, (_, row) in enumerate(df.iterrows()):
         rank = start_rank + i
-        cells = [
-            f'<td class="rank">{rank}</td>',
-            f'<td class="name">{row["name"]}</td>',
-            f'<td class="mono">{int(row["population"]):,}</td>',
-            f'<td>{_mini_bar_cell(row["pop_growth_pct"], max_pop)}</td>',
-        ]
+        r = (
+            f'<div style="display:flex;align-items:center;padding:10px 16px;{_ROW_BORDER}gap:8px;">'
+            f'  <div style="{_RANK_STYLE}">{rank}</div>'
+            f'  <div style="flex:2.5;{_NAME_STYLE}">{row["name"]}</div>'
+            f'  <div style="flex:1.2;font-family:\'JetBrains Mono\',monospace;font-size:12px;color:#8a7040;">{int(row["population"]):,}</div>'
+            f'  <div style="flex:1.5;">{_bar_cell(row["pop_growth_pct"], max_pop)}</div>'
+        )
         if active_pt:
-            cells.append(f'<td>{_score_bar_cell(row["pt_score"])}</td>')
-        cells += [
-            f'<td>{_dot_indicator(row["migration_score"])}</td>',
-            f'<td>{_driver_tag(str(row["top_driver"]))}</td>',
-        ]
-        rows.append('<tr>' + ''.join(cells) + '</tr>')
+            r += f'<div style="flex:1.5;">{_score_bar_cell(row["pt_score"])}</div>'
+        r += (
+            f'  <div style="flex:1.2;display:flex;align-items:center;gap:2px;">{_dot_indicator(row["migration_score"])}</div>'
+            f'  <div style="flex:2;">{_driver_tag(str(row["top_driver"]))}</div>'
+            f'</div>'
+        )
+        rows_html += r
 
-    count_label = f'{len(df)} counties tracked'
-    return (
-        _TBL_CSS +
-        f'<div class="cre-tbl-wrap">'
-        f'<div class="cre-tbl-hdr">'
-        f'<span class="cre-tbl-hdr-title">&#9646; {title}</span>'
-        f'<span class="cre-tbl-hdr-count">{count_label}</span>'
-        f'</div>'
-        f'<table class="cre-tbl">'
-        f'<thead><tr>{"".join(h_cells)}</tr></thead>'
-        f'<tbody>{"".join(rows)}</tbody>'
-        f'</table></div>'
-    )
+    return _tbl_container(title, f'{len(df)} counties tracked', col_hdrs, rows_html)
 
 
 def _render_neighborhood_table(df, active_pt=None, title="Neighborhood Rankings", start_rank=1) -> str:
@@ -2415,47 +2402,41 @@ def _render_neighborhood_table(df, active_pt=None, title="Neighborhood Rankings"
     max_pop  = max(df["pop_growth_pct"].abs().max(), 0.1)
     max_rent = max(df["median_rent_growth_pct"].abs().max(), 0.1)
 
-    h_cells = [
-        '<th style="width:28px;"></th>',
-        '<th>Neighborhood</th>',
-        '<th>Type</th>',
-        '<th>Zone Fit</th>',
-    ]
+    col_hdrs = (
+        f'<div style="width:24px;"></div>'
+        f'<div style="flex:2;{_COL_HDR}">NEIGHBORHOOD</div>'
+        f'<div style="flex:1;{_COL_HDR}">TYPE</div>'
+        f'<div style="flex:1;{_COL_HDR}">ZONE FIT</div>'
+    )
     if active_pt:
-        h_cells.append(f'<th>{active_pt} Score</th>')
-    h_cells += ['<th>Migration</th>', '<th>Pop Growth</th>', '<th>Rent Growth</th>']
+        col_hdrs += f'<div style="flex:1.2;{_COL_HDR}">{active_pt.upper()} SCORE</div>'
+    col_hdrs += (
+        f'<div style="flex:1;{_COL_HDR}">MIGRATION</div>'
+        f'<div style="flex:1.2;{_COL_HDR}">POP GROWTH</div>'
+        f'<div style="flex:1.2;{_COL_HDR}">RENT GROWTH</div>'
+    )
 
-    rows = []
+    rows_html = ""
     for i, (_, row) in enumerate(df.iterrows()):
         rank = start_rank + i
-        cells = [
-            f'<td class="rank">{rank}</td>',
-            f'<td class="name">{row["name"]}</td>',
-            f'<td style="color:#6a5828;font-size:0.72rem;">{row["neighborhood_type"]}</td>',
-            f'<td>{_zone_pill(str(row.get("zone_fit","—")))}</td>',
-        ]
+        r = (
+            f'<div style="display:flex;align-items:center;padding:10px 16px;{_ROW_BORDER}gap:8px;">'
+            f'  <div style="{_RANK_STYLE}">{rank}</div>'
+            f'  <div style="flex:2;{_NAME_STYLE}">{row["name"]}</div>'
+            f'  <div style="flex:1;{_MUTED_STYLE}">{row["neighborhood_type"]}</div>'
+            f'  <div style="flex:1;">{_zone_pill(str(row.get("zone_fit","—")))}</div>'
+        )
         if active_pt:
-            cells.append(f'<td>{_score_bar_cell(row["pt_score"])}</td>')
-        cells += [
-            f'<td>{_dot_indicator(row["migration_score"])}</td>',
-            f'<td>{_mini_bar_cell(row["pop_growth_pct"], max_pop)}</td>',
-            f'<td>{_mini_bar_cell(row["median_rent_growth_pct"], max_rent)}</td>',
-        ]
-        rows.append('<tr>' + ''.join(cells) + '</tr>')
+            r += f'<div style="flex:1.2;">{_score_bar_cell(row["pt_score"])}</div>'
+        r += (
+            f'  <div style="flex:1;display:flex;align-items:center;gap:2px;">{_dot_indicator(row["migration_score"])}</div>'
+            f'  <div style="flex:1.2;">{_bar_cell(row["pop_growth_pct"], max_pop)}</div>'
+            f'  <div style="flex:1.2;">{_bar_cell(row["median_rent_growth_pct"], max_rent)}</div>'
+            f'</div>'
+        )
+        rows_html += r
 
-    count_label = f'{len(df)} neighborhoods tracked'
-    return (
-        _TBL_CSS +
-        f'<div class="cre-tbl-wrap">'
-        f'<div class="cre-tbl-hdr">'
-        f'<span class="cre-tbl-hdr-title">&#9646; {title}</span>'
-        f'<span class="cre-tbl-hdr-count">{count_label}</span>'
-        f'</div>'
-        f'<table class="cre-tbl">'
-        f'<thead><tr>{"".join(h_cells)}</tr></thead>'
-        f'<tbody>{"".join(rows)}</tbody>'
-        f'</table></div>'
-    )
+    return _tbl_container(title, f'{len(df)} neighborhoods tracked', col_hdrs, rows_html)
 
 
 # Maps user_intent property_type → column/key names used in each tab
