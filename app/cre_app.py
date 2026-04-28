@@ -8715,14 +8715,14 @@ with main_tab_advisor:
             f"**{_dep_names}**{_hint_txt}. "
             f"Results may be less accurate until they refresh. "
             f"Go to the **About** tab → System Health to trigger a manual refresh.",
-            icon="⚠",
+            icon="⚠️",
         )
     if _backed_off:
         _bo_names = ", ".join(a.replace("_", " ").title() for a in _backed_off)
         st.error(
             f"**{_bo_names}** failed 3+ times and need manual attention. "
             f"Check your API keys in the .env file or verify network access.",
-            icon="✖",
+            icon="❌",
         )
 
     # ══════════════════════════════════════════════════════════════════════════

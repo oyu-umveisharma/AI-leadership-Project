@@ -178,7 +178,7 @@ def _credit_signal(data: dict) -> dict:
 
 def _gdp_signal(data: dict) -> dict:
     """GDP cycle position."""
-    cycle = (data.get("gdp_cycle") or data.get("cycle") or "").lower()
+    cycle = str(data.get("gdp_cycle") or data.get("cycle") or "").lower()
     gdp_growth = data.get("gdp_growth") or data.get("real_gdp_growth")
     if cycle in ("expansion", "recovery"):
         verdict, direction = "POSITIVE", 1
