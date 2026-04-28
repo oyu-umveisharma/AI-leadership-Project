@@ -104,7 +104,10 @@ AGENT_REGISTRY = {
 }
 
 # Max consecutive failures before backing off restarts
-MAX_FAILURES_BEFORE_BACKOFF = 3
+MAX_FAILURES_BEFORE_BACKOFF = 8
+
+# If cache is older than this many hours, bypass backoff and force a retry
+FORCE_RETRY_AFTER_HOURS = 24
 
 
 # ── Pending verification state (persisted across runs) ────────────────────────
@@ -221,13 +224,15 @@ def _check_cache(cache_key: str, max_stale_hours: int) -> dict:
 
 
 # ── Restart with backoff ──────────────────────────────────────────────────────
-def _restart_agent(agent_key: str, consecutive_failures: int) -> str:
+def _restart_agent(agent_key: str, consecutive_failures: int, age_hours: float = None) -> str:
     """
     Fire the agent's run function in a background thread.
-    Returns SKIPPED_BACKOFF if too many consecutive failures.
+    Backs off after MAX_FAILURES_BEFORE_BACKOFF, but always retries
+    if the cache is older than FORCE_RETRY_AFTER_HOURS.
     """
-    if consecutive_failures >= MAX_FAILURES_BEFORE_BACKOFF:
-        return f"SKIPPED_BACKOFF (failed {consecutive_failures}x in a row — manual intervention needed)"
+    force_retry = age_hours is not None and age_hours >= FORCE_RETRY_AFTER_HOURS
+    if consecutive_failures >= MAX_FAILURES_BEFORE_BACKOFF and not force_retry:
+        return f"SKIPPED_BACKOFF (failed {consecutive_failures}x — manual check needed)"
 
     try:
         from src.cre_agents import force_run
@@ -336,6 +341,11 @@ def run_manager_agent() -> dict:
         # Verify previous restart if applicable
         verify_status = verification.get(agent_key)
 
+        # Detect API key config errors — no point restarting, need user action
+        _api_key_error = any(
+            kw in mem_err.lower() for kw in ("api_key not set", "api key not set", "_api_key")
+        ) if mem_err else False
+
         # Overall health
         if mem_st == "running":
             health = "RUNNING"
@@ -347,18 +357,21 @@ def run_manager_agent() -> dict:
             health = "INVALID"
         elif cache_status == "STALE":
             health = "STALE"
-        elif mem_st == "error" and cache_status != "OK":
-            health = "ERROR"
+        elif mem_st == "error":
+            health = "NEEDS_CONFIG" if _api_key_error else "ERROR"
         else:
             health = "OK"
 
         needs_heal  = health in ("MISSING", "STALE", "ERROR", "CACHE_ERROR", "INVALID")
+        # Never restart agents that need a config change — restart won't help
+        if health == "NEEDS_CONFIG":
+            needs_heal = False
         heal_result = None
         hint        = _get_error_hint(mem_err)
 
         if needs_heal:
             print(f"  [Manager] {agent_key} → {health} (failures: {consec_f}) — attempting restart ...")
-            heal_result = _restart_agent(agent_key, consec_f)
+            heal_result = _restart_agent(agent_key, consec_f, cache_result.get("age_hours"))
             if heal_result == "RESTARTED":
                 healed.append(agent_key)
                 new_pending[agent_key] = {
