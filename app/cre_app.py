@@ -2280,6 +2280,184 @@ def _active_pt() -> str | None:
     return st.session_state.user_intent.get("property_type")
 
 
+# ── Custom table renderers ────────────────────────────────────────────────────
+
+def _dot_indicator(score: float, total: int = 5, max_val: float = 100.0) -> str:
+    filled = max(0, min(total, round(score / max(max_val, 1) * total)))
+    return (
+        '<span style="font-size:0.75rem;letter-spacing:3px;line-height:1;">'
+        + f'<span style="color:#4caf50;">{"●" * filled}</span>'
+        + f'<span style="color:#2a2a1a;">{"●" * (total - filled)}</span>'
+        + '</span>'
+    )
+
+def _mini_bar_cell(value: float, max_abs: float) -> str:
+    color = "#4caf50" if value >= 0 else "#ef5350"
+    w = min(100, abs(value) / max(max_abs, 0.01) * 100)
+    sign = "+" if value > 0 else ""
+    return (
+        f'<div style="font-size:0.78rem;color:{color};font-weight:500;white-space:nowrap;">{sign}{value:.1f}%</div>'
+        f'<div style="background:{color};height:3px;width:{w:.0f}%;border-radius:2px;margin-top:3px;opacity:0.75;min-width:4px;"></div>'
+    )
+
+def _score_bar_cell(score: float, max_val: float = 100.0) -> str:
+    color = "#4caf50" if score >= 60 else ("#c8a040" if score >= 40 else "#ef7070")
+    w = min(100, score / max(max_val, 1) * 100)
+    return (
+        f'<div style="font-size:0.78rem;color:{color};font-weight:600;white-space:nowrap;">{score:.0f}</div>'
+        f'<div style="background:{color};height:3px;width:{w:.0f}%;border-radius:2px;margin-top:3px;opacity:0.75;min-width:4px;"></div>'
+    )
+
+def _zone_pill(zone: str) -> str:
+    styles = {
+        "Best Fit": "background:#0d2a0d;border:1px solid #2a5a2a;color:#4caf50;",
+        "Moderate": "background:#2a1e05;border:1px solid #5a3e10;color:#c8a040;",
+        "Low":      "background:#2a0d0d;border:1px solid #5a2a2a;color:#ef7070;",
+    }
+    s = styles.get(zone, "background:#1a1a0a;border:1px solid #2a2a1a;color:#6a6a4a;")
+    return (
+        f'<span style="{s}border-radius:12px;padding:2px 9px;font-size:0.63rem;'
+        f'font-weight:600;letter-spacing:0.05em;">{zone}</span>'
+    )
+
+def _driver_tag(text: str) -> str:
+    return (
+        f'<span style="background:transparent;border:1px solid #2a2208;color:#6a5828;'
+        f'border-radius:4px;padding:2px 8px;font-size:0.67rem;letter-spacing:0.02em;">{text}</span>'
+    )
+
+_TBL_CSS = """
+<style>
+.cre-tbl { width:100%; border-collapse:collapse; font-family:'DM Sans',-apple-system,sans-serif; }
+.cre-tbl thead th {
+  padding:6px 12px; text-align:left; font-size:0.60rem; font-weight:600;
+  color:#3a3020; letter-spacing:0.12em; text-transform:uppercase;
+  border-bottom:1px solid #1e1a08; white-space:nowrap;
+}
+.cre-tbl thead th.r { text-align:right; }
+.cre-tbl tbody tr { border-bottom:1px solid #131008; transition:background 0.12s; }
+.cre-tbl tbody tr:hover { background:rgba(200,160,64,0.04); }
+.cre-tbl tbody td {
+  padding:10px 12px; vertical-align:middle; font-size:0.78rem; color:#8a7040;
+}
+.cre-tbl tbody td.rank { color:#2e2810; font-size:0.70rem; font-weight:600; width:28px; }
+.cre-tbl tbody td.name { color:#e8e4d8; font-weight:500; }
+.cre-tbl tbody td.mono { font-family:'JetBrains Mono',monospace; color:#8a7040; font-size:0.76rem; }
+.cre-tbl-wrap {
+  background:#0d0b04; border:1px solid #1e1a08; border-radius:8px;
+  overflow:hidden; margin:4px 0 12px 0;
+}
+.cre-tbl-hdr {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:9px 14px; border-bottom:1px solid #1e1a08;
+  border-left:3px solid #d4a843; background:#111008;
+}
+.cre-tbl-hdr-title {
+  font-size:0.65rem; font-weight:700; color:#d4a843;
+  letter-spacing:0.14em; text-transform:uppercase;
+}
+.cre-tbl-hdr-count { font-size:0.62rem; color:#3a3020; letter-spacing:0.06em; }
+</style>
+"""
+
+def _render_county_table(df, active_pt=None, title="County Rankings", start_rank=1) -> str:
+    if df.empty:
+        return ""
+    max_pop = max(df["pop_growth_pct"].abs().max(), 0.1)
+    th = '<th class="r">' if False else '<th>'  # placeholder
+
+    # Header row
+    h_cells = [
+        '<th style="width:28px;"></th>',
+        '<th>County</th>',
+        '<th>Population</th>',
+        '<th>Pop Growth</th>',
+    ]
+    if active_pt:
+        h_cells.append(f'<th>{active_pt} Score</th>')
+    h_cells += ['<th>Migration</th>', '<th>Key Driver</th>']
+
+    rows = []
+    for i, (_, row) in enumerate(df.iterrows()):
+        rank = start_rank + i
+        cells = [
+            f'<td class="rank">{rank}</td>',
+            f'<td class="name">{row["name"]}</td>',
+            f'<td class="mono">{int(row["population"]):,}</td>',
+            f'<td>{_mini_bar_cell(row["pop_growth_pct"], max_pop)}</td>',
+        ]
+        if active_pt:
+            cells.append(f'<td>{_score_bar_cell(row["pt_score"])}</td>')
+        cells += [
+            f'<td>{_dot_indicator(row["migration_score"])}</td>',
+            f'<td>{_driver_tag(str(row["top_driver"]))}</td>',
+        ]
+        rows.append('<tr>' + ''.join(cells) + '</tr>')
+
+    count_label = f'{len(df)} counties tracked'
+    return (
+        _TBL_CSS +
+        f'<div class="cre-tbl-wrap">'
+        f'<div class="cre-tbl-hdr">'
+        f'<span class="cre-tbl-hdr-title">&#9646; {title}</span>'
+        f'<span class="cre-tbl-hdr-count">{count_label}</span>'
+        f'</div>'
+        f'<table class="cre-tbl">'
+        f'<thead><tr>{"".join(h_cells)}</tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody>'
+        f'</table></div>'
+    )
+
+
+def _render_neighborhood_table(df, active_pt=None, title="Neighborhood Rankings", start_rank=1) -> str:
+    if df.empty:
+        return ""
+    max_pop  = max(df["pop_growth_pct"].abs().max(), 0.1)
+    max_rent = max(df["median_rent_growth_pct"].abs().max(), 0.1)
+
+    h_cells = [
+        '<th style="width:28px;"></th>',
+        '<th>Neighborhood</th>',
+        '<th>Type</th>',
+        '<th>Zone Fit</th>',
+    ]
+    if active_pt:
+        h_cells.append(f'<th>{active_pt} Score</th>')
+    h_cells += ['<th>Migration</th>', '<th>Pop Growth</th>', '<th>Rent Growth</th>']
+
+    rows = []
+    for i, (_, row) in enumerate(df.iterrows()):
+        rank = start_rank + i
+        cells = [
+            f'<td class="rank">{rank}</td>',
+            f'<td class="name">{row["name"]}</td>',
+            f'<td style="color:#6a5828;font-size:0.72rem;">{row["neighborhood_type"]}</td>',
+            f'<td>{_zone_pill(str(row.get("zone_fit","—")))}</td>',
+        ]
+        if active_pt:
+            cells.append(f'<td>{_score_bar_cell(row["pt_score"])}</td>')
+        cells += [
+            f'<td>{_dot_indicator(row["migration_score"])}</td>',
+            f'<td>{_mini_bar_cell(row["pop_growth_pct"], max_pop)}</td>',
+            f'<td>{_mini_bar_cell(row["median_rent_growth_pct"], max_rent)}</td>',
+        ]
+        rows.append('<tr>' + ''.join(cells) + '</tr>')
+
+    count_label = f'{len(df)} neighborhoods tracked'
+    return (
+        _TBL_CSS +
+        f'<div class="cre-tbl-wrap">'
+        f'<div class="cre-tbl-hdr">'
+        f'<span class="cre-tbl-hdr-title">&#9646; {title}</span>'
+        f'<span class="cre-tbl-hdr-count">{count_label}</span>'
+        f'</div>'
+        f'<table class="cre-tbl">'
+        f'<thead><tr>{"".join(h_cells)}</tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody>'
+        f'</table></div>'
+    )
+
+
 # Maps user_intent property_type → column/key names used in each tab
 _PT_VAC_COL  = {"Industrial": "Industrial", "Multifamily": "Multifamily",
                 "Office": "Office", "Retail": "Retail"}
@@ -2905,33 +3083,26 @@ with main_tab_re:
                 _county_sort_col = "pt_score" if _active_cty_pt else "migration_score"
                 _cdisp = county_df.sort_values(_county_sort_col, ascending=False).copy().reset_index(drop=True)
 
-                def _fmt_county_df(df):
-                    d = df.copy()
-                    if _active_cty_pt:
-                        d = d[["name", "population", "pop_growth_pct", "pt_score", "migration_score", "top_driver"]]
-                        d.columns = ["County", "Population", "Pop Growth %", f"{_active_cty_pt} Score", "Migration Score", "Key Driver"]
-                        d[f"{_active_cty_pt} Score"] = d[f"{_active_cty_pt} Score"].apply(lambda x: f"{x:.0f}")
-                    else:
-                        d = d[["name", "population", "pop_growth_pct", "migration_score", "top_driver"]]
-                        d.columns = ["County", "Population", "Pop Growth %", "Migration Score", "Key Driver"]
-                    d["Population"]      = d["Population"].apply(lambda x: f"{x:,}")
-                    d["Pop Growth %"]    = d["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
-                    d["Migration Score"] = d["Migration Score"].apply(lambda x: f"{x:.0f}")
-                    return d
-
                 _n_cty_total = len(_cdisp)
                 _n_cty_top   = max(1, (_n_cty_total + 1) // 2)
                 _cty_top     = _cdisp.iloc[:_n_cty_top]
                 _cty_rest    = _cdisp.iloc[_n_cty_top:]
 
-                st.dataframe(_fmt_county_df(_cty_top), use_container_width=True, hide_index=True)
+                _cty_title = f"{_active_cty_pt} County Rankings" if _active_cty_pt else "County Rankings — Migration & Growth"
+                st.markdown(
+                    _render_county_table(_cty_top, active_pt=_active_cty_pt, title=_cty_title, start_rank=1),
+                    unsafe_allow_html=True,
+                )
 
                 if not _cty_rest.empty:
                     with st.expander(
                         f"Show lower-ranked counties ({len(_cty_rest)} counties — bottom 50%)",
                         expanded=False,
                     ):
-                        st.dataframe(_fmt_county_df(_cty_rest), use_container_width=True, hide_index=True)
+                        st.markdown(
+                            _render_county_table(_cty_rest, active_pt=_active_cty_pt, title="Lower-Ranked Counties", start_rank=_n_cty_top + 1),
+                            unsafe_allow_html=True,
+                        )
                         st.caption(
                             "These counties scored in the bottom half for "
                             + (f"**{_active_cty_pt}** demand signals." if _active_cty_pt else "overall migration strength.")
@@ -3112,28 +3283,21 @@ with main_tab_re:
                 _df_top  = zip_df.iloc[:_n_top]
                 _df_rest = zip_df.iloc[_n_top:]
 
-                def _fmt_neighborhood_df(df):
-                    d = df.copy()
-                    if _nbhd_active_pt:
-                        d = d[["name", "neighborhood_type", "zone_fit", "pt_score", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]]
-                        d.columns = ["Neighborhood", "Type", "Zone Fit", f"{_nbhd_active_pt} Score", "Migration Score", "Pop Growth %", "Rent Growth %"]
-                        d[f"{_nbhd_active_pt} Score"] = d[f"{_nbhd_active_pt} Score"].apply(lambda x: f"{x:.0f}")
-                    else:
-                        d = d[["name", "neighborhood_type", "zone_fit", "migration_score", "pop_growth_pct", "median_rent_growth_pct"]]
-                        d.columns = ["Neighborhood", "Type", "Zone Type", "Migration Score", "Pop Growth %", "Rent Growth %"]
-                    d["Migration Score"] = d["Migration Score"].apply(lambda x: f"{x:.0f}")
-                    d["Pop Growth %"]    = d["Pop Growth %"].apply(lambda x: f"{x:+.1f}%")
-                    d["Rent Growth %"]   = d["Rent Growth %"].apply(lambda x: f"{x:+.1f}%")
-                    return d
-
-                st.dataframe(_fmt_neighborhood_df(_df_top), use_container_width=True, hide_index=True)
+                _nbhd_title = f"{_nbhd_active_pt} Neighborhood Rankings — {_sel_metro}" if _nbhd_active_pt else f"Neighborhood Rankings — {_sel_metro}"
+                st.markdown(
+                    _render_neighborhood_table(_df_top, active_pt=_nbhd_active_pt, title=_nbhd_title, start_rank=1),
+                    unsafe_allow_html=True,
+                )
 
                 if not _df_rest.empty:
                     with st.expander(
                         f"Show lower-ranked neighborhoods ({len(_df_rest)} areas — bottom 50%)",
                         expanded=False,
                     ):
-                        st.dataframe(_fmt_neighborhood_df(_df_rest), use_container_width=True, hide_index=True)
+                        st.markdown(
+                            _render_neighborhood_table(_df_rest, active_pt=_nbhd_active_pt, title="Lower-Ranked Neighborhoods", start_rank=_n_top + 1),
+                            unsafe_allow_html=True,
+                        )
                         st.caption(
                             "These neighborhoods scored in the bottom half for "
                             + (f"**{_nbhd_active_pt}** demand signals." if _nbhd_active_pt else "overall migration strength.")
