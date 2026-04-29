@@ -9735,8 +9735,10 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
 
         # ── Market Detail Table ──────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
+        section(" Market Detail — Vacancy vs. National Average")
+        st.caption("Vacancy rate & trend by market and property type — CBRE / JLL / CoStar Q1 2025")
 
-        with st.expander(" Market Detail — Vacancy vs. National Average", expanded=False):
+        with st.expander("Show detail table", expanded=False):
             if mkt_rows:
                 detail_df = pd.DataFrame(mkt_rows)
 
@@ -9775,11 +9777,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                         f'</div>'
                     )
 
-                _md_html = f"""<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
-  <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:20px;">
-    <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">MARKET DETAIL — VACANCY VS. NATIONAL AVERAGE</div>
-    <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Vacancy rate &amp; trend by market and property type &mdash; CBRE / JLL / CoStar Q1 2025</div>
-  </div>
+                _md_html = f"""<div style="background:#13110a;border-radius:10px;padding:20px 32px 16px;margin-bottom:8px;">
   <div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #2a2410;">{_md_hcells}</div>
   {_md_rows_html}
   <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">vs. National = pp difference from property-type national average &nbsp;·&nbsp; <span style="color:#66bb6a;">Green</span> = tighter than avg &nbsp;·&nbsp; <span style="color:#ef5350;">Red</span> = looser than avg &nbsp;·&nbsp; Not financial advice.</div>
@@ -10036,8 +10034,10 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
 
             # Detail table
             st.markdown("<br>", unsafe_allow_html=True)
+            section(" Land Market Detail Table")
+            st.caption("Developable acreage, pricing & pipeline activity — CoStar / CBRE Q1 2025")
 
-            with st.expander(" Land Market Detail Table", expanded=False):
+            with st.expander("Show detail table", expanded=False):
                 _LND_C = {"Industrial": "#2bbfb0", "Mixed-Use": "#a09040", "Residential": "#a07830"}
 
                 # Legend dots
@@ -10089,11 +10089,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                         f'</div>'
                     )
 
-                _lnd_table_html = f"""<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
-  <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:18px;">
-    <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">LAND MARKET DETAIL TABLE</div>
-    <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Developable acreage, pricing &amp; pipeline activity &mdash; CoStar / CBRE Q1 2025</div>
-  </div>
+                _lnd_table_html = f"""<div style="background:#13110a;border-radius:10px;padding:20px 32px 16px;margin-bottom:8px;">
   <div style="margin-bottom:16px;">{_legend_html}</div>
   <div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #2a2410;">{_lnd_hcells}</div>
   {_lnd_rows_html}
