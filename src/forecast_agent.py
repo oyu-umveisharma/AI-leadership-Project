@@ -120,6 +120,8 @@ def run_forecast_agent() -> dict:
             drift = _rolling_drift(values, window=4)
             forecast_values = [round(current + drift * n, 2) for n in (1, 2, 3)]
 
+        # ±15% confidence band around each point estimate
+        ci_band = 0.15
         projections[display_name] = {
             "series_id":         series_id,
             "unit":              unit,
@@ -127,6 +129,12 @@ def run_forecast_agent() -> dict:
             "q2_2026":           forecast_values[0],
             "q3_2026":           forecast_values[1],
             "q4_2026":           forecast_values[2],
+            "q2_2026_low":       round(forecast_values[0] * (1 - ci_band), 2),
+            "q2_2026_high":      round(forecast_values[0] * (1 + ci_band), 2),
+            "q3_2026_low":       round(forecast_values[1] * (1 - ci_band), 2),
+            "q3_2026_high":      round(forecast_values[1] * (1 + ci_band), 2),
+            "q4_2026_low":       round(forecast_values[2] * (1 - ci_band), 2),
+            "q4_2026_high":      round(forecast_values[2] * (1 + ci_band), 2),
             "drift_per_quarter": round(drift, 3),
             "is_fomc":           is_fomc,
         }

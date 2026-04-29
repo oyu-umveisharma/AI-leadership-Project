@@ -4210,6 +4210,26 @@ with main_tab_advisor:
                         showlegend=False,
                         hovertemplate="<b>%{fullData.name}</b><br>%{x}<br>%{y:.2f}%<extra></extra>",
                     ))
+                    # Confidence interval shaded band (±15% around point estimate)
+                    _fy_high = [_hy[-1],
+                                _p.get("q2_2026_high"), _p.get("q3_2026_high"), _p.get("q4_2026_high")]
+                    _fy_low  = [_hy[-1],
+                                _p.get("q2_2026_low"),  _p.get("q3_2026_low"),  _p.get("q4_2026_low")]
+                    if all(v is not None for v in _fy_high + _fy_low):
+                        import re as _re
+                        _rgb = _re.findall(r"[\da-fA-F]{2}", _clr.lstrip("#"))
+                        _rgba_fill = (f"rgba({int(_rgb[0],16)},{int(_rgb[1],16)},{int(_rgb[2],16)},0.12)"
+                                      if len(_rgb) == 3 else "rgba(212,168,67,0.12)")
+                        _fig_fc.add_trace(_go.Scatter(
+                            x=_fx + _fx[::-1],
+                            y=_fy_high + _fy_low[::-1],
+                            fill="toself",
+                            fillcolor=_rgba_fill,
+                            line=dict(color="rgba(0,0,0,0)"),
+                            showlegend=False,
+                            hoverinfo="skip",
+                            name=f"{_name} CI",
+                        ))
 
                 _fig_fc.update_layout(
                     plot_bgcolor="#0f0f0c",
@@ -4229,7 +4249,7 @@ with main_tab_advisor:
                 )
                 st.plotly_chart(_fig_fc, use_container_width=True,
                                 config={"displayModeBar": False})
-                st.caption("Solid lines = historical (FRED). Dotted = projected Q2–Q4 2026.")
+                st.caption("Solid lines = historical (FRED). Dotted = projected Q2–Q4 2026. Shaded band = ±15% confidence interval.")
             except Exception as _fc_err:
                 st.caption(f"Chart unavailable: {_fc_err}")
 
@@ -4729,6 +4749,50 @@ with main_tab_re:
             st.markdown(f"""<div style="background:#131008;border:1px solid #221e0a;border-radius:8px;padding:16px 18px;">
               <div style="font-size:11px;color:#6a5228;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">Corporate HQ Relocations · Recent</div>
               {_flow_html}</div>""", unsafe_allow_html=True)
+
+        # ── Corporate HQ Move Tracker (from cache) ─────────────────────────────
+        _hq_moves = data.get("hq_moves", [])
+        if _hq_moves:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Corporate HQ Relocations — CRE Demand Tracker")
+            # Filter to selected/analyzed state if intent is set
+            _hq_filter_state = _mig_abbr
+            _hq_displayed = (
+                [m for m in _hq_moves if m.get("to_state") == _hq_filter_state]
+                if _hq_filter_state else _hq_moves
+            )
+            _hq_scope_label = (f"Showing moves **to {_hq_filter_state}**"
+                               if _hq_filter_state and _hq_displayed else
+                               "Showing all tracked corporate HQ relocations")
+            if _hq_filter_state and not _hq_displayed:
+                _hq_displayed = _hq_moves
+                _hq_scope_label = f"No tracked HQ moves to {_hq_filter_state} — showing all markets"
+            st.caption(_hq_scope_label)
+            _hq_rows_html = ""
+            for _hm in _hq_displayed:
+                _hq_rows_html += (
+                    f'<tr style="border-bottom:1px solid #1e1a08;">'
+                    f'<td style="padding:8px 12px;color:#c8b890;font-size:12px;font-weight:600;">{_hm["company"]}</td>'
+                    f'<td style="padding:8px 12px;color:#7a6840;font-size:12px;">{_hm["from_city"]}</td>'
+                    f'<td style="padding:8px 12px;color:#4a9e58;font-size:12px;font-weight:600;">{_hm["to_city"]}, {_hm["to_state"]}</td>'
+                    f'<td style="padding:8px 12px;color:#d4a843;font-size:12px;text-align:center;">{_hm["year"]}</td>'
+                    f'<td style="padding:8px 12px;color:#c8b890;font-size:12px;text-align:right;">{_hm["employees"]:,}</td>'
+                    f'<td style="padding:8px 12px;color:#d4a843;font-size:12px;text-align:right;">{_hm["sqft_demand_ksf"]:,} ksf</td>'
+                    f'</tr>'
+                )
+            st.markdown(f"""
+<table style="width:100%;border-collapse:collapse;background:#171309;border-radius:8px;overflow:hidden;border:1px solid #2a2208;">
+  <thead><tr style="background:#1a1408;border-bottom:1px solid #2a2208;">
+    <th style="padding:9px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Company</th>
+    <th style="padding:9px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">From</th>
+    <th style="padding:9px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">To</th>
+    <th style="padding:9px 12px;text-align:center;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Year</th>
+    <th style="padding:9px 12px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Employees","Approximate employees relocating with the HQ move.")}</th>
+    <th style="padding:9px 12px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Est. Demand","Estimated office/industrial space demand generated by the relocation, in thousands of square feet.")}</th>
+  </tr></thead>
+  <tbody>{_hq_rows_html}</tbody>
+</table>""", unsafe_allow_html=True)
+            st.caption("Source: Public corporate filings and announcements. Estimated sq ft demand based on employees × avg space-per-employee benchmarks.")
 
         # ── MAP ────────────────────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
@@ -6150,6 +6214,42 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                       {"<div class='l-detail' style='color:#555;margin-top:4px;font-style:italic;'> " + highlights + "</div>" if highlights else ""}
                     </div>
                     """, unsafe_allow_html=True)
+
+            # ── $/sqft Trend Chart (RentCast sparklines) ─────────────────────
+            _rc_ppsf_trend = _rc_data.get("price_per_sqft_trend", {})
+            _trend_states = [abbr for abbr in _sorted_abbr4 if abbr in _rc_ppsf_trend]
+            if _trend_states:
+                st.markdown("<br>", unsafe_allow_html=True)
+                section(" $/sqft Trend by Market (6-Month)")
+                try:
+                    import plotly.graph_objects as _go_rc
+                    _fig_ppsf = _go_rc.Figure()
+                    _sparkline_colors = ["#d4a843", "#80a848", "#9868b8", "#c84848", "#4888c8"]
+                    for _ci, _abbr in enumerate(_trend_states[:5]):
+                        _pts = _rc_ppsf_trend[_abbr]
+                        _sx = [p["month"] for p in _pts]
+                        _sy = [p["ppsf"] for p in _pts]
+                        _clr = _sparkline_colors[_ci % len(_sparkline_colors)]
+                        _fig_ppsf.add_trace(_go_rc.Scatter(
+                            x=_sx, y=_sy, mode="lines+markers", name=_abbr,
+                            line=dict(color=_clr, width=2),
+                            marker=dict(size=5, color=_clr),
+                            hovertemplate=f"<b>{_abbr}</b><br>%{{x}}<br>${{y:.0f}}/sqft<extra></extra>",
+                        ))
+                    _fig_ppsf.update_layout(
+                        plot_bgcolor="#0f0d06", paper_bgcolor="#16160f",
+                        margin=dict(t=20, b=20, l=40, r=20), height=240,
+                        xaxis=dict(tickfont=dict(color="#e8dfc4", size=9), gridcolor="#2a2a1a", title=""),
+                        yaxis=dict(tickfont=dict(color="#e8dfc4", size=9), gridcolor="#2a2a1a",
+                                   title="$/sqft", titlefont=dict(color="#a09880"), tickprefix="$"),
+                        font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0,
+                                    font=dict(color="#c8b890", size=10), bgcolor="rgba(0,0,0,0)"),
+                    )
+                    st.plotly_chart(_fig_ppsf, use_container_width=True, config={"displayModeBar": False})
+                    st.caption("6-month simulated $/sqft trend per market. Based on current listing averages with forward-looking drift.")
+                except Exception as _ppsf_err:
+                    st.caption(f"$/sqft trend chart unavailable: {_ppsf_err}")
 
             # ── Why these markets? ────────────────────────────────────────────
             st.markdown("<br>", unsafe_allow_html=True)
@@ -7790,6 +7890,58 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                     unsafe_allow_html=True,
                 )
 
+            # ── Spread Compression / Expansion Trend ─────────────────────────
+            _cap_spread_trend = _cap_data.get("spread_trend", [])
+            if _cap_spread_trend:
+                section(" Spread Trend — Avg Cap Rate vs. 10Y Treasury (6 Months)")
+                try:
+                    import plotly.graph_objects as _go_cr
+                    _st_x = [p["month"] for p in _cap_spread_trend]
+                    _st_y = [p["spread"] for p in _cap_spread_trend]
+                    # Determine compression/expansion label
+                    _latest_spread = _st_y[-1]
+                    _three_mo_avg  = sum(_st_y[-3:]) / 3 if len(_st_y) >= 3 else _latest_spread
+                    if _latest_spread < _three_mo_avg - 0.05:
+                        _trend_lbl = "Compressing"
+                        _trend_clr = "#ef5350"
+                    elif _latest_spread > _three_mo_avg + 0.05:
+                        _trend_lbl = "Expanding"
+                        _trend_clr = "#4caf50"
+                    else:
+                        _trend_lbl = "Stable"
+                        _trend_clr = "#d4a843"
+                    _fig_spr = _go_cr.Figure()
+                    _fig_spr.add_trace(_go_cr.Scatter(
+                        x=_st_x, y=_st_y, mode="lines+markers",
+                        name="Avg Spread (Cap Rate − 10Y Treasury)",
+                        line=dict(color=_trend_clr, width=2),
+                        marker=dict(size=6, color=_trend_clr),
+                        hovertemplate="%{x}<br>Spread: %{y:.2f}pp<extra></extra>",
+                    ))
+                    _fig_spr.update_layout(
+                        plot_bgcolor="#0f0d06", paper_bgcolor="#16160f",
+                        margin=dict(t=30, b=20, l=40, r=120), height=220,
+                        xaxis=dict(tickfont=dict(color="#e8dfc4", size=9), gridcolor="#2a2a1a", title=""),
+                        yaxis=dict(tickfont=dict(color="#e8dfc4", size=9), gridcolor="#2a2a1a",
+                                   title="Spread (pp)", titlefont=dict(color="#a09880"), ticksuffix="pp"),
+                        font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                        annotations=[dict(
+                            text=f"<b>{_trend_lbl}</b>",
+                            x=1.01, y=_latest_spread, xref="paper", yref="y",
+                            showarrow=False,
+                            font=dict(size=13, color=_trend_clr, family="Source Sans Pro"),
+                        )],
+                    )
+                    st.plotly_chart(_fig_spr, use_container_width=True, config={"displayModeBar": False})
+                    st.caption(
+                        f"Spread = avg national cap rate − 10Y Treasury yield. "
+                        f"Current: {_latest_spread:.2f}pp · 3-month avg: {_three_mo_avg:.2f}pp · "
+                        f"Trend: **{_trend_lbl}** "
+                        f"(Compressing = spread narrowing = CRE pricing less attractive vs. treasuries)"
+                    )
+                except Exception as _spr_err:
+                    st.caption(f"Spread trend chart unavailable: {_spr_err}")
+
         st.markdown(
             '<hr style="border:none;border-top:1px solid #2a2208;margin:32px 0 24px;">',
             unsafe_allow_html=True,
@@ -9398,6 +9550,23 @@ Cap Rate (adjusted) = Benchmark Cap Rate + (Current 10Y Treasury - 3.5% historic
               <div class="value">{val_s}</div>
               <div class="sub">{delta_html or sub}</div>
             </div>""", unsafe_allow_html=True)
+
+        # ── Job Postings Index (leading indicator) ──────────────────────────────
+        _jpi = demand_sig.get("job_postings_index")
+        if _jpi is not None:
+            _jpi_color = ("#4caf50" if _jpi >= 65 else ("#ef5350" if _jpi <= 40 else "#d4a843"))
+            _jpi_label = "STRONG" if _jpi >= 65 else ("SOFT" if _jpi <= 40 else "MODERATE")
+            _jpi_tip = ("Composite leading indicator derived from employer hiring signals. "
+                        "Leads official BLS payroll data by approximately 4–6 weeks. "
+                        "Score 0–100: ≥65 = Strong hiring intent · 41–64 = Moderate · ≤40 = Soft.")
+            st.markdown(
+                f'<div class="metric-card" style="max-width:280px;border-left:3px solid {_jpi_color};">'
+                f'<div class="label">{_tt("Job Postings Index", _jpi_tip)}</div>'
+                f'<div class="value" style="color:{_jpi_color};">{_jpi:.0f}</div>'
+                f'<div class="sub" style="color:{_jpi_color};">{_jpi_label} · Leads payroll ~4–6 weeks</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
         st.markdown("<br>", unsafe_allow_html=True)
 

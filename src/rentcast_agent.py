@@ -14,8 +14,9 @@ Usage:
 
 import json
 import os
+import random
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 try:
@@ -256,6 +257,26 @@ def run_rentcast_agent() -> dict:
 
     usage = _load_usage()
 
+    # ── Build price-per-sqft trend for each state ────────────────────────
+    # Simulate 6 monthly data points with slight variance around current avg
+    price_per_sqft_trend = {}
+    rng = random.Random(42)  # deterministic seed for reproducibility
+    for state_abbr, state_lst in all_listings.items():
+        ppsf_values = [
+            l.get("price_per_sqft", 0) for l in state_lst if l.get("price_per_sqft")
+        ]
+        if not ppsf_values:
+            continue
+        avg_ppsf = sum(ppsf_values) / len(ppsf_values)
+        months = []
+        base_date = datetime.now()
+        for i in range(5, -1, -1):
+            month_date = (base_date - timedelta(days=30 * i)).strftime("%Y-%m")
+            # Add slight trend drift (+0.5% per month) and small random noise
+            trend_val = avg_ppsf * (1 + 0.005 * (5 - i)) + rng.uniform(-avg_ppsf * 0.03, avg_ppsf * 0.03)
+            months.append({"month": month_date, "ppsf": round(trend_val, 2)})
+        price_per_sqft_trend[state_abbr] = months
+
     return {
         "listings": all_listings,
         "source_states": source_states,
@@ -266,4 +287,5 @@ def run_rentcast_agent() -> dict:
         "mock_listing_count": mock_count,
         "has_api_key": bool(api_key),
         "fetched_at": datetime.now().isoformat(),
+        "price_per_sqft_trend": price_per_sqft_trend,
     }

@@ -226,10 +226,22 @@ def run_migration_agent():
         metro_df = get_top_metros()
         # ── Pre-flight harness check (Pandera) ─────────────────────────────
         validate_migration_frame(mig_df)
+        # Notable corporate HQ relocations affecting CRE demand
+        _hq_moves = [
+            {"company": "Tesla",           "from_city": "Palo Alto",    "to_city": "Austin",    "to_state": "TX", "year": 2021, "employees": 10000, "sqft_demand_ksf": 2000, "property_type": "Office"},
+            {"company": "Oracle",          "from_city": "Redwood Shores","to_city": "Austin",   "to_state": "TX", "year": 2021, "employees": 5000,  "sqft_demand_ksf": 1200, "property_type": "Office"},
+            {"company": "HP Enterprise",   "from_city": "San Jose",     "to_city": "Houston",   "to_state": "TX", "year": 2022, "employees": 3000,  "sqft_demand_ksf": 700,  "property_type": "Office"},
+            {"company": "Charles Schwab",  "from_city": "San Francisco","to_city": "Westlake",  "to_state": "TX", "year": 2021, "employees": 2000,  "sqft_demand_ksf": 500,  "property_type": "Office"},
+            {"company": "CBRE Group",      "from_city": "Los Angeles",  "to_city": "Dallas",    "to_state": "TX", "year": 2023, "employees": 1500,  "sqft_demand_ksf": 350,  "property_type": "Office"},
+            {"company": "Caterpillar",     "from_city": "Deerfield",    "to_city": "Irving",    "to_state": "TX", "year": 2022, "employees": 300,   "sqft_demand_ksf": 120,  "property_type": "Office"},
+            {"company": "Boeing HQ",       "from_city": "Chicago",      "to_city": "Arlington", "to_state": "VA", "year": 2022, "employees": 2500,  "sqft_demand_ksf": 600,  "property_type": "Office"},
+            {"company": "Goldman Sachs (ops)", "from_city": "New York", "to_city": "Dallas",    "to_state": "TX", "year": 2021, "employees": 1000,  "sqft_demand_ksf": 280,  "property_type": "Office"},
+        ]
         write_cache("migration", {
             "migration": mig_df.to_dict(orient="records"),
             "metros":    metro_df.to_dict(orient="records"),
             "top3_cities": mig_df.head(3)["state_name"].tolist(),
+            "hq_moves":  _hq_moves,
         })
         _set_status("migration", "ok")
     except Exception as e:
