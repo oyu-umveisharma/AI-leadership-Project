@@ -3312,9 +3312,9 @@ with main_tab_advisor:
 
         # Prop-type → cache key mapping
         _pt_vac_key = {
-            "Industrial":"Industrial / Logistics","Multifamily":"Multifamily / Residential",
-            "Office":"Office","Retail":"Retail","Healthcare":"Healthcare / Medical Office",
-        }.get(_prop_type, "Industrial / Logistics")
+            "Industrial":"Industrial","Multifamily":"Multifamily",
+            "Office":"Office","Retail":"Retail","Healthcare":"Office",
+        }.get(_prop_type, "Industrial")
         _pt_rg_key = {
             "Industrial":"Industrial","Multifamily":"Multifamily",
             "Office":"Office","Retail":"Retail","Healthcare":"Office",
