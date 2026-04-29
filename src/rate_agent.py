@@ -225,16 +225,22 @@ def _classify_environment(rates: dict) -> dict:
         color  = "#1b5e20"
         icon   = "🟢"
         summary = "Rate environment is supportive for CRE — cap rates under compression pressure, financing accessible."
+        # Map raw score 2..5 → 75..99
+        score_100 = min(99, 75 + max(0, score - 2) * 8)
     elif score <= -2:
         signal = "BEARISH"
         color  = "#b71c1c"
         icon   = "🔴"
         summary = "Rate environment is challenging for CRE — elevated rates expanding cap rates, compressing valuations."
+        # Map raw score -2..-5 → 24..0
+        score_100 = max(0, 24 + min(0, score + 2) * 8)
     else:
         signal = "CAUTIOUS"
         color  = "#e65100"
         icon   = "🟡"
         summary = "Mixed rate signals — monitor direction; selective opportunities in rate-resilient sectors."
+        # Map raw score -1..1 → 38..62
+        score_100 = max(25, min(74, 50 + score * 12))
 
     return {
         "signal":  signal,
@@ -242,7 +248,8 @@ def _classify_environment(rates: dict) -> dict:
         "icon":    icon,
         "summary": summary,
         "bullets": bullets,
-        "score":   score,
+        "score":   score_100,
+        "raw_score": score,
     }
 
 

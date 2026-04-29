@@ -5574,9 +5574,19 @@ with main_tab_macro:
 
             # ── Signal Banner ───────────────────────────────────────────────────────
             signal    = env.get("signal", "CAUTIOUS")
-            _re_score = env.get("score", 50)
             _re_sum   = env.get("summary", "")
             _re_conf  = env.get("confidence", "High")
+            # Normalize score: agent may store raw accumulation int (-5..+5) in
+            # older cache entries; clamp to 0-100 matching the signal band.
+            _re_score_raw = env.get("score", 0)
+            if _re_score_raw > 10:
+                _re_score = _re_score_raw  # already normalized (new cache)
+            elif signal == "BULLISH":
+                _re_score = min(99, 75 + max(0, _re_score_raw - 2) * 8)
+            elif signal == "BEARISH":
+                _re_score = max(0, 24 + min(0, _re_score_raw + 2) * 8)
+            else:
+                _re_score = max(25, min(74, 50 + _re_score_raw * 12))
             st.markdown(gauge_card(
                 title       = "RATE ENVIRONMENT",
                 label       = signal,
