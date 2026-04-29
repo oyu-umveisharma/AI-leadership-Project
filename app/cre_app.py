@@ -5595,7 +5595,7 @@ with main_tab_macro:
                 agent_num   = "A6  Agent 6",
                 age_label   = cache_age_label("rates"),
                 confidence  = _re_conf,
-                low_good    = True,
+                low_good    = False,
                 scale_labels= ("BEARISH", "25", "CAUTIOUS", "75", "BULLISH"),
             ), unsafe_allow_html=True)
             with st.expander("How to read this indicator"):
