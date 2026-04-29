@@ -868,6 +868,28 @@ def run_forecast_agent():
         _set_status("forecast", "error", str(e))
 
 
+def run_building_permits_agent():
+    _set_status("building_permits", "running")
+    try:
+        from src.building_permits_agent import run_building_permits_agent as _run
+        result = _run()
+        write_cache("building_permits", result)
+        _set_status("building_permits", "ok")
+    except Exception as e:
+        _set_status("building_permits", "error", str(e))
+
+
+def run_reit_agent():
+    _set_status("reit", "running")
+    try:
+        from src.reit_agent import run_reit_agent as _run
+        result = _run()
+        write_cache("reit", result)
+        _set_status("reit", "ok")
+    except Exception as e:
+        _set_status("reit", "error", str(e))
+
+
 # ── Scheduler Singleton ───────────────────────────────────────────────────────
 
 _scheduler: BackgroundScheduler = None
@@ -906,6 +928,8 @@ def start_scheduler():
         _scheduler.add_job(run_chief_of_staff_agent,   IntervalTrigger(minutes=5),    id="chief_of_staff",   replace_existing=True)
         _scheduler.add_job(run_rentcast_agent,        IntervalTrigger(hours=24),     id="rentcast",         replace_existing=True)
         _scheduler.add_job(run_forecast_agent,        IntervalTrigger(hours=6),      id="forecast",         replace_existing=True)
+        _scheduler.add_job(run_building_permits_agent, IntervalTrigger(hours=24),     id="building_permits", replace_existing=True)
+        _scheduler.add_job(run_reit_agent,             IntervalTrigger(hours=1),      id="reit",             replace_existing=True)
 
         _scheduler.start()
 
@@ -916,7 +940,8 @@ def start_scheduler():
                    run_vacancy_agent, run_land_market_agent, run_cap_rate_agent, run_rent_growth_agent,
                    run_opportunity_zone_agent, run_distressed_agent, run_market_score_agent,
                    run_climate_risk_agent, run_manager_agent_job, run_chief_of_staff_agent,
-                   run_rentcast_agent, run_forecast_agent]:
+                   run_rentcast_agent, run_forecast_agent,
+                   run_building_permits_agent, run_reit_agent]:
             t = threading.Thread(target=fn, daemon=True)
             t.start()
 
@@ -948,6 +973,8 @@ def force_run(agent_name: str):
         "chief_of_staff":   run_chief_of_staff_agent,
         "rentcast":         run_rentcast_agent,
         "forecast":         run_forecast_agent,
+        "building_permits": run_building_permits_agent,
+        "reit":             run_reit_agent,
     }
     fn = agents.get(agent_name)
     if fn:

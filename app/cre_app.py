@@ -5505,13 +5505,14 @@ with main_tab_energy:
 #  MAIN TAB — MACRO ENVIRONMENT
 # ═══════════════════════════════════════════════════════════════════════════════
 with main_tab_macro:
-    tab_rates, tab_labor, tab_gdp, tab_inflation, tab_credit, tab_distressed = st.tabs([
+    tab_rates, tab_labor, tab_gdp, tab_inflation, tab_credit, tab_distressed, tab_reit = st.tabs([
         "Rate Environment",
         "Labor Market & Tenant Demand",
         "GDP & Economic Growth",
         "Inflation",
         "Credit & Capital Markets",
         "CMBS & Distressed",
+        "REIT Sectors",
     ])
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -7262,8 +7263,234 @@ The cycle phase is determined by combining multiple indicators:
 **Data Source:** FRED (corporate spreads, VIX, lending surveys), updated every 6 hours via Agent 12.
 """)
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — REIT SECTORS
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_reit:
+        st.markdown("#### What are institutional investors pricing into real estate sectors?")
+        st.markdown(
+            "Public REIT prices **lead private CRE values by 6–12 months** — when institutional investors "
+            "rotate out of REIT sectors, private market cap rate expansion typically follows. "
+            "Tracking REIT momentum gives early warning of shifting CRE capital flows. "
+            "Data from Yahoo Finance via yfinance. Updates every hour."
+        )
+        agent_last_updated("reit")
+
+        cache_reit = read_cache("reit")
+        _reit_data = (cache_reit.get("data") or {}) if cache_reit else {}
+
+        if not _reit_data:
+            st.info("📡 REIT agent is fetching data — refresh in ~30 seconds.")
+        else:
+            _reit_tickers = _reit_data.get("tickers", [])
+            _reit_sectors = _reit_data.get("sectors", {})
+            _reit_best    = _reit_data.get("best_sector_3m", "—")
+            _reit_worst   = _reit_data.get("worst_sector_3m", "—")
+            _reit_mom     = _reit_data.get("cre_momentum", "NEUTRAL")
+            _reit_spy3m   = _reit_data.get("spy_return_3m", 0)
+            _reit_total   = _reit_data.get("total_tickers_tracked", 0)
+
+            # ── Signal banner ─────────────────────────────────────────────────
+            _mom_colors = {"BULLISH": "#4a9e58", "NEUTRAL": "#d4a843", "BEARISH": "#ef5350"}
+            _mom_bg     = {"BULLISH": "#0d2a12", "NEUTRAL": "#2a1a04", "BEARISH": "#2a0d0d"}
+            _mom_c = _mom_colors.get(_reit_mom, "#d4a843")
+            _mom_b = _mom_bg.get(_reit_mom, "#2a1a04")
+            st.markdown(
+                f'<div style="background:{_mom_b};border:1px solid {_mom_c};border-radius:8px;'
+                f'padding:12px 20px;margin-bottom:12px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">'
+                f'<span style="font-size:0.8rem;color:#888;letter-spacing:0.1em;text-transform:uppercase;">CRE Momentum Signal</span>'
+                f'<span style="background:{_mom_c};color:#0d0b04;font-size:0.8rem;font-weight:700;'
+                f'padding:4px 14px;border-radius:20px;letter-spacing:0.08em;">{_reit_mom}</span>'
+                f'<span style="color:#888;font-size:0.82rem;">Best Sector (3m): '
+                f'<b style="color:#c8b890;">{_reit_best}</b></span>'
+                f'<span style="color:#888;font-size:0.82rem;">Worst Sector (3m): '
+                f'<b style="color:#ef5350;">{_reit_worst}</b></span>'
+                f'<span style="color:#888;font-size:0.82rem;">SPY 3m: '
+                f'<b style="color:{("#4a9e58" if _reit_spy3m > 0 else "#ef5350")};">{_reit_spy3m:+.1f}%</b></span>'
+                f'<span style="color:#888;font-size:0.82rem;">Tracking: <b style="color:#c8b890;">{_reit_total} tickers</b></span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+            # ── Sector metric cards ───────────────────────────────────────────
+            if _reit_sectors:
+                section(" Sector Performance (3-Month Return)")
+                _sec_cols = st.columns(len(_reit_sectors))
+                for _sec_col, (sector, sec_data) in zip(_sec_cols, _reit_sectors.items()):
+                    _s3m = sec_data["return_3m"]
+                    _s_c = "#4a9e58" if _s3m > 0 else "#ef5350"
+                    _sec_col.markdown(
+                        metric_card(
+                            sector,
+                            f"<span style='color:{_s_c}'>{_s3m:+.1f}%</span>",
+                            f"3m · {sec_data['ticker_count']} tickers",
+                        ),
+                        unsafe_allow_html=True,
+                    )
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # ── Grouped bar chart — sector returns ────────────────────────
+                section(" Sector Returns: 1M / 3M / 6M vs SPY")
+                _sec_names = list(_reit_sectors.keys())
+                _sec_1m = [_reit_sectors[s]["return_1m"] for s in _sec_names]
+                _sec_3m = [_reit_sectors[s]["return_3m"] for s in _sec_names]
+                _sec_6m = [_reit_sectors[s]["return_6m"] for s in _sec_names]
+
+                fig_sec = go.Figure()
+                fig_sec.add_trace(go.Bar(
+                    name="1M Return", x=_sec_names, y=_sec_1m,
+                    marker_color="#4fc3f7",
+                    hovertemplate="<b>%{x}</b><br>1M: %{y:+.1f}%<extra></extra>",
+                ))
+                fig_sec.add_trace(go.Bar(
+                    name="3M Return", x=_sec_names, y=_sec_3m,
+                    marker_color=GOLD,
+                    hovertemplate="<b>%{x}</b><br>3M: %{y:+.1f}%<extra></extra>",
+                ))
+                fig_sec.add_trace(go.Bar(
+                    name="6M Return", x=_sec_names, y=_sec_6m,
+                    marker_color="#a5d6a7",
+                    hovertemplate="<b>%{x}</b><br>6M: %{y:+.1f}%<extra></extra>",
+                ))
+                fig_sec.add_hline(
+                    y=_reit_spy3m, line_color="#ef5350", line_dash="dash", line_width=1.5,
+                    annotation_text=f"SPY 3M: {_reit_spy3m:+.1f}%",
+                    annotation_position="top right",
+                    annotation_font=dict(color="#ef5350", size=11),
+                )
+                fig_sec.update_layout(
+                    barmode="group",
+                    plot_bgcolor="#1e1a0a",
+                    paper_bgcolor="#1a1208",
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                    xaxis=dict(gridcolor="#2a2208", color="#8a7040", tickangle=-20),
+                    yaxis=dict(gridcolor="#2a2208", color="#8a7040", title="Return (%)", ticksuffix="%"),
+                    legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#c8b890")),
+                    margin=dict(t=40, b=80, l=60, r=20),
+                    height=380,
+                )
+                st.plotly_chart(fig_sec, use_container_width=True)
+
+            # ── Individual REIT table ─────────────────────────────────────────
+            if _reit_tickers:
+                st.markdown("<br>", unsafe_allow_html=True)
+                section(" Individual REIT Performance")
+                _reit_df = pd.DataFrame(_reit_tickers)
+                _reit_disp = _reit_df[["ticker", "name", "sector", "current_price",
+                                        "return_1m", "return_3m", "vs_spy_3m", "momentum"]].copy()
+                _reit_disp.columns = ["Ticker", "Name", "Sector", "Price", "1M Return", "3M Return", "vs SPY (3m)", "Momentum"]
+                _reit_disp["Price"] = _reit_disp["Price"].apply(lambda x: f"${x:.2f}")
+                _reit_disp["1M Return"] = _reit_disp["1M Return"].apply(lambda x: f"{x:+.1f}%")
+                _reit_disp["3M Return"] = _reit_disp["3M Return"].apply(lambda x: f"{x:+.1f}%")
+                _reit_disp["vs SPY (3m)"] = _reit_disp["vs SPY (3m)"].apply(lambda x: f"{x:+.1f}%")
+
+                st.markdown(_render_generic_table(
+                    _reit_disp,
+                    title="REIT Universe Performance",
+                    count_label=f"{len(_reit_disp)} tickers",
+                    scrollable=True, max_height=480,
+                    hints={
+                        "Ticker":      {"type": "name",    "flex": 0.7},
+                        "Name":        {"type": "text",    "flex": 2},
+                        "Sector":      {"type": "tag",     "flex": 1.2},
+                        "Price":       {"type": "price",   "flex": 0.8},
+                        "1M Return":   {"type": "colored", "flex": 0.8},
+                        "3M Return":   {"type": "colored", "flex": 0.8},
+                        "vs SPY (3m)": {"type": "colored", "flex": 0.9},
+                        "Momentum":    {"type": "badge",   "flex": 0.9, "badge_map": {
+                            "BULLISH": "background:#0d2a12;color:#4a9e58",
+                            "NEUTRAL": "background:#2a1a04;color:#d4a843",
+                            "BEARISH": "background:#2a0d0d;color:#ef5350",
+                        }},
+                    },
+                ), unsafe_allow_html=True)
+
+                st.download_button(
+                    "⬇ Download CSV",
+                    data=_reit_disp.to_csv(index=False),
+                    file_name="reit_performance.csv",
+                    mime="text/csv",
+                    key="dl_reit_tickers",
+                )
+
+            with st.expander("How to Read REIT Signals"):
+                st.markdown("""
+**Why Public REITs Lead Private CRE by 6–12 Months**
+
+Public REITs trade on exchanges with daily liquidity, meaning institutional investors can immediately
+reprice their view of real estate when fundamentals shift. Private CRE transactions take months to
+close and appraise, so private market values lag public market signals.
+
+**How to use REIT signals:**
+- **BULLISH momentum (3M return > +5%)**: Institutions are pricing in improving fundamentals — rents rising, vacancy falling. Private cap rates may compress 6–12 months ahead.
+- **NEUTRAL momentum (±5%)**: Mixed signals. Monitor for direction change.
+- **BEARISH momentum (3M return < -5%)**: Institutions anticipate deteriorating fundamentals — rising vacancy, softening rents, or higher cap rates ahead.
+
+**Key sectors to watch:**
+- **Office REITs (BXP, VNO)**: Sensitive to remote work trends and downtown foot traffic
+- **Industrial (PLD, STAG)**: Driven by e-commerce, nearshoring, and supply chain logistics
+- **Data Centers (EQIX, DLR)**: AI/cloud infrastructure build-out; strong secular tailwind
+- **Multifamily (EQR, AVB)**: Housing affordability and migration patterns
+
+**vs SPY**: Shows how each REIT is performing relative to the broad market.
+Positive = outperforming equities; negative = real estate-specific headwinds.
+
+**Data Source:** Yahoo Finance (yfinance). Updated every hour via Agent 24.
+""")
+
+
 with main_tab_re:
-    tab1, tab2, tab3, tab4, tab5, tab_supply, tab_returns, tab_oz, tab_score, tab_climate = st.tabs([
+    # ── Quick Market Comparison ──────────────────────────────────────────────
+    _ms_cache = read_cache("market_score")
+    _ms_data = (_ms_cache.get("data") or {}) if _ms_cache else {}
+    _rankings = _ms_data.get("rankings", [])
+    _all_markets = [r["market"] for r in _rankings] if _rankings else []
+
+    if _all_markets:
+        with st.expander("⚖️ Compare Two Markets"):
+            cmp_c1, cmp_c2 = st.columns(2)
+            cmp_a = cmp_c1.selectbox("Market A", _all_markets, key="cmp_mkt_a")
+            cmp_b = cmp_c2.selectbox("Market B", _all_markets, index=min(1, len(_all_markets)-1), key="cmp_mkt_b")
+
+            _ra = next((r for r in _rankings if r["market"] == cmp_a), None)
+            _rb = next((r for r in _rankings if r["market"] == cmp_b), None)
+
+            if _ra and _rb:
+                _factor_labels = ["Migration", "Vacancy", "Rent", "Cap Rate", "Land", "Macro"]
+                _factor_keys   = ["migration", "vacancy", "rent", "cap_rate", "land", "macro"]
+
+                # Radar chart
+                import plotly.graph_objects as go
+                _fig_radar = go.Figure()
+                for _r, _col in [(_ra, GOLD), (_rb, "#4fc3f7")]:
+                    _vals = [_r["factors"].get(k, 50) for k in _factor_keys]
+                    _vals_closed = _vals + [_vals[0]]
+                    _labs_closed = _factor_labels + [_factor_labels[0]]
+                    _fig_radar.add_trace(go.Scatterpolar(
+                        r=_vals_closed, theta=_labs_closed,
+                        fill="toself", name=_r["market"],
+                        line_color=_col,
+                        opacity=0.8,
+                    ))
+                _fig_radar.update_layout(
+                    polar=dict(
+                        bgcolor="#1e1a0a",
+                        radialaxis=dict(visible=True, range=[0, 100], gridcolor="#333", tickfont=dict(color="#888")),
+                        angularaxis=dict(gridcolor="#333", tickfont=dict(color="#c8b890")),
+                    ),
+                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                    legend=dict(font=dict(color="#c8b890"), bgcolor="#1a1208"),
+                    margin=dict(t=40, b=40), height=380,
+                )
+                st.plotly_chart(_fig_radar, use_container_width=True)
+
+                # Side-by-side score cards
+                _sc1, _sc2 = st.columns(2)
+                _sc1.markdown(metric_card(cmp_a, f"{_ra['composite']}/100 · Grade {_ra['grade']}", f"Rank #{_ra['rank']}"), unsafe_allow_html=True)
+                _sc2.markdown(metric_card(cmp_b, f"{_rb['composite']}/100 · Grade {_rb['grade']}", f"Rank #{_rb['rank']}"), unsafe_allow_html=True)
+
+    tab1, tab2, tab3, tab4, tab5, tab_supply, tab_returns, tab_oz, tab_score, tab_climate, tab_supply_pipeline = st.tabs([
         "Migration Intelligence",
         "Pricing & Profit",
         "Company Predictions",
@@ -7274,6 +7501,7 @@ with main_tab_re:
         "Opportunity Zones",
         "Market Score",
         "Climate Risk",
+        "Supply Pipeline",
     ])
 
 
@@ -8808,6 +9036,13 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                     "Growth Drivers":         {"type": "text", "flex": 2},
                 },
             ), unsafe_allow_html=True)
+            st.download_button(
+                "⬇ Download CSV",
+                data=top5_df.to_csv(index=False),
+                file_name="migration_top_states.csv",
+                mime="text/csv",
+                key="dl_migration_states",
+            )
             st.caption(
                 "These states rank highest on combined population growth and business migration scores. "
                 "Cross-reference with announcements above to identify where CRE demand is building fastest."
@@ -9524,6 +9759,13 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
   <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">vs. National = pp difference from property-type national average &nbsp;·&nbsp; <span style="color:#66bb6a;">Green</span> = tighter than avg &nbsp;·&nbsp; <span style="color:#ef5350;">Red</span> = looser than avg &nbsp;·&nbsp; Not financial advice.</div>
 </div>"""
             st.markdown(_md_html, unsafe_allow_html=True)
+            st.download_button(
+                "⬇ Download CSV",
+                data=detail_df.to_csv(index=False),
+                file_name="vacancy_rates_by_market.csv",
+                mime="text/csv",
+                key="dl_vacancy",
+            )
 
         # ── Property Demand Score ────────────────────────────────────────────
         if _vac_focus_col and mkt_rows:
@@ -10396,6 +10638,33 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
 </div>"""
             st.markdown(_mfb_html, unsafe_allow_html=True)
 
+            # ── Download button — market score rankings ───────────────────────
+            _ms_dl_rows = []
+            for _r in _ms_rankings:
+                _f = _r.get("factors", {})
+                _ms_dl_rows.append({
+                    "Rank": _r.get("rank"),
+                    "Market": _r.get("market"),
+                    "Composite Score": _r.get("composite"),
+                    "Grade": _r.get("grade"),
+                    "Migration": _f.get("migration"),
+                    "Vacancy": _f.get("vacancy"),
+                    "Rent": _f.get("rent"),
+                    "Cap Rate": _f.get("cap_rate"),
+                    "Land": _f.get("land"),
+                    "Macro": _f.get("macro"),
+                    "Climate Penalty": _r.get("climate_penalty", 0),
+                })
+            if _ms_dl_rows:
+                _ms_dl_df = pd.DataFrame(_ms_dl_rows)
+                st.download_button(
+                    "⬇ Download CSV",
+                    data=_ms_dl_df.to_csv(index=False),
+                    file_name="market_score_rankings.csv",
+                    mime="text/csv",
+                    key="dl_market_score",
+                )
+
     # ═══════════════════════════════════════════════════════════════════════════════
     #  TAB — CAP RATE MONITOR
     # ═══════════════════════════════════════════════════════════════════════════════
@@ -10543,6 +10812,13 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                     },
                 ), unsafe_allow_html=True)
                 st.caption("Spread > 2.5pp = Attractive · 1.5–2.5pp = Fair · < 1.5pp = Compressed vs. current 10Y Treasury.")
+                st.download_button(
+                    "⬇ Download CSV",
+                    data=pd.DataFrame(_sp_rows).to_csv(index=False),
+                    file_name="cap_rate_spreads.csv",
+                    mime="text/csv",
+                    key="dl_cap_rate",
+                )
 
             # ── Market cap rate heatmap ───────────────────────────────────────
             section(" Market Cap Rate Heatmap (All Markets × Property Types)")
@@ -10867,6 +11143,24 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                     xaxis=dict(color="#8a7040"), yaxis=dict(color="#8a7040"),
                 )
                 st.plotly_chart(fig_rg, use_container_width=True)
+                # Build downloadable rent growth DataFrame
+                _rg_dl_rows = []
+                for _m in _rg_mkts:
+                    _rd = _rg_market[_m]
+                    _rg_dl_rows.append({
+                        "Market":         _m,
+                        "Multifamily %":  _rd.get("multifamily", ""),
+                        "Industrial PSF %": _rd.get("industrial_psf", ""),
+                        "Office PSF %":   _rd.get("office_psf", ""),
+                        "Retail PSF %":   _rd.get("retail_psf", ""),
+                    })
+                st.download_button(
+                    "⬇ Download CSV",
+                    data=pd.DataFrame(_rg_dl_rows).to_csv(index=False),
+                    file_name="rent_growth_by_market.csv",
+                    mime="text/csv",
+                    key="dl_rent_growth",
+                )
 
             # ── FRED CPI shelter series ───────────────────────────────────────
             _rg_cpi = _rg_fred.get("cpi_rent", [])
@@ -11457,5 +11751,165 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 "Annual count of FEMA disaster declarations (flood, hurricane, wildfire, severe storm) for the selected market. "
                 "Rising bars indicate worsening climate event frequency."
             )
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — SUPPLY PIPELINE (Building Permits)
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_supply_pipeline:
+        st.markdown("#### How much new supply is entering each market?")
+        st.markdown(
+            "Building permits are a **leading indicator** of future supply — typically 12–24 months before "
+            "units hit the market. High permit volumes in a market signal incoming supply pressure that "
+            "may compress rents and occupancy. Low permit volumes indicate constrained supply, supporting "
+            "rent growth. Data sourced from FRED (U.S. Census Bureau Building Permits Survey)."
+        )
+        agent_last_updated("building_permits")
+
+        cache_bp = read_cache("building_permits")
+        _bp_data = (cache_bp.get("data") or {}) if cache_bp else {}
+
+        if not _bp_data:
+            st.info("📡 Building permits agent is fetching data — refresh in ~30 seconds.")
+        else:
+            _bp_markets    = _bp_data.get("markets", [])
+            _bp_nat_trend  = _bp_data.get("national_trend", [])
+            _bp_top        = _bp_data.get("top_supply_markets", [])
+            _bp_low        = _bp_data.get("low_supply_markets", [])
+
+            # ── KPI row ───────────────────────────────────────────────────────
+            _bp_high_count = sum(1 for m in _bp_markets if m["supply_pressure"] == "HIGH")
+            _bp_nat_latest = _bp_nat_trend[-1]["value"] if _bp_nat_trend else 0
+            _bp_top_market = _bp_top[0] if _bp_top else "—"
+
+            _kpi1, _kpi2, _kpi3, _kpi4 = st.columns(4)
+            _kpi1.markdown(metric_card("Markets Tracked", str(len(_bp_markets)), "building permit series"), unsafe_allow_html=True)
+            _kpi2.markdown(metric_card("High Supply Markets", str(_bp_high_count), ">20,000 permits/12mo"), unsafe_allow_html=True)
+            _kpi3.markdown(metric_card("National Permits (Latest)", f"{int(_bp_nat_latest):,}", "total US monthly (000s)"), unsafe_allow_html=True)
+            _kpi4.markdown(metric_card("Top Supply Market", _bp_top_market, "highest 12mo permit volume"), unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ── National trend line chart ─────────────────────────────────────
+            if _bp_nat_trend:
+                section(" US National Building Permits Trend")
+                _nat_df = pd.DataFrame(_bp_nat_trend)
+                fig_nat = go.Figure(go.Scatter(
+                    x=_nat_df["date"],
+                    y=_nat_df["value"],
+                    mode="lines+markers",
+                    name="US Total Permits",
+                    line=dict(color=GOLD, width=2),
+                    marker=dict(size=5, color=GOLD),
+                    hovertemplate="<b>%{x}</b><br>Permits: %{y:,.0f} (000s)<extra></extra>",
+                ))
+                fig_nat.update_layout(
+                    title=dict(text="US Total Building Permits (Monthly, 000s)", font=dict(color="#c8b890", size=13)),
+                    plot_bgcolor="#1e1a0a",
+                    paper_bgcolor="#1a1208",
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                    xaxis=dict(gridcolor="#2a2208", color="#8a7040"),
+                    yaxis=dict(gridcolor="#2a2208", color="#8a7040", title="Permits (000s)"),
+                    margin=dict(t=40, b=40, l=60, r=20),
+                    height=300,
+                )
+                st.plotly_chart(fig_nat, use_container_width=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ── Market supply pressure table ──────────────────────────────────
+            if _bp_markets:
+                section(" Market Supply Pressure Rankings")
+                _bp_df = pd.DataFrame(_bp_markets)
+                _bp_display = _bp_df[["market", "permits_12mo", "yoy_change_pct", "supply_pressure", "trend"]].copy()
+                _bp_display.columns = ["Market", "Permits (12mo)", "YoY Change", "Supply Pressure", "Trend"]
+                _bp_display["Permits (12mo)"] = _bp_display["Permits (12mo)"].apply(lambda x: f"{int(x):,}")
+                _bp_display["YoY Change"] = _bp_display["YoY Change"].apply(lambda x: f"{x:+.1f}%")
+                _bp_display = _bp_display.sort_values("Supply Pressure", ascending=True)
+
+                st.markdown(_render_generic_table(
+                    _bp_display,
+                    title="Market Building Permit Supply Pressure",
+                    count_label=f"{len(_bp_display)} markets",
+                    hints={
+                        "Market":          {"type": "name",    "flex": 1.8},
+                        "Permits (12mo)":  {"type": "text",    "flex": 1.2},
+                        "YoY Change":      {"type": "colored", "flex": 1},
+                        "Supply Pressure": {"type": "badge",   "flex": 1.2, "badge_map": {
+                            "HIGH":     "background:#2a0d0d;color:#ef5350",
+                            "MODERATE": "background:#2a1a04;color:#d4a843",
+                            "LOW":      "background:#0d2a12;color:#4a9e58",
+                        }},
+                        "Trend": {"type": "badge", "flex": 1.2, "badge_map": {
+                            "ACCELERATING": "background:#2a0d0d;color:#ef5350",
+                            "STABLE":       "background:#2a1a04;color:#d4a843",
+                            "DECELERATING": "background:#0d2a12;color:#4a9e58",
+                        }},
+                    },
+                    scrollable=True, max_height=480,
+                ), unsafe_allow_html=True)
+
+                st.download_button(
+                    "⬇ Download CSV",
+                    data=_bp_display.to_csv(index=False),
+                    file_name="building_permits_supply_pressure.csv",
+                    mime="text/csv",
+                    key="dl_building_permits",
+                )
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # ── Horizontal bar chart — top 10 markets ─────────────────────
+                section(" Top 10 Markets by 12-Month Permit Volume")
+                _bp_sorted = sorted(_bp_markets, key=lambda x: x["permits_12mo"], reverse=True)[:10]
+                _bp_bar_colors = {
+                    "HIGH":     "#ef5350",
+                    "MODERATE": GOLD,
+                    "LOW":      "#4a9e58",
+                }
+                fig_bar = go.Figure(go.Bar(
+                    x=[m["permits_12mo"] for m in _bp_sorted],
+                    y=[m["market"] for m in _bp_sorted],
+                    orientation="h",
+                    marker_color=[_bp_bar_colors.get(m["supply_pressure"], GOLD) for m in _bp_sorted],
+                    text=[f"{m['permits_12mo']:,}" for m in _bp_sorted],
+                    textposition="outside",
+                    textfont=dict(color="#c8b890", size=11),
+                    hovertemplate="<b>%{y}</b><br>12mo Permits: %{x:,}<extra></extra>",
+                ))
+                fig_bar.update_layout(
+                    plot_bgcolor="#1e1a0a",
+                    paper_bgcolor="#1a1208",
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                    xaxis=dict(gridcolor="#2a2208", color="#8a7040", title="12-Month Permits"),
+                    yaxis=dict(categoryorder="total ascending", color="#8a7040"),
+                    margin=dict(l=180, r=100, t=20, b=40),
+                    height=380,
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+                st.caption(
+                    "Color: RED = High Supply (>20K permits/12mo) · GOLD = Moderate (8K–20K) · GREEN = Low (<8K). "
+                    "High supply markets may face rent compression 12–24 months ahead."
+                )
+
+            with st.expander("About Building Permit Data"):
+                st.markdown("""
+**Building Permits** are issued by local governments before construction begins and are the earliest
+available signal of incoming housing supply. The U.S. Census Bureau Building Permits Survey (BPS)
+collects this data monthly.
+
+**Why permits matter for CRE:**
+- Industrial parks, warehouses, and multifamily projects all require building permits
+- High permit volumes today = supply hitting the market 12–24 months from now
+- Supply waves compress vacancy rates and limit rent growth for existing owners
+- Low-permit markets (constrained geography or regulation) maintain higher rents
+
+**How to use this data:**
+- **HIGH supply pressure** markets (>20K permits/12mo): Underwrite conservative rent growth assumptions; focus on value-add plays vs. core
+- **MODERATE** markets: Balanced supply/demand; standard underwriting applies
+- **LOW supply** markets: Landlords have pricing power; supports premium cap rate compression
+
+**Data Source:** Federal Reserve Economic Data (FRED), U.S. Census Bureau BPS. National series: PERMIT.
+Updated every 24 hours via Agent 23.
+""")
 
 
