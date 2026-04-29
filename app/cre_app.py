@@ -7448,7 +7448,7 @@ with main_tab_re:
     _all_markets = [r["market"] for r in _rankings] if _rankings else []
 
     if _all_markets:
-        with st.expander("⚖️ Compare Two Markets"):
+        with st.expander("Compare Two Markets"):
             cmp_c1, cmp_c2 = st.columns(2)
             cmp_a = cmp_c1.selectbox("Market A", _all_markets, key="cmp_mkt_a")
             cmp_b = cmp_c2.selectbox("Market B", _all_markets, index=min(1, len(_all_markets)-1), key="cmp_mkt_b")
