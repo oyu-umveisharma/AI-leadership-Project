@@ -3360,16 +3360,29 @@ with main_tab_advisor:
         # Migration score
         _mig_score = primary.get("mig_score", 0)
 
-        for _col, (_lbl, _val, _clr, _sub) in zip(
-            [_li1, _li2, _li3, _li4, _li5],
-            [
-                ("Unemployment",       _unemp_val,                  _unemp_clr,    _unemp_sig or "State rate"),
-                (f"{_prop_type} Rent Growth", _rg_fmt,             _rg_clr,       "YoY national"),
-                (f"{_prop_type} Cap Rate",    _cap_fmt,            "#d4a843",     "National benchmark"),
-                (f"{_prop_type} Vacancy",     _vac_fmt,            "#c8b890",     "National avg"),
-                ("Migration Score",   f"{_mig_score:.0f}/100",     "#d4a843",     "Demand proxy"),
-            ]
-        ):
+        _li_cards = [
+            (
+                _tt("Unemployment", "Share of the labor force actively seeking work. Below 4% (TIGHT) signals a strong local economy with high tenant demand and rent growth potential. Above 6% (LOOSE) signals weaker absorption and higher vacancy risk. Source: FRED / BLS (UNRATE series), updated every 6 hours."),
+                _unemp_val, _unemp_clr, _unemp_sig or "State rate"
+            ),
+            (
+                _tt(f"{_prop_type} Rent Growth", f"Year-over-year change in asking rents for {_prop_type.lower()} properties nationwide. Positive growth above 3% signals strong landlord pricing power. Negative growth signals oversupply or weak demand. Source: Zillow / CoStar benchmarks via Agent 15, updated every 6 hours."),
+                _rg_fmt, _rg_clr, "YoY national"
+            ),
+            (
+                _tt(f"{_prop_type} Cap Rate", f"Capitalization rate = Net Operating Income ÷ Property Value. A lower cap rate means investors are paying more for each dollar of income (bullish sentiment). Compare to the 10Y Treasury yield — a spread above 150bps is generally considered attractive. Source: CoStar / Agent 5, updated every 6 hours."),
+                _cap_fmt, "#d4a843", "National benchmark"
+            ),
+            (
+                _tt(f"{_prop_type} Vacancy", f"Percentage of {_prop_type.lower()} space currently unoccupied. Below 7% gives landlords pricing power; above 14% signals oversupply and rent pressure. This is the national average — local markets may vary significantly. Source: CoStar / Agent 4, updated every 12 hours."),
+                _vac_fmt, "#c8b890", "National avg"
+            ),
+            (
+                _tt("Migration Score", "Composite 0–100 score measuring net population inflow into this state. Combines Census Bureau population estimates, IRS migration data, and BLS job growth. Higher scores (70+) indicate strong in-migration that drives housing and commercial demand. Source: US Census Bureau / Agent 1, updated every 6 hours."),
+                f"{_mig_score:.0f}/100", "#d4a843", "Demand proxy"
+            ),
+        ]
+        for _col, (_lbl, _val, _clr, _sub) in zip([_li1, _li2, _li3, _li4, _li5], _li_cards):
             _col.markdown(
                 f'<div class="metric-card"><div class="label">{_lbl}</div>'
                 f'<div class="value" style="color:{_clr};font-size:1.35rem;">{_val}</div>'
