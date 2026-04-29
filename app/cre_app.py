@@ -1237,14 +1237,14 @@ if not st.session_state.onboarding_complete:
       }}
       .ey-line   {{ flex:0 0 64px; height:1px; background:linear-gradient(90deg,transparent,rgba(200,160,64,.4)); }}
       .ey-line-r {{ background:linear-gradient(270deg,transparent,rgba(200,160,64,.4)); }}
-      .ey-text   {{ color:{GOLD}; font-size:.65rem; font-weight:500; letter-spacing:3.5px; }}
+      .ey-text   {{ color:{GOLD}; font-size:.8rem; font-weight:500; letter-spacing:3.5px; }}
       .hero-title {{
-        font-size:3.0rem; font-weight:700; color:{GOLD};
-        line-height:1.1; margin-bottom:18px; letter-spacing:-.5px;
+        font-size:4.2rem; font-weight:700; color:{GOLD};
+        line-height:1.08; margin-bottom:22px; letter-spacing:-.5px;
       }}
       .hero-sub {{
-        font-size:1.02rem; color:#7a6840; line-height:1.65;
-        max-width:580px; margin:0 auto 36px;
+        font-size:1.2rem; color:#7a6840; line-height:1.65;
+        max-width:620px; margin:0 auto 36px;
       }}
 
       /* ── Feature chips ──────────────────────────────────────────────────── */
@@ -1314,7 +1314,7 @@ if not st.session_state.onboarding_complete:
       /* ── Property type section ──────────────────────────────────────────── */
       .cre-wrap {{ max-width:1160px; margin:0 auto; padding:0 48px; }}
       .prop-hdr {{
-        text-align:center; color:#3a2e1a; font-size:.65rem; font-weight:600;
+        text-align:center; color:#3a2e1a; font-size:.8rem; font-weight:600;
         letter-spacing:3px; text-transform:uppercase; margin-bottom:18px;
       }}
       .prop-grid {{
@@ -9479,13 +9479,17 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
         if mkt_rows:
             detail_df = pd.DataFrame(mkt_rows)
 
-            # Build header
-            _md_headers = ["MARKET", "PROPERTY TYPE", "VACANCY %", "TREND", "VS. NATIONAL"]
+            # Build header (flex-div)
+            _md_col_styles = [
+                ("MARKET",        "flex:2;"),
+                ("PROPERTY TYPE", "flex:2;"),
+                ("VACANCY %",     "flex:1;text-align:right;"),
+                ("TREND",         "flex:1;text-align:right;"),
+                ("VS. NATIONAL",  "flex:1;text-align:right;"),
+            ]
             _md_hcells = "".join(
-                f'<th style="padding:12px 16px 14px;color:#c8a040;font-size:0.78rem;'
-                f'font-weight:700;letter-spacing:0.09em;text-align:{"left" if i < 2 else "right"};'
-                f'border-bottom:1px solid #2a2410;">{h}</th>'
-                for i, h in enumerate(_md_headers)
+                f'<div style="{fw}font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">{h}</div>'
+                for h, fw in _md_col_styles
             )
 
             # Build rows — dim non-focus property type rows when focus is active
@@ -9500,38 +9504,25 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 _is_focus_row = (not _vac_focus_col) or (_row["property_type"] == _vac_focus_col)
                 _row_opacity  = "1" if _is_focus_row else "0.25"
                 _row_bg       = "#1a1500" if _is_focus_row and _vac_focus_col else "transparent"
-                _row_style    = f"border-bottom:1px solid #1e1c0e;background:{_row_bg};opacity:{_row_opacity};"
-                _td           = f'style="padding:12px 16px;{_row_style}'
                 _md_rows_html += (
-                    f'<tr>'
-                    f'<td {_td}text-align:left;color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_row["market"]}</td>'
-                    f'<td {_td}text-align:left;color:#a09070;font-size:0.87rem;">{_row["property_type"]}</td>'
-                    f'<td {_td}text-align:right;color:#c8a040;font-size:0.92rem;font-weight:600;letter-spacing:0.05em;">{_vac_val:.1f}%</td>'
-                    f'<td {_td}text-align:right;color:{_trend_c};font-size:0.87rem;">{_trend_str}</td>'
-                    f'<td {_td}text-align:right;color:{_vs_c};font-size:0.87rem;font-weight:600;">{_vs_str}</td>'
-                    f'</tr>'
+                    f'<div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #1e1a08;background:{_row_bg};opacity:{_row_opacity};">'
+                    f'<div style="flex:2;color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_row["market"]}</div>'
+                    f'<div style="flex:2;color:#a09070;font-size:0.87rem;">{_row["property_type"]}</div>'
+                    f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.92rem;font-weight:600;letter-spacing:0.05em;">{_vac_val:.1f}%</div>'
+                    f'<div style="flex:1;text-align:right;color:{_trend_c};font-size:0.87rem;">{_trend_str}</div>'
+                    f'<div style="flex:1;text-align:right;color:{_vs_c};font-size:0.87rem;font-weight:600;">{_vs_str}</div>'
+                    f'</div>'
                 )
 
-            _md_html = f"""
-<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+            _md_html = f"""<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
   <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:20px;">
     <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">MARKET DETAIL — VACANCY VS. NATIONAL AVERAGE</div>
     <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Vacancy rate &amp; trend by market and property type &mdash; CBRE / JLL / CoStar Q1 2025</div>
   </div>
-  <div style="overflow-x:auto;">
-    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
-      <thead><tr>{_md_hcells}</tr></thead>
-      <tbody>{_md_rows_html}</tbody>
-    </table>
-  </div>
-  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">
-    vs. National = pp difference from property-type national average &nbsp;·&nbsp;
-    <span style="color:#66bb6a;">Green</span> = tighter than avg &nbsp;·&nbsp;
-    <span style="color:#ef5350;">Red</span> = looser than avg &nbsp;·&nbsp;
-    Not financial advice.
-  </div>
-</div>
-"""
+  <div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #2a2410;">{_md_hcells}</div>
+  {_md_rows_html}
+  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">vs. National = pp difference from property-type national average &nbsp;·&nbsp; <span style="color:#66bb6a;">Green</span> = tighter than avg &nbsp;·&nbsp; <span style="color:#ef5350;">Red</span> = looser than avg &nbsp;·&nbsp; Not financial advice.</div>
+</div>"""
             st.markdown(_md_html, unsafe_allow_html=True)
 
         # ── Property Demand Score ────────────────────────────────────────────
@@ -9787,13 +9778,18 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 for lbl, c in _LND_C.items()
             )
 
-            # Header
-            _lnd_hdrs = ["MARKET", "INDUSTRIAL", "MIXED-USE", "RESIDENTIAL", "TOTAL (AC)", "MIX"]
-            _lnd_aligns = ["left", "right", "right", "right", "right", "left"]
+            # Header (flex-div)
+            _lnd_col_styles = [
+                ("MARKET",       "flex:2;"),
+                ("INDUSTRIAL",   "flex:1;text-align:right;"),
+                ("MIXED-USE",    "flex:1;text-align:right;"),
+                ("RESIDENTIAL",  "flex:1;text-align:right;"),
+                ("TOTAL (AC)",   "flex:1;text-align:right;"),
+                ("MIX",          "flex:2;padding-left:8px;"),
+            ]
             _lnd_hcells = "".join(
-                f'<th style="padding:12px 14px 14px;color:#c8a040;font-size:0.78rem;font-weight:700;'
-                f'letter-spacing:0.09em;text-align:{_lnd_aligns[i]};border-bottom:1px solid #2a2410;">{h}</th>'
-                for i, h in enumerate(_lnd_hdrs)
+                f'<div style="{fw}font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">{h}</div>'
+                for h, fw in _lnd_col_styles
             )
 
             # Rows
@@ -9813,38 +9809,27 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                     f'<div style="width:{_r_pct:.1f}%;background:{_LND_C["Residential"]};"></div>'
                     f'</div>'
                 )
-                _sep = "border-bottom:1px solid #1e1c0e;"
                 _lnd_rows_html += (
-                    f'<tr>'
-                    f'<td style="padding:13px 14px;{_sep}color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_lr["Market"]}</td>'
-                    f'<td style="padding:13px 14px;{_sep}text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_ind:,}</td>'
-                    f'<td style="padding:13px 14px;{_sep}text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_mix:,}</td>'
-                    f'<td style="padding:13px 14px;{_sep}text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_res:,}</td>'
-                    f'<td style="padding:13px 14px;{_sep}text-align:right;color:#c8a040;font-size:0.9rem;font-weight:700;letter-spacing:0.04em;">{_tot:,}</td>'
-                    f'<td style="padding:13px 14px;{_sep}min-width:100px;">{_bar}</td>'
-                    f'</tr>'
+                    f'<div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #1e1a08;">'
+                    f'<div style="flex:2;color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_lr["Market"]}</div>'
+                    f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_ind:,}</div>'
+                    f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_mix:,}</div>'
+                    f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_res:,}</div>'
+                    f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;font-weight:700;letter-spacing:0.04em;">{_tot:,}</div>'
+                    f'<div style="flex:2;padding-left:8px;">{_bar}</div>'
+                    f'</div>'
                 )
 
-            _lnd_table_html = f"""
-<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+            _lnd_table_html = f"""<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
   <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:18px;">
     <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">LAND MARKET DETAIL TABLE</div>
     <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Developable acreage, pricing &amp; pipeline activity &mdash; CoStar / CBRE Q1 2025</div>
   </div>
   <div style="margin-bottom:16px;">{_legend_html}</div>
-  <div style="overflow-x:auto;">
-    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
-      <thead><tr>{_lnd_hcells}</tr></thead>
-      <tbody>{_lnd_rows_html}</tbody>
-    </table>
-  </div>
-  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">
-    Acreage = entitled or shovel-ready developable land actively available &nbsp;·&nbsp;
-    MIX bar shows Industrial / Mixed-Use / Residential proportion &nbsp;·&nbsp;
-    Source: CoStar Land / CBRE Q1 2025 &nbsp;·&nbsp; Not financial advice.
-  </div>
-</div>
-"""
+  <div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #2a2410;">{_lnd_hcells}</div>
+  {_lnd_rows_html}
+  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">Acreage = entitled or shovel-ready developable land actively available &nbsp;·&nbsp; MIX bar shows Industrial / Mixed-Use / Residential proportion &nbsp;·&nbsp; Source: CoStar Land / CBRE Q1 2025 &nbsp;·&nbsp; Not financial advice.</div>
+</div>"""
             st.markdown(_lnd_table_html, unsafe_allow_html=True)
             st.caption(
                 "Entitlement timeline = estimated months from land purchase to permitted/shovel-ready status. "
@@ -10315,23 +10300,6 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 ("Macro",     "macro",     "#c8a040"),
             ]
 
-            # Header
-            _mfb_fcols_hdr = "".join(
-                f'<th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;'
-                f'letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;">{lbl.upper()}</th>'
-                for lbl, _, _ in _FACTOR_COLS
-            )
-            _mfb_hdr = f"""
-<tr>
-  <th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;width:30px;">#</th>
-  <th style="padding:10px 14px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:left;border-bottom:1px solid #2a2410;">MARKET</th>
-  <th style="padding:10px 14px 14px;border-bottom:1px solid #2a2410;width:100px;"></th>
-  <th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:right;border-bottom:1px solid #2a2410;">SCORE</th>
-  <th style="padding:10px 10px 14px;color:#c8a040;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;">GRADE</th>
-  {_mfb_fcols_hdr}
-  <th style="padding:10px 10px 14px;color:#ef5350;font-size:0.75rem;font-weight:700;letter-spacing:0.09em;text-align:center;border-bottom:1px solid #2a2410;">CLIMATE ADJ.</th>
-</tr>"""
-
             # Grade badge colors
             def _grade_badge(g):
                 _gc = {"A": "#2bbfb0", "B+": "#c8a040", "B": "#7a6830", "C+": "#6a5828", "C": "#4a3820", "D": "#3a2010"}.get(g, "#3a3020")
@@ -10342,6 +10310,23 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                     f'letter-spacing:0.04em;">{g}</span>'
                 )
 
+            # Header (flex-div) — fixed widths to keep columns aligned in scrollable container
+            _mfb_fcols_hdr = "".join(
+                f'<div style="width:64px;flex-shrink:0;font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;text-align:center;">{lbl.upper()}</div>'
+                for lbl, _, _ in _FACTOR_COLS
+            )
+            _mfb_hdr = (
+                f'<div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #2a2410;min-width:900px;">'
+                f'<div style="width:32px;flex-shrink:0;font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;text-align:center;">#</div>'
+                f'<div style="flex:1;min-width:130px;font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">MARKET</div>'
+                f'<div style="width:90px;flex-shrink:0;"></div>'
+                f'<div style="width:70px;flex-shrink:0;font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;text-align:right;">SCORE</div>'
+                f'<div style="width:64px;flex-shrink:0;font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;text-align:center;">GRADE</div>'
+                f'{_mfb_fcols_hdr}'
+                f'<div style="width:80px;flex-shrink:0;font-size:10px;color:#ef5350;letter-spacing:0.08em;text-transform:uppercase;text-align:center;">CLIMATE ADJ.</div>'
+                f'</div>'
+            )
+
             # Rows
             _mfb_rows = ""
             for _ri, _rr in enumerate(_ms_rankings[:10]):
@@ -10349,9 +10334,8 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 _sc      = float(_rr["composite"])
                 _penalty = float(_rr.get("climate_penalty", 0) or 0)
                 _raw_sc  = float(_rr.get("raw_composite", _sc) or _sc)
-                _sep     = "border-bottom:1px solid #1e1c0e;"
 
-                # Mini score bar (80px track) — uses raw score for bar length
+                # Mini score bar (80px track)
                 _bar_fill = min(_raw_sc / 100 * 80, 80)
                 _score_bar = (
                     f'<div style="width:80px;height:6px;background:#2a2410;border-radius:3px;overflow:hidden;">'
@@ -10359,7 +10343,7 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                     f'</div>'
                 )
 
-                # Composite score cell — annotate penalty if present
+                # Composite score cell
                 if _penalty > 0:
                     _score_cell = (
                         f'<div style="font-size:1.05rem;font-weight:700;color:#c8a040;">{_sc:.1f}</div>'
@@ -10368,67 +10352,48 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 else:
                     _score_cell = f'<div style="font-size:1.05rem;font-weight:700;color:#c8a040;">{_sc:.1f}</div>'
 
-                # Factor cells: value + mini underbar
+                # Factor cells (flex children)
                 _fcells = ""
                 for _, _fkey, _fcolor in _FACTOR_COLS:
                     _fv = float(_f.get(_fkey, 0) or 0)
                     _fw = min(_fv / 100 * 44, 44)
                     _fcells += (
-                        f'<td style="padding:12px 10px;{_sep}text-align:center;">'
+                        f'<div style="width:64px;flex-shrink:0;text-align:center;">'
                         f'<div style="font-size:1rem;font-weight:700;color:{_fcolor};letter-spacing:0.02em;">{round(_fv)}</div>'
                         f'<div style="margin:4px auto 0;width:44px;height:3px;background:#2a2410;border-radius:2px;">'
                         f'<div style="width:{_fw:.1f}px;height:3px;background:{_fcolor};border-radius:2px;"></div></div>'
-                        f'</td>'
+                        f'</div>'
                     )
 
                 # Climate adjustment cell
-                if _penalty > 0:
-                    _clim_cell = (
-                        f'<td style="padding:12px 10px;{_sep}text-align:center;">'
-                        f'<span style="color:#ef5350;font-size:0.88rem;font-weight:700;">−{_penalty:.1f}</span>'
-                        f'</td>'
-                    )
-                else:
-                    _clim_cell = (
-                        f'<td style="padding:12px 10px;{_sep}text-align:center;">'
-                        f'<span style="color:#4a4530;font-size:0.88rem;">—</span>'
-                        f'</td>'
-                    )
+                _clim_cell = (
+                    f'<div style="width:80px;flex-shrink:0;text-align:center;">'
+                    + (f'<span style="color:#ef5350;font-size:0.88rem;font-weight:700;">−{_penalty:.1f}</span>' if _penalty > 0 else '<span style="color:#4a4530;font-size:0.88rem;">—</span>')
+                    + f'</div>'
+                )
 
                 _rank_c = "#c8a040" if _ri < 3 else "#7a7050"
                 _mfb_rows += (
-                    f'<tr>'
-                    f'<td style="padding:12px 10px;{_sep}text-align:center;color:{_rank_c};font-size:0.88rem;">{_rr["rank"]}</td>'
-                    f'<td style="padding:12px 14px;{_sep}color:#c8b870;font-size:0.95rem;font-weight:600;white-space:nowrap;">{_rr["market"]}</td>'
-                    f'<td style="padding:12px 14px;{_sep}vertical-align:middle;">{_score_bar}</td>'
-                    f'<td style="padding:12px 10px;{_sep}text-align:right;">{_score_cell}</td>'
-                    f'<td style="padding:12px 10px;{_sep}text-align:center;">{_grade_badge(_rr["grade"])}</td>'
+                    f'<div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #1e1a08;min-width:900px;">'
+                    f'<div style="width:32px;flex-shrink:0;text-align:center;color:{_rank_c};font-size:0.88rem;">{_rr["rank"]}</div>'
+                    f'<div style="flex:1;min-width:130px;color:#c8b870;font-size:0.95rem;font-weight:600;white-space:nowrap;">{_rr["market"]}</div>'
+                    f'<div style="width:90px;flex-shrink:0;">{_score_bar}</div>'
+                    f'<div style="width:70px;flex-shrink:0;text-align:right;">{_score_cell}</div>'
+                    f'<div style="width:64px;flex-shrink:0;text-align:center;">{_grade_badge(_rr["grade"])}</div>'
                     f'{_fcells}'
                     f'{_clim_cell}'
-                    f'</tr>'
+                    f'</div>'
                 )
 
-            _mfb_html = f"""
-<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+            _mfb_html = f"""<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
   <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:16px;">
     <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">MARKET FACTOR BREAKDOWN &mdash; TOP 10</div>
     <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Composite investment score by market &mdash; CoStar / CBRE Q1 2025</div>
   </div>
-  <div style="font-size:0.78rem;color:#7a7050;font-style:italic;margin-bottom:18px;">
-    Factor scores out of 100. Migration is the primary differentiator across markets.
-    <span style="color:#ef5350;">Climate Adj.</span> = points deducted for high physical climate risk (state score ≥ 60).
-  </div>
-  <div style="overflow-x:auto;">
-    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
-      <thead>{_mfb_hdr}</thead>
-      <tbody>{_mfb_rows}</tbody>
-    </table>
-  </div>
-  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">
-    Scores are composite index values. Not financial advice.
-  </div>
-</div>
-"""
+  <div style="font-size:0.78rem;color:#7a7050;font-style:italic;margin-bottom:18px;">Factor scores out of 100. Migration is the primary differentiator across markets. <span style="color:#ef5350;">Climate Adj.</span> = points deducted for high physical climate risk (state score &ge; 60).</div>
+  <div style="overflow-x:auto;">{_mfb_hdr}{_mfb_rows}</div>
+  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">Scores are composite index values. Not financial advice.</div>
+</div>"""
             st.markdown(_mfb_html, unsafe_allow_html=True)
 
     # ═══════════════════════════════════════════════════════════════════════════════
@@ -11081,12 +11046,17 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                 }
                 _ti_count = len(_ti_filtered)
 
-                # Header
-                _ti_sep = "border-bottom:1px solid #2a2410;"
+                # Header (flex-div) — scrollable for narrow screens
+                _ti_col_styles = [
+                    ("STATE",     "width:70px;flex-shrink:0;text-align:center;"),
+                    ("PROGRAM",   "flex:2;min-width:160px;"),
+                    ("BENEFIT",   "flex:3;min-width:180px;"),
+                    ("CRE TYPES", "flex:2;min-width:150px;"),
+                    ("CAP",       "flex:1;min-width:120px;"),
+                ]
                 _ti_hcells = "".join(
-                    f'<th style="padding:11px 14px 13px;color:#c8a040;font-size:0.76rem;font-weight:700;'
-                    f'letter-spacing:0.09em;text-align:{al};{_ti_sep}">{h}</th>'
-                    for h, al in [("STATE","center"),("PROGRAM","left"),("BENEFIT","left"),("CRE TYPES","left"),("CAP","left")]
+                    f'<div style="{fw}font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">{h}</div>'
+                    for h, fw in _ti_col_styles
                 )
 
                 # Rows
@@ -11097,42 +11067,28 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
                         f'<span style="{_chip_css}{_TI_CHIP.get(t, _ti_fallback)}">{t}</span>'
                         for t in _ti_si["cre_types"]
                     )
-                    _row_sep = "border-bottom:1px solid #1e1c0e;"
                     _ti_rows_html += (
-                        f'<tr>'
-                        f'<td style="padding:14px 10px;{_row_sep}text-align:center;vertical-align:top;">'
+                        f'<div style="display:flex;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #1e1a08;">'
+                        f'<div style="width:70px;flex-shrink:0;text-align:center;padding-top:2px;">'
                         f'<span style="display:inline-block;background:#2a2410;border:1px solid #3a3020;'
-                        f'color:#c8a040;font-size:0.8rem;font-weight:700;padding:5px 10px;border-radius:5px;'
-                        f'letter-spacing:0.06em;">{_ti_abbr}</span></td>'
-                        f'<td style="padding:14px 14px;{_row_sep}vertical-align:top;color:#c8b870;'
-                        f'font-size:0.92rem;font-weight:600;min-width:180px;max-width:220px;">{_ti_si["program"]}</td>'
-                        f'<td style="padding:14px 14px;{_row_sep}vertical-align:top;color:#9a9070;'
-                        f'font-size:0.86rem;min-width:180px;max-width:240px;line-height:1.5;">{_ti_si["benefit"]}</td>'
-                        f'<td style="padding:14px 14px;{_row_sep}vertical-align:top;min-width:160px;">{_ti_type_chips}</td>'
-                        f'<td style="padding:14px 14px;{_row_sep}vertical-align:top;color:#c8a040;'
-                        f'font-size:0.86rem;font-family:monospace;white-space:nowrap;min-width:140px;">{_ti_si["cap"]}</td>'
-                        f'</tr>'
+                        f'color:#c8a040;font-size:0.8rem;font-weight:700;padding:4px 8px;border-radius:5px;'
+                        f'letter-spacing:0.06em;">{_ti_abbr}</span></div>'
+                        f'<div style="flex:2;min-width:160px;color:#c8b870;font-size:0.92rem;font-weight:600;padding-right:12px;">{_ti_si["program"]}</div>'
+                        f'<div style="flex:3;min-width:180px;color:#9a9070;font-size:0.86rem;line-height:1.5;padding-right:12px;">{_ti_si["benefit"]}</div>'
+                        f'<div style="flex:2;min-width:150px;padding-right:12px;">{_ti_type_chips}</div>'
+                        f'<div style="flex:1;min-width:120px;color:#c8a040;font-size:0.86rem;font-family:monospace;white-space:nowrap;">{_ti_si["cap"]}</div>'
+                        f'</div>'
                     )
 
-                _ti_html = f"""
-<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+                _ti_html = f"""<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
   <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:20px;">
     <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">STATE CRE TAX INCENTIVE PROGRAMS</div>
     <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Federal &amp; state-level incentives by property type &mdash; IRS / State Policy 2024&ndash;25</div>
   </div>
   <div style="font-size:0.8rem;color:#7a7050;margin-bottom:16px;">Showing {_ti_count} program{"s" if _ti_count != 1 else ""}</div>
-  <div style="overflow-x:auto;">
-    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
-      <thead><tr>{_ti_hcells}</tr></thead>
-      <tbody>{_ti_rows_html}</tbody>
-    </table>
-  </div>
-  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">
-    Source: IRS, HUD Opportunity Zone designations, state economic development agencies.
-    Not financial or legal advice. Consult a tax advisor.
-  </div>
-</div>
-"""
+  <div style="overflow-x:auto;"><div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #2a2410;min-width:700px;">{_ti_hcells}</div><div style="min-width:700px;">{_ti_rows_html}</div></div>
+  <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">Source: IRS, HUD Opportunity Zone designations, state economic development agencies. Not financial or legal advice. Consult a tax advisor.</div>
+</div>"""
                 st.markdown(_ti_html, unsafe_allow_html=True)
 
 
