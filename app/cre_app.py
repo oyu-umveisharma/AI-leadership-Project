@@ -4980,32 +4980,32 @@ with main_tab_about:
 
         # ── Styled agent status table ──────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        section(" Agent Detail")
 
-        _st_hcells = "".join(
-            f'<th style="padding:10px 12px 13px;color:#c8a040;font-size:0.76rem;font-weight:700;'
-            f'letter-spacing:0.09em;text-align:{al};border-bottom:1px solid #2a2410;">{h}</th>'
-            for h, al in [("AGENT","left"),("SCHEDULE","center"),("STATUS","center"),
-                          ("RUNS","right"),("CACHE AGE","right"),("LAST ERROR","left")]
-        )
-        _st_rows_html = ""
-        for _r in _about_rows:
-            _sc   = _status_color_map.get(_r["status"], "#888")
-            _sep  = "border-bottom:1px solid #1e1c0e;"
-            _dot  = f'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{_sc};margin-right:6px;vertical-align:middle;"></span>'
-            _st_rows_html += (
-                f'<tr>'
-                f'<td style="padding:10px 12px;{_sep}color:#c8b890;font-size:0.88rem;white-space:nowrap;">{_r["label"]}</td>'
-                f'<td style="padding:10px 12px;{_sep}text-align:center;color:#7a7050;font-size:0.82rem;">{_r["schedule"]}</td>'
-                f'<td style="padding:10px 12px;{_sep}text-align:center;">'
-                f'{_dot}<span style="color:{_sc};font-size:0.82rem;font-weight:700;">{_r["status"]}</span></td>'
-                f'<td style="padding:10px 12px;{_sep}text-align:right;color:#c8a040;font-size:0.88rem;">{_r["runs"]}</td>'
-                f'<td style="padding:10px 12px;{_sep}text-align:right;color:#a09070;font-size:0.82rem;white-space:nowrap;">{_r["cache_age"]}</td>'
-                f'<td style="padding:10px 12px;{_sep}color:#ef5350;font-size:0.8rem;">{_r["error"]}</td>'
-                f'</tr>'
+        with st.expander(" Agent Detail", expanded=False):
+            _st_hcells = "".join(
+                f'<th style="padding:10px 12px 13px;color:#c8a040;font-size:0.76rem;font-weight:700;'
+                f'letter-spacing:0.09em;text-align:{al};border-bottom:1px solid #2a2410;">{h}</th>'
+                for h, al in [("AGENT","left"),("SCHEDULE","center"),("STATUS","center"),
+                              ("RUNS","right"),("CACHE AGE","right"),("LAST ERROR","left")]
             )
+            _st_rows_html = ""
+            for _r in _about_rows:
+                _sc   = _status_color_map.get(_r["status"], "#888")
+                _sep  = "border-bottom:1px solid #1e1c0e;"
+                _dot  = f'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{_sc};margin-right:6px;vertical-align:middle;"></span>'
+                _st_rows_html += (
+                    f'<tr>'
+                    f'<td style="padding:10px 12px;{_sep}color:#c8b890;font-size:0.88rem;white-space:nowrap;">{_r["label"]}</td>'
+                    f'<td style="padding:10px 12px;{_sep}text-align:center;color:#7a7050;font-size:0.82rem;">{_r["schedule"]}</td>'
+                    f'<td style="padding:10px 12px;{_sep}text-align:center;">'
+                    f'{_dot}<span style="color:{_sc};font-size:0.82rem;font-weight:700;">{_r["status"]}</span></td>'
+                    f'<td style="padding:10px 12px;{_sep}text-align:right;color:#c8a040;font-size:0.88rem;">{_r["runs"]}</td>'
+                    f'<td style="padding:10px 12px;{_sep}text-align:right;color:#a09070;font-size:0.82rem;white-space:nowrap;">{_r["cache_age"]}</td>'
+                    f'<td style="padding:10px 12px;{_sep}color:#ef5350;font-size:0.8rem;">{_r["error"]}</td>'
+                    f'</tr>'
+                )
 
-        _sm_html = f"""
+            _sm_html = f"""
 <div style="background:#13110a;border-radius:10px;padding:24px 28px 16px;margin-bottom:8px;">
   <div style="overflow-x:auto;">
     <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
@@ -5015,7 +5015,7 @@ with main_tab_about:
   </div>
 </div>
 """
-        st.markdown(_sm_html, unsafe_allow_html=True)
+            st.markdown(_sm_html, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         section(" Cache Health")
@@ -9215,48 +9215,50 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
                     if not row.empty:
                         state_name = row.iloc[0]["state_name"]
 
-                section(f" Cheapest {_pt_label}Properties — {state_name} ({abbr})")
-                st.caption(f"Showing {len(group)} listings sorted by asking price")
+                _exp_label = f" {state_name} ({abbr}) — {len(group)} {_pt_label}listings"
+                _exp_open  = abbr == (_user_abbr4 or (_sorted_abbr4[0] if _sorted_abbr4 else None))
+                with st.expander(_exp_label, expanded=_exp_open):
+                    st.caption(f"Showing {len(group)} listings sorted by asking price")
 
-                for listing in group:
-                    tax          = estimate_property_tax(listing)
-                    price_fmt    = f"${listing.get('price', 0):,}"
-                    sqft_fmt     = f"{listing.get('sqft', 0):,} sqft"
-                    ppsf_fmt     = f"${listing.get('price_per_sqft', 0):.0f}/sqft"
-                    cap_fmt      = f"{listing.get('cap_rate', 0):.2f}% cap rate"
-                    noi_fmt      = f"${listing.get('noi_annual', 0):,}/yr NOI"
-                    dom_fmt      = f"{listing.get('days_on_market', 0)}d on market"
-                    built_fmt    = f"Built {listing.get('year_built', 'N/A')}"
-                    pt_fmt       = listing.get("property_type", "")
-                    addr_fmt     = f"{listing.get('address', '')}, {listing.get('city', '')}, {listing.get('state', '')}"
-                    highlights   = listing.get("highlights", "")
-                    tax_fmt      = f"${tax['annual_tax']:,}/yr est. tax ({tax['tax_rate_pct']}% rate · ${tax['tax_per_sqft']}/sqft)"
-                    tax_noi_note = f" · {tax['tax_as_pct_noi']}% of NOI" if tax['tax_as_pct_noi'] else ""
+                    for listing in group:
+                        tax          = estimate_property_tax(listing)
+                        price_fmt    = f"${listing.get('price', 0):,}"
+                        sqft_fmt     = f"{listing.get('sqft', 0):,} sqft"
+                        ppsf_fmt     = f"${listing.get('price_per_sqft', 0):.0f}/sqft"
+                        cap_fmt      = f"{listing.get('cap_rate', 0):.2f}% cap rate"
+                        noi_fmt      = f"${listing.get('noi_annual', 0):,}/yr NOI"
+                        dom_fmt      = f"{listing.get('days_on_market', 0)}d on market"
+                        built_fmt    = f"Built {listing.get('year_built', 'N/A')}"
+                        pt_fmt       = listing.get("property_type", "")
+                        addr_fmt     = f"{listing.get('address', '')}, {listing.get('city', '')}, {listing.get('state', '')}"
+                        highlights   = listing.get("highlights", "")
+                        tax_fmt      = f"${tax['annual_tax']:,}/yr est. tax ({tax['tax_rate_pct']}% rate · ${tax['tax_per_sqft']}/sqft)"
+                        tax_noi_note = f" · {tax['tax_as_pct_noi']}% of NOI" if tax['tax_as_pct_noi'] else ""
 
-                    # Highlight if city matches
-                    _is_city_match = _user_city4 and _user_city4.lower() in (listing.get("city", "") or "").lower()
-                    _is_live = listing.get("_source") == "rentcast"
-                    _border_clr = "#1b5e20" if _is_city_match or _is_live else GOLD
-                    _live_badge = ('<span style="background:#1b5e20;color:#fff;padding:2px 8px;'
-                                   'border-radius:4px;font-size:0.7rem;font-weight:700;'
-                                   'margin-left:8px;vertical-align:middle;">LIVE DATA</span>') if _is_live else ""
+                        # Highlight if city matches
+                        _is_city_match = _user_city4 and _user_city4.lower() in (listing.get("city", "") or "").lower()
+                        _is_live = listing.get("_source") == "rentcast"
+                        _border_clr = "#1b5e20" if _is_city_match or _is_live else GOLD
+                        _live_badge = ('<span style="background:#1b5e20;color:#fff;padding:2px 8px;'
+                                       'border-radius:4px;font-size:0.7rem;font-weight:700;'
+                                       'margin-left:8px;vertical-align:middle;">LIVE DATA</span>') if _is_live else ""
 
-                    st.markdown(f"""
-                    <div class="listing-card" style="border-left-color:{_border_clr};">
-                      <div class="l-price">{price_fmt}{_live_badge}</div>
-                      <div class="l-address">{addr_fmt}</div>
-                      <div style="margin:4px 0;">
-                        <span class="l-tag">{pt_fmt}</span>
-                        <span class="l-tag">{cap_fmt}</span>
-                        <span class="l-tag">{dom_fmt}</span>
-                      </div>
-                      <div class="l-detail">{sqft_fmt} · {ppsf_fmt} · {noi_fmt} · {built_fmt}</div>
-                      <div class="l-detail" style="color:#c8a96e;margin-top:4px;">
-                        Property Tax: {tax_fmt}{tax_noi_note}
-                      </div>
-                      {"<div class='l-detail' style='color:#555;margin-top:4px;font-style:italic;'> " + highlights + "</div>" if highlights else ""}
-                    </div>
-                    """, unsafe_allow_html=True)
+                        st.markdown(f"""
+                        <div class="listing-card" style="border-left-color:{_border_clr};">
+                          <div class="l-price">{price_fmt}{_live_badge}</div>
+                          <div class="l-address">{addr_fmt}</div>
+                          <div style="margin:4px 0;">
+                            <span class="l-tag">{pt_fmt}</span>
+                            <span class="l-tag">{cap_fmt}</span>
+                            <span class="l-tag">{dom_fmt}</span>
+                          </div>
+                          <div class="l-detail">{sqft_fmt} · {ppsf_fmt} · {noi_fmt} · {built_fmt}</div>
+                          <div class="l-detail" style="color:#c8a96e;margin-top:4px;">
+                            Property Tax: {tax_fmt}{tax_noi_note}
+                          </div>
+                          {"<div class='l-detail' style='color:#555;margin-top:4px;font-style:italic;'> " + highlights + "</div>" if highlights else ""}
+                        </div>
+                        """, unsafe_allow_html=True)
 
             # ── $/sqft Trend Chart (RentCast sparklines) ─────────────────────
             _rc_ppsf_trend = _rc_data.get("price_per_sqft_trend", {})
@@ -9505,30 +9507,31 @@ Each circle is a REIT ticker. **Upper-left = best in class** — low cap rate (h
   <div style="font-size:13px;color:{_desc_clr};line-height:1.6;">{desc}</div>
 </div>""", unsafe_allow_html=True)
 
-            shown       = 0
-            low_articles = []
-
+            # Bucket articles by credibility tier
+            _cred_buckets = {"VERIFIED": [], "HIGH": [], "MODERATE": [], "LOW": []}
             for art in raw:
                 if feed_type_filter != "All" and art.get("feed_type") != feed_type_filter:
                     continue
                 if art.get("credibility_score", 0) < _cred_min_score:
                     continue
+                _bl = art.get("credibility_label", "LOW")
+                _cred_buckets.setdefault(_bl, []).append(art)
 
-                cred_lbl = art.get("credibility_label", "LOW")
-
-                if cred_lbl == "LOW" and cred_filter == "All":
-                    # Collect LOW articles to render collapsed
-                    low_articles.append(art)
-                else:
-                    _render_article(art)
-                    shown += 1
-
-            # Render LOW articles collapsed
-            if low_articles:
-                with st.expander(f"Low credibility articles ({len(low_articles)}) — unverified / press releases"):
-                    for art in low_articles:
+            _tier_meta = {
+                "VERIFIED": ("★ Verified",        True,  "#4caf50"),
+                "HIGH":     ("✓ High Credibility", True,  "#8bc34a"),
+                "MODERATE": ("~ Moderate",         False, "#ff9800"),
+                "LOW":      ("⚠ Low / Unverified", False, "#f44336"),
+            }
+            shown = 0
+            for _tier, _arts in _cred_buckets.items():
+                if not _arts:
+                    continue
+                _tlabel, _topen, _tclr = _tier_meta.get(_tier, (_tier, False, "#888"))
+                with st.expander(f"{_tlabel} ({len(_arts)})", expanded=_topen):
+                    for art in _arts:
                         _render_article(art)
-                shown += len(low_articles)
+                shown += len(_arts)
 
             if shown == 0:
                 st.info("No articles match the current filters.")
@@ -9720,47 +9723,47 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
 
         # ── Market Detail Table ──────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        section(" Market Detail — Vacancy vs. National Average")
 
-        if mkt_rows:
-            detail_df = pd.DataFrame(mkt_rows)
+        with st.expander(" Market Detail — Vacancy vs. National Average", expanded=False):
+            if mkt_rows:
+                detail_df = pd.DataFrame(mkt_rows)
 
-            # Build header (flex-div)
-            _md_col_styles = [
-                ("MARKET",        "flex:2;"),
-                ("PROPERTY TYPE", "flex:2;"),
-                ("VACANCY %",     "flex:1;text-align:right;"),
-                ("TREND",         "flex:1;text-align:right;"),
-                ("VS. NATIONAL",  "flex:1;text-align:right;"),
-            ]
-            _md_hcells = "".join(
-                f'<div style="{fw}font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">{h}</div>'
-                for h, fw in _md_col_styles
-            )
-
-            # Build rows — dim non-focus property type rows when focus is active
-            _md_rows_html = ""
-            for _, _row in detail_df.iterrows():
-                _trend_str  = f"{TREND_ARROW[_row['trend']]} {_row['trend'].title()}"
-                _trend_c    = TREND_COLOR[_row["trend"]]
-                _vs         = float(_row.get("vs_national", 0) or 0)
-                _vs_str     = f"{_vs:+.1f}pp"
-                _vs_c       = "#66bb6a" if _vs < -2 else ("#ef5350" if _vs > 2 else "#c8a040")
-                _vac_val    = float(_row["vacancy_rate"])
-                _is_focus_row = (not _vac_focus_col) or (_row["property_type"] == _vac_focus_col)
-                _row_opacity  = "1" if _is_focus_row else "0.25"
-                _row_bg       = "#1a1500" if _is_focus_row and _vac_focus_col else "transparent"
-                _md_rows_html += (
-                    f'<div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #1e1a08;background:{_row_bg};opacity:{_row_opacity};">'
-                    f'<div style="flex:2;color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_row["market"]}</div>'
-                    f'<div style="flex:2;color:#a09070;font-size:0.87rem;">{_row["property_type"]}</div>'
-                    f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.92rem;font-weight:600;letter-spacing:0.05em;">{_vac_val:.1f}%</div>'
-                    f'<div style="flex:1;text-align:right;color:{_trend_c};font-size:0.87rem;">{_trend_str}</div>'
-                    f'<div style="flex:1;text-align:right;color:{_vs_c};font-size:0.87rem;font-weight:600;">{_vs_str}</div>'
-                    f'</div>'
+                # Build header (flex-div)
+                _md_col_styles = [
+                    ("MARKET",        "flex:2;"),
+                    ("PROPERTY TYPE", "flex:2;"),
+                    ("VACANCY %",     "flex:1;text-align:right;"),
+                    ("TREND",         "flex:1;text-align:right;"),
+                    ("VS. NATIONAL",  "flex:1;text-align:right;"),
+                ]
+                _md_hcells = "".join(
+                    f'<div style="{fw}font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">{h}</div>'
+                    for h, fw in _md_col_styles
                 )
 
-            _md_html = f"""<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+                # Build rows — dim non-focus property type rows when focus is active
+                _md_rows_html = ""
+                for _, _row in detail_df.iterrows():
+                    _trend_str  = f"{TREND_ARROW[_row['trend']]} {_row['trend'].title()}"
+                    _trend_c    = TREND_COLOR[_row["trend"]]
+                    _vs         = float(_row.get("vs_national", 0) or 0)
+                    _vs_str     = f"{_vs:+.1f}pp"
+                    _vs_c       = "#66bb6a" if _vs < -2 else ("#ef5350" if _vs > 2 else "#c8a040")
+                    _vac_val    = float(_row["vacancy_rate"])
+                    _is_focus_row = (not _vac_focus_col) or (_row["property_type"] == _vac_focus_col)
+                    _row_opacity  = "1" if _is_focus_row else "0.25"
+                    _row_bg       = "#1a1500" if _is_focus_row and _vac_focus_col else "transparent"
+                    _md_rows_html += (
+                        f'<div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #1e1a08;background:{_row_bg};opacity:{_row_opacity};">'
+                        f'<div style="flex:2;color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_row["market"]}</div>'
+                        f'<div style="flex:2;color:#a09070;font-size:0.87rem;">{_row["property_type"]}</div>'
+                        f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.92rem;font-weight:600;letter-spacing:0.05em;">{_vac_val:.1f}%</div>'
+                        f'<div style="flex:1;text-align:right;color:{_trend_c};font-size:0.87rem;">{_trend_str}</div>'
+                        f'<div style="flex:1;text-align:right;color:{_vs_c};font-size:0.87rem;font-weight:600;">{_vs_str}</div>'
+                        f'</div>'
+                    )
+
+                _md_html = f"""<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
   <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:20px;">
     <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">MARKET DETAIL — VACANCY VS. NATIONAL AVERAGE</div>
     <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Vacancy rate &amp; trend by market and property type &mdash; CBRE / JLL / CoStar Q1 2025</div>
@@ -9769,14 +9772,14 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
   {_md_rows_html}
   <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">vs. National = pp difference from property-type national average &nbsp;·&nbsp; <span style="color:#66bb6a;">Green</span> = tighter than avg &nbsp;·&nbsp; <span style="color:#ef5350;">Red</span> = looser than avg &nbsp;·&nbsp; Not financial advice.</div>
 </div>"""
-            st.markdown(_md_html, unsafe_allow_html=True)
-            st.download_button(
-                "⬇ Download CSV",
-                data=detail_df.to_csv(index=False),
-                file_name="vacancy_rates_by_market.csv",
-                mime="text/csv",
-                key="dl_vacancy",
-            )
+                st.markdown(_md_html, unsafe_allow_html=True)
+                st.download_button(
+                    "⬇ Download CSV",
+                    data=detail_df.to_csv(index=False),
+                    file_name="vacancy_rates_by_market.csv",
+                    mime="text/csv",
+                    key="dl_vacancy",
+                )
 
         # ── Property Demand Score ────────────────────────────────────────────
         if _vac_focus_col and mkt_rows:
@@ -10022,58 +10025,59 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             # Detail table
             st.markdown("<br>", unsafe_allow_html=True)
 
-            _LND_C = {"Industrial": "#2bbfb0", "Mixed-Use": "#a09040", "Residential": "#a07830"}
+            with st.expander(" Land Market Detail Table", expanded=False):
+                _LND_C = {"Industrial": "#2bbfb0", "Mixed-Use": "#a09040", "Residential": "#a07830"}
 
-            # Legend dots
-            _legend_html = " &nbsp;&nbsp; ".join(
-                f'<span style="display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;color:#c8b890;">'
-                f'<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{c};"></span>{lbl}</span>'
-                for lbl, c in _LND_C.items()
-            )
-
-            # Header (flex-div)
-            _lnd_col_styles = [
-                ("MARKET",       "flex:2;"),
-                ("INDUSTRIAL",   "flex:1;text-align:right;"),
-                ("MIXED-USE",    "flex:1;text-align:right;"),
-                ("RESIDENTIAL",  "flex:1;text-align:right;"),
-                ("TOTAL (AC)",   "flex:1;text-align:right;"),
-                ("MIX",          "flex:2;padding-left:8px;"),
-            ]
-            _lnd_hcells = "".join(
-                f'<div style="{fw}font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">{h}</div>'
-                for h, fw in _lnd_col_styles
-            )
-
-            # Rows
-            _lnd_rows_html = ""
-            for _, _lr in _la_df.iterrows():
-                _ind = int(_lr["Industrial (ac)"])
-                _mix = int(_lr["Mixed-Use (ac)"])
-                _res = int(_lr["Residential (ac)"])
-                _tot = _ind + _mix + _res or 1
-                _i_pct = _ind / _tot * 100
-                _m_pct = _mix / _tot * 100
-                _r_pct = _res / _tot * 100
-                _bar = (
-                    f'<div style="display:flex;height:10px;border-radius:4px;overflow:hidden;min-width:80px;">'
-                    f'<div style="width:{_i_pct:.1f}%;background:{_LND_C["Industrial"]};"></div>'
-                    f'<div style="width:{_m_pct:.1f}%;background:{_LND_C["Mixed-Use"]};margin:0 1px;"></div>'
-                    f'<div style="width:{_r_pct:.1f}%;background:{_LND_C["Residential"]};"></div>'
-                    f'</div>'
-                )
-                _lnd_rows_html += (
-                    f'<div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #1e1a08;">'
-                    f'<div style="flex:2;color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_lr["Market"]}</div>'
-                    f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_ind:,}</div>'
-                    f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_mix:,}</div>'
-                    f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_res:,}</div>'
-                    f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;font-weight:700;letter-spacing:0.04em;">{_tot:,}</div>'
-                    f'<div style="flex:2;padding-left:8px;">{_bar}</div>'
-                    f'</div>'
+                # Legend dots
+                _legend_html = " &nbsp;&nbsp; ".join(
+                    f'<span style="display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;color:#c8b890;">'
+                    f'<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{c};"></span>{lbl}</span>'
+                    for lbl, c in _LND_C.items()
                 )
 
-            _lnd_table_html = f"""<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
+                # Header (flex-div)
+                _lnd_col_styles = [
+                    ("MARKET",       "flex:2;"),
+                    ("INDUSTRIAL",   "flex:1;text-align:right;"),
+                    ("MIXED-USE",    "flex:1;text-align:right;"),
+                    ("RESIDENTIAL",  "flex:1;text-align:right;"),
+                    ("TOTAL (AC)",   "flex:1;text-align:right;"),
+                    ("MIX",          "flex:2;padding-left:8px;"),
+                ]
+                _lnd_hcells = "".join(
+                    f'<div style="{fw}font-size:10px;color:#4a3e18;letter-spacing:0.08em;text-transform:uppercase;">{h}</div>'
+                    for h, fw in _lnd_col_styles
+                )
+
+                # Rows
+                _lnd_rows_html = ""
+                for _, _lr in _la_df.iterrows():
+                    _ind = int(_lr["Industrial (ac)"])
+                    _mix = int(_lr["Mixed-Use (ac)"])
+                    _res = int(_lr["Residential (ac)"])
+                    _tot = _ind + _mix + _res or 1
+                    _i_pct = _ind / _tot * 100
+                    _m_pct = _mix / _tot * 100
+                    _r_pct = _res / _tot * 100
+                    _bar = (
+                        f'<div style="display:flex;height:10px;border-radius:4px;overflow:hidden;min-width:80px;">'
+                        f'<div style="width:{_i_pct:.1f}%;background:{_LND_C["Industrial"]};"></div>'
+                        f'<div style="width:{_m_pct:.1f}%;background:{_LND_C["Mixed-Use"]};margin:0 1px;"></div>'
+                        f'<div style="width:{_r_pct:.1f}%;background:{_LND_C["Residential"]};"></div>'
+                        f'</div>'
+                    )
+                    _lnd_rows_html += (
+                        f'<div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #1e1a08;">'
+                        f'<div style="flex:2;color:#c8b890;font-size:0.9rem;white-space:nowrap;">{_lr["Market"]}</div>'
+                        f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_ind:,}</div>'
+                        f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_mix:,}</div>'
+                        f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;letter-spacing:0.04em;">{_res:,}</div>'
+                        f'<div style="flex:1;text-align:right;color:#c8a040;font-size:0.9rem;font-weight:700;letter-spacing:0.04em;">{_tot:,}</div>'
+                        f'<div style="flex:2;padding-left:8px;">{_bar}</div>'
+                        f'</div>'
+                    )
+
+                _lnd_table_html = f"""<div style="background:#13110a;border-radius:10px;padding:28px 32px 20px;margin-bottom:8px;">
   <div style="border-left:4px solid #c8a040;padding-left:14px;margin-bottom:18px;">
     <div style="font-size:1.15rem;font-weight:700;color:#c8a040;letter-spacing:0.06em;">LAND MARKET DETAIL TABLE</div>
     <div style="font-size:0.8rem;color:#7a7050;margin-top:3px;">Developable acreage, pricing &amp; pipeline activity &mdash; CoStar / CBRE Q1 2025</div>
@@ -10083,11 +10087,11 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
   {_lnd_rows_html}
   <div style="margin-top:14px;font-size:0.75rem;color:#4a4530;">Acreage = entitled or shovel-ready developable land actively available &nbsp;·&nbsp; MIX bar shows Industrial / Mixed-Use / Residential proportion &nbsp;·&nbsp; Source: CoStar Land / CBRE Q1 2025 &nbsp;·&nbsp; Not financial advice.</div>
 </div>"""
-            st.markdown(_lnd_table_html, unsafe_allow_html=True)
-            st.caption(
-                "Entitlement timeline = estimated months from land purchase to permitted/shovel-ready status. "
-                "Markets like New York and Los Angeles require 3-5 years; Sun Belt typically 12-20 months."
-            )
+                st.markdown(_lnd_table_html, unsafe_allow_html=True)
+                st.caption(
+                    "Entitlement timeline = estimated months from land purchase to permitted/shovel-ready status. "
+                    "Markets like New York and Los Angeles require 3-5 years; Sun Belt typically 12-20 months."
+                )
 
         st.markdown(
             '<hr style="border:none;border-top:1px solid #2a2208;margin:32px 0 24px;">',
