@@ -1797,13 +1797,25 @@ st.markdown(f"""
 
   /* ── Expander ── */
   [data-testid="stExpander"] {{
-    background: #131008 !important;
-    border: 1px solid #221e0a !important;
-    border-radius: 6px !important;
+    background: #13110a !important;
+    border: 1px solid #3a3010 !important;
+    border-radius: 8px !important;
+    margin-bottom: 6px !important;
   }}
   [data-testid="stExpander"] summary {{
-    color: #6a5228 !important;
-    font-size: 0.82rem !important;
+    color: #c8a040 !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    padding: 10px 14px !important;
+    letter-spacing: 0.03em !important;
+  }}
+  [data-testid="stExpander"] summary:hover {{
+    color: #e8c860 !important;
+    background: rgba(200,160,64,0.06) !important;
+  }}
+  [data-testid="stExpander"] svg {{
+    fill: #c8a040 !important;
+    stroke: #c8a040 !important;
   }}
 
   /* ── Plotly dark mode ── */
