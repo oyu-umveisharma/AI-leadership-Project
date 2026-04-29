@@ -7441,55 +7441,6 @@ Positive = outperforming equities; negative = real estate-specific headwinds.
 
 
 with main_tab_re:
-    # ── Quick Market Comparison ──────────────────────────────────────────────
-    _ms_cache = read_cache("market_score")
-    _ms_data = (_ms_cache.get("data") or {}) if _ms_cache else {}
-    _rankings = _ms_data.get("rankings", [])
-    _all_markets = [r["market"] for r in _rankings] if _rankings else []
-
-    if _all_markets:
-        with st.expander("Compare Two Markets"):
-            cmp_c1, cmp_c2 = st.columns(2)
-            cmp_a = cmp_c1.selectbox("Market A", _all_markets, key="cmp_mkt_a")
-            cmp_b = cmp_c2.selectbox("Market B", _all_markets, index=min(1, len(_all_markets)-1), key="cmp_mkt_b")
-
-            _ra = next((r for r in _rankings if r["market"] == cmp_a), None)
-            _rb = next((r for r in _rankings if r["market"] == cmp_b), None)
-
-            if _ra and _rb:
-                _factor_labels = ["Migration", "Vacancy", "Rent", "Cap Rate", "Land", "Macro"]
-                _factor_keys   = ["migration", "vacancy", "rent", "cap_rate", "land", "macro"]
-
-                # Radar chart
-                import plotly.graph_objects as go
-                _fig_radar = go.Figure()
-                for _r, _col in [(_ra, GOLD), (_rb, "#4fc3f7")]:
-                    _vals = [_r["factors"].get(k, 50) for k in _factor_keys]
-                    _vals_closed = _vals + [_vals[0]]
-                    _labs_closed = _factor_labels + [_factor_labels[0]]
-                    _fig_radar.add_trace(go.Scatterpolar(
-                        r=_vals_closed, theta=_labs_closed,
-                        fill="toself", name=_r["market"],
-                        line_color=_col,
-                        opacity=0.8,
-                    ))
-                _fig_radar.update_layout(
-                    polar=dict(
-                        bgcolor="#1e1a0a",
-                        radialaxis=dict(visible=True, range=[0, 100], gridcolor="#333", tickfont=dict(color="#888")),
-                        angularaxis=dict(gridcolor="#333", tickfont=dict(color="#c8b890")),
-                    ),
-                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                    legend=dict(font=dict(color="#c8b890"), bgcolor="#1a1208"),
-                    margin=dict(t=40, b=40), height=380,
-                )
-                st.plotly_chart(_fig_radar, use_container_width=True)
-
-                # Side-by-side score cards
-                _sc1, _sc2 = st.columns(2)
-                _sc1.markdown(metric_card(cmp_a, f"{_ra['composite']}/100 · Grade {_ra['grade']}", f"Rank #{_ra['rank']}"), unsafe_allow_html=True)
-                _sc2.markdown(metric_card(cmp_b, f"{_rb['composite']}/100 · Grade {_rb['grade']}", f"Rank #{_rb['rank']}"), unsafe_allow_html=True)
-
     tab1, tab2, tab3, tab4, tab5, tab_supply, tab_returns, tab_oz, tab_score, tab_climate, tab_supply_pipeline = st.tabs([
         "Migration Intelligence",
         "Pricing & Profit",
@@ -8583,6 +8534,53 @@ with main_tab_re:
 
 **Update Frequency:** Every 6 hours via Agent 1.
 """)
+
+        # ── Compare Two Markets ──────────────────────────────────────────────
+        _ms_cache = read_cache("market_score")
+        _ms_data = (_ms_cache.get("data") or {}) if _ms_cache else {}
+        _rankings = _ms_data.get("rankings", [])
+        _all_markets = [r["market"] for r in _rankings] if _rankings else []
+
+        if _all_markets:
+            st.markdown("<br>", unsafe_allow_html=True)
+            with st.expander("Compare Two Markets"):
+                cmp_c1, cmp_c2 = st.columns(2)
+                cmp_a = cmp_c1.selectbox("Market A", _all_markets, key="cmp_mkt_a")
+                cmp_b = cmp_c2.selectbox("Market B", _all_markets, index=min(1, len(_all_markets)-1), key="cmp_mkt_b")
+
+                _ra = next((r for r in _rankings if r["market"] == cmp_a), None)
+                _rb = next((r for r in _rankings if r["market"] == cmp_b), None)
+
+                if _ra and _rb:
+                    _factor_labels = ["Migration", "Vacancy", "Rent", "Cap Rate", "Land", "Macro"]
+                    _factor_keys   = ["migration", "vacancy", "rent", "cap_rate", "land", "macro"]
+
+                    _fig_radar = go.Figure()
+                    for _r, _col in [(_ra, GOLD), (_rb, "#4fc3f7")]:
+                        _vals = [_r["factors"].get(k, 50) for k in _factor_keys]
+                        _vals_closed = _vals + [_vals[0]]
+                        _labs_closed = _factor_labels + [_factor_labels[0]]
+                        _fig_radar.add_trace(go.Scatterpolar(
+                            r=_vals_closed, theta=_labs_closed,
+                            fill="toself", name=_r["market"],
+                            line_color=_col,
+                            opacity=0.8,
+                        ))
+                    _fig_radar.update_layout(
+                        polar=dict(
+                            bgcolor="#1e1a0a",
+                            radialaxis=dict(visible=True, range=[0, 100], gridcolor="#333", tickfont=dict(color="#888")),
+                            angularaxis=dict(gridcolor="#333", tickfont=dict(color="#c8b890")),
+                        ),
+                        paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                        legend=dict(font=dict(color="#c8b890"), bgcolor="#1a1208"),
+                        margin=dict(t=40, b=40), height=380,
+                    )
+                    st.plotly_chart(_fig_radar, use_container_width=True)
+
+                    _sc1, _sc2 = st.columns(2)
+                    _sc1.markdown(metric_card(cmp_a, f"{_ra['composite']}/100 · Grade {_ra['grade']}", f"Rank #{_ra['rank']}"), unsafe_allow_html=True)
+                    _sc2.markdown(metric_card(cmp_b, f"{_rb['composite']}/100 · Grade {_rb['grade']}", f"Rank #{_rb['rank']}"), unsafe_allow_html=True)
 
 
     # ═══════════════════════════════════════════════════════════════════════════════
