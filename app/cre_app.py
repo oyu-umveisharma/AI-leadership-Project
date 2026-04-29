@@ -2802,6 +2802,1588 @@ if st.session_state.get("nav_to_tab"):
     </script>
     """, height=0)
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MAIN TAB — INVESTMENT ADVISOR
+# ═══════════════════════════════════════════════════════════════════════════════
+with main_tab_advisor:
+    from src.recommendation_engine import (
+        build_recommendation, parse_prompt,
+        ALL_MARKETS, _PROP_SYNONYMS,
+    )
+
+    st.markdown("""
+<div style="background:linear-gradient(135deg,#1a1208 0%,#2a1e08 100%);
+            border:1px solid #a07830; border-top:3px solid #d4a843;
+            border-radius:10px; padding:28px 36px; margin-bottom:16px;">
+  <div style="color:#d4a843;font-size:1.45rem;font-weight:700;letter-spacing:1px;">
+    AI-Powered Commercial Real Estate Advisor
+  </div>
+  <div style="color:#a09880;font-size:0.92rem;margin-top:6px;max-width:780px;line-height:1.65;">
+    Describe your investment goal in plain English. The platform parses your intent, scores
+    every candidate market across 10+ live data signals, and generates a full institutional-grade
+    investment brief &mdash; complete with a year-by-year P&amp;L pro forma, debt structure,
+    depreciation tax shield, and Opportunity Zone analysis.
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;">
+    <span style="background:#1e2e0a;border:1px solid #507028;color:#80a848;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Market Scoring</span>
+    <span style="background:#0a1e1e;border:1px solid #287068;color:#48a898;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; 10-Year P&amp;L Pro Forma</span>
+    <span style="background:#1a1408;border:1px solid #705828;color:#a88048;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Financing &amp; DSCR</span>
+    <span style="background:#1a0a1e;border:1px solid #603880;color:#9868b8;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Depreciation Tax Shield</span>
+    <span style="background:#1e0a0a;border:1px solid #802828;color:#b85858;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Opportunity Zone Benefits</span>
+    <span style="background:#0a0e1e;border:1px solid #284870;color:#4878a8;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Climate &amp; Risk Analysis</span>
+    <span style="background:#1a1208;border:1px solid #705020;color:#a87838;font-size:0.74rem;
+                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; AI Investment Rationale</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── Session state for advisor ─────────────────────────────────────────────
+    if "adv_result" not in st.session_state:
+        st.session_state.adv_result = None
+    if "adv_show_followup" not in st.session_state:
+        st.session_state.adv_show_followup = False
+    if "adv_parsed" not in st.session_state:
+        st.session_state.adv_parsed = None
+
+    # Pre-populate text area with home/chat bar query if routed here
+    _home_prompt = st.session_state.get("adv_home_prompt")
+    if _home_prompt and not st.session_state.get("adv_prompt_text"):
+        st.session_state["adv_prompt_text"] = _home_prompt
+
+    # Pre-fill from global intent if text area is still empty
+    _adv_intent    = st.session_state.user_intent
+    _adv_intent_pt = _adv_intent.get("property_type")
+    _adv_intent_loc = _adv_intent.get("city") or _adv_intent.get("state") or _adv_intent.get("location")
+
+    if _adv_intent_pt and not st.session_state.get("adv_prompt_text") and not st.session_state.get("adv_result"):
+        _adv_pt_hints = {
+            "Industrial":  ("warehouse / industrial facility", "10,000 sq ft", "$5M"),
+            "Multifamily": ("multifamily / apartment complex", "24 units",     "$8M"),
+            "Office":      ("office building",                  "8,000 sq ft",  "$4M"),
+            "Retail":      ("retail strip center",              "5,000 sq ft",  "$3M"),
+            "Healthcare":  ("medical office / healthcare",       "6,000 sq ft",  "$4M"),
+        }
+        _adv_hint = _adv_pt_hints.get(_adv_intent_pt, (_adv_intent_pt.lower(), "10,000 sq ft", "$5M"))
+        _adv_loc_str = f" in {_adv_intent_loc}" if _adv_intent_loc else ""
+        st.session_state["adv_prompt_text"] = (
+            f"I want to invest in a {_adv_hint[0]}{_adv_loc_str} — "
+            f"approximately {_adv_hint[1]} with a {_adv_hint[2]} budget over a 5-year hold"
+        )
+
+    # Context banner when intent is populated
+    if _adv_intent_pt:
+        _adv_ctx_loc = f" · {_adv_intent_loc}" if _adv_intent_loc else ""
+        st.markdown(
+            f'<div style="background:#0d1a0d;border:1px solid #2a4a2a;border-radius:7px;'
+            f'padding:8px 14px;margin-bottom:8px;font-size:0.8rem;color:#7ab07a;">'
+            f'Session focus: <b style="color:#a0d0a0;">{_adv_intent_pt}{_adv_ctx_loc}</b> — '
+            f'prompt pre-filled from your selection. Edit freely.</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ── Input area ────────────────────────────────────────────────────────────
+    st.markdown("""
+<div style="background:#16140a;border:1px solid #3a3020;border-radius:8px;
+            padding:20px 24px 8px 24px;margin-bottom:8px;">
+  <div style="color:#d4a843;font-weight:600;font-size:0.95rem;margin-bottom:10px;">
+    Describe your investment
+  </div>
+""", unsafe_allow_html=True)
+
+    prompt_input = st.text_area(
+        label="prompt",
+        label_visibility="collapsed",
+        placeholder='e.g. "I want to build a 50,000 sq ft warehouse in southern Texas with a $8M budget over a 5-year hold"',
+        height=90,
+        key="adv_prompt_text",
+    )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    col_parse, col_generate, col_regen = st.columns([1.5, 1.8, 1], gap="small")
+
+    with col_parse:
+        do_parse = st.button("Analyze Prompt", key="adv_btn_parse", use_container_width=True)
+
+    if do_parse and prompt_input.strip():
+        try:
+            parsed = parse_prompt(prompt_input.strip())
+            st.session_state.adv_parsed = parsed
+            st.session_state.adv_show_followup = bool(parsed["missing_fields"])
+            st.session_state.adv_result = None
+            if not parsed.get("missing_fields"):
+                st.success("Prompt analyzed — all fields detected. Click **Generate Recommendation** to proceed.")
+            else:
+                st.info(f"Prompt analyzed — {len(parsed['missing_fields'])} field(s) need clarification below.")
+        except Exception as _pe:
+            st.error(f"Could not parse prompt: {_pe}")
+
+    # ── Follow-up inputs for missing fields ───────────────────────────────────
+    followup_values = {}
+    if st.session_state.adv_parsed and st.session_state.adv_show_followup:
+        missing = st.session_state.adv_parsed.get("missing_fields", [])
+        if missing:
+            st.markdown("""
+<div style="background:#1a1208;border-left:3px solid #d4a843;border-radius:4px;
+            padding:12px 18px;margin:12px 0 8px 0;color:#e8dfc4;font-size:0.9rem;">
+  A few details were not found in your prompt. Fill in the fields below to improve accuracy
+  (or leave blank to use platform defaults).
+</div>
+""", unsafe_allow_html=True)
+            fu_cols = st.columns(min(len(missing), 4))
+            for i, field in enumerate(missing):
+                col = fu_cols[i % len(fu_cols)]
+                if field == "property_type":
+                    prop_options = sorted(set(_PROP_SYNONYMS.values()))
+                    sel = col.selectbox("Property Type", [""] + prop_options, key="adv_fu_pt")
+                    followup_values["property_type"] = sel or None
+                elif field == "location":
+                    followup_values["location_raw"] = col.text_input(
+                        "Target Market / Region", key="adv_fu_loc",
+                        placeholder="e.g. Texas, Southeast, Phoenix"
+                    ) or None
+                elif field == "budget":
+                    raw_budget = col.text_input(
+                        "Total Budget ($)", key="adv_fu_budget",
+                        placeholder="e.g. 8M or 8000000"
+                    )
+                    if raw_budget:
+                        try:
+                            v = raw_budget.strip().lower().replace(",", "")
+                            if v.endswith("m"):   v = float(v[:-1]) * 1_000_000
+                            elif v.endswith("b"): v = float(v[:-1]) * 1_000_000_000
+                            elif v.endswith("k"): v = float(v[:-1]) * 1_000
+                            else:                 v = float(v)
+                            followup_values["budget"] = v
+                        except Exception:
+                            followup_values["budget"] = None
+                elif field == "sqft":
+                    raw_sf = col.text_input(
+                        "Square Footage", key="adv_fu_sqft",
+                        placeholder="e.g. 50000"
+                    )
+                    if raw_sf:
+                        try:
+                            followup_values["sqft"] = float(raw_sf.replace(",", ""))
+                        except Exception:
+                            followup_values["sqft"] = None
+                elif field == "timeline_years":
+                    followup_values["timeline_years"] = col.number_input(
+                        "Hold Period (years)", min_value=1, max_value=30,
+                        value=5, key="adv_fu_timeline"
+                    )
+
+    # ── Generate / Regenerate buttons ─────────────────────────────────────────
+    with col_generate:
+        do_generate = st.button("Generate Recommendation", key="adv_btn_gen",
+                                type="primary", use_container_width=True)
+
+    with col_regen:
+        do_regen = st.button("Regenerate", key="adv_btn_regen", use_container_width=True,
+                             disabled=(st.session_state.adv_result is None))
+
+    def _run_advisor(prompt_text, override_fields):
+        parsed = parse_prompt(prompt_text)
+        for k, v in override_fields.items():
+            if v is not None:
+                parsed[k] = v
+        if not parsed.get("property_type"):  parsed["property_type"]  = "Industrial"
+        if not parsed.get("location_raw"):   parsed["location_raw"]   = "sunbelt"
+        if not parsed.get("budget"):         parsed["budget"]         = 10_000_000
+        if not parsed.get("sqft"):           parsed["sqft"]           = 50_000
+        if not parsed.get("timeline_years"): parsed["timeline_years"] = 5
+        if not parsed.get("risk_tolerance"): parsed["risk_tolerance"] = "moderate"
+        return build_recommendation(parsed)
+
+    # Pick up auto-generate flag set by chat bar routing
+    _auto_gen = st.session_state.get("adv_auto_generate", False)
+    if _auto_gen:
+        st.session_state.adv_auto_generate = False   # consume flag
+
+    trigger_generate = do_generate or do_regen or _auto_gen
+
+    _effective_prompt = prompt_input.strip() or (st.session_state.get("adv_home_prompt") or "").strip()
+
+    if trigger_generate and _effective_prompt:
+        # Clear the home prompt so it doesn't re-fire on next rerun
+        st.session_state.adv_home_prompt = None
+        with st.spinner("Analyzing markets and building your investment brief…"):
+            try:
+                result = _run_advisor(_effective_prompt, followup_values)
+                st.session_state.adv_result = result
+                st.session_state.adv_show_followup = False
+            except Exception as _adv_err:
+                import traceback as _tb
+                st.error(f"Error generating recommendation: {_adv_err}")
+                st.code(_tb.format_exc(), language="python")
+
+    # ── Data source freshness banner ──────────────────────────────────────────
+    _mgr_report = (read_cache("manager_report").get("data") or {})
+    _adv_deps   = _mgr_report.get("advisor_dependencies", [])
+    _dep_issues = [d for d in _adv_deps if d.get("health") not in ("OK", "RUNNING")]
+    _backed_off = _mgr_report.get("backed_off_agents", [])
+    if _dep_issues:
+        _dep_names  = ", ".join(d["agent"].replace("_", " ").title() for d in _dep_issues)
+        _hints      = list({d["hint"] for d in _dep_issues if d.get("hint")})
+        _hint_txt   = f" — {_hints[0]}" if _hints else ""
+        st.warning(
+            f"Some data sources used by the Investment Advisor are stale or missing: "
+            f"**{_dep_names}**{_hint_txt}. "
+            f"Results may be less accurate until they refresh. "
+            f"Go to the **About** tab → System Health to trigger a manual refresh.",
+            icon="⚠️",
+        )
+    if _backed_off:
+        _bo_names = ", ".join(a.replace("_", " ").title() for a in _backed_off)
+        st.error(
+            f"**{_bo_names}** failed 3+ times and need manual attention. "
+            f"Check your API keys in the .env file or verify network access.",
+            icon="❌",
+        )
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  REPORT OUTPUT
+    # ══════════════════════════════════════════════════════════════════════════
+    _adv_result = st.session_state.adv_result
+    # Validate stored result has required keys (clears stale results from old code versions)
+    if _adv_result and "error" not in _adv_result:
+        _required_keys = {"primary", "financials", "runners", "weights", "narrative", "params"}
+        if not _required_keys.issubset(_adv_result.keys()):
+            st.session_state.adv_result = None
+            _adv_result = None
+    if _adv_result and "error" not in _adv_result:
+      try:
+        primary    = _adv_result["primary"]
+        runners    = _adv_result["runners"]
+        financials = _adv_result["financials"]
+        weights    = _adv_result["weights"]
+        narrative  = _adv_result["narrative"]
+        params     = _adv_result["params"]
+        all_scored = _adv_result.get("all_scored", [])
+
+        # ── Parsed-params banner ─────────────────────────────────────────────
+        _prop_type = params.get("property_type", "")
+        _location  = params.get("location_raw", "")
+        _timeline  = params.get("timeline_years", "N/A")
+        _risk_tol  = (params.get("risk_tolerance") or "moderate").title()
+        _budget_m  = f"${params['budget']/1_000_000:.1f}M" if params.get("budget") else "N/A"
+        _sqft_k    = f"{params['sqft']/1000:.0f}K sq ft" if params.get("sqft") else "N/A"
+
+        st.markdown(f"""
+<div style="background:#16140a;border:1px solid #3a3020;border-radius:6px;
+            padding:10px 18px;margin:8px 0 20px 0;font-size:0.88rem;color:#a09880;">
+  <span style="color:#d4a843;font-weight:600;">Parsed: </span>
+  {_prop_type} &nbsp;&middot;&nbsp; {_location or 'All Markets'} &nbsp;&middot;&nbsp;
+  {_budget_m} budget &nbsp;&middot;&nbsp; {_sqft_k} &nbsp;&middot;&nbsp;
+  {_timeline}-yr hold &nbsp;&middot;&nbsp; {_risk_tol} risk
+  <span style="float:right;color:#5a5040;">Generated {_adv_result['generated_at'][:16].replace('T', ' ')} UTC</span>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── "What does this mean for me?" AI explanation ─────────────────────
+        if "adv_plain_english" not in st.session_state:
+            st.session_state.adv_plain_english = None
+
+        _wtm_col, _wtm_btn_col = st.columns([5, 1])
+        with _wtm_btn_col:
+            if st.button("What does this mean for me?", key="wtm_btn",
+                         help="Get a plain-English explanation of these results — no jargon"):
+                st.session_state.adv_plain_english = None   # clear previous
+                with st.spinner("Generating plain-English explanation..."):
+                    try:
+                        import os as _wtm_os
+                        from groq import Groq as _WGroq
+                        _wtm_key = _wtm_os.getenv("GROQ_API_KEY", "")
+                        if not _wtm_key:
+                            st.session_state.adv_plain_english = "GROQ_API_KEY not set — add it to .env to enable AI explanations."
+                        else:
+                            _wtm_client = _WGroq(api_key=_wtm_key)
+                            _wtm_fin    = _adv_result.get("financials", {})
+                            _wtm_prim   = _adv_result.get("primary", {})
+                            _wtm_params = _adv_result.get("params", {})
+                            _wtm_prompt = (
+                                f"An investor asked: '{st.session_state.get('adv_prompt_submitted', _wtm_params.get('location_raw',''))}'\n\n"
+                                f"The AI recommended: {_wtm_prim.get('market','N/A')} for {_wtm_params.get('property_type','CRE')} development.\n"
+                                f"Key numbers:\n"
+                                f"- Total project cost: ${_wtm_fin.get('total_cost',0)/1e6:.1f}M\n"
+                                f"- Estimated IRR: {_wtm_fin.get('irr_est',0):.1f}%\n"
+                                f"- Annual NOI: ${_wtm_fin.get('annual_noi',0)/1e3:.0f}K\n"
+                                f"- Total profit over hold: ${_wtm_fin.get('total_profit',0)/1e6:.1f}M\n"
+                                f"- Opportunity score: {_wtm_prim.get('opportunity_score',0):.0f}/100\n"
+                                f"- Market grade: {_wtm_prim.get('grade','N/A')}\n"
+                                f"- Climate risk: {_wtm_prim.get('climate_label','N/A')}\n"
+                                f"- Hold period: {_wtm_params.get('timeline_years',5)} years\n"
+                            )
+                            _wtm_resp = _wtm_client.chat.completions.create(
+                                model="llama-3.3-70b-versatile",
+                                messages=[
+                                    {"role": "system", "content": (
+                                        "You are a patient, friendly real estate advisor explaining a CRE investment "
+                                        "recommendation to someone with no finance background. Use plain English — no jargon. "
+                                        "Structure your response as:\n"
+                                        "1. What the AI is recommending and why (2 sentences)\n"
+                                        "2. What the numbers mean in simple terms (3-4 sentences — explain IRR, NOI, profit in everyday language)\n"
+                                        "3. The biggest opportunity (1 sentence)\n"
+                                        "4. The biggest risk to watch (1 sentence)\n"
+                                        "Be encouraging but honest. Write like you're talking to a friend, not writing a report."
+                                    )},
+                                    {"role": "user", "content": _wtm_prompt},
+                                ],
+                                max_tokens=400,
+                                temperature=0.4,
+                            )
+                            st.session_state.adv_plain_english = _wtm_resp.choices[0].message.content.strip()
+                    except Exception as _wtm_err:
+                        st.session_state.adv_plain_english = f"Could not generate explanation: {_wtm_err}"
+
+        if st.session_state.adv_plain_english:
+            with _wtm_col:
+                st.markdown(f"""
+<div style="background:linear-gradient(135deg,#0d1a0d 0%,#111a08 100%);
+            border:1px solid #2a4020;border-left:4px solid #4caf50;
+            border-radius:8px;padding:18px 22px;margin-bottom:16px;">
+  <div style="color:#80c858;font-size:0.78rem;font-weight:600;letter-spacing:.08em;
+              text-transform:uppercase;margin-bottom:10px;">Plain-English Explanation</div>
+  <div style="color:#d4e8c4;font-size:0.92rem;line-height:1.65;white-space:pre-wrap;">{st.session_state.adv_plain_english}</div>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── Summary metric cards ─────────────────────────────────────────────
+        section(" Summary")
+        _c1, _c2, _c3, _c4, _c5 = st.columns(5)
+
+        def _adv_score_color(s):
+            if s >= 75: return "#4caf50"
+            if s >= 55: return "#ff9800"
+            if s >= 35: return "#f44336"
+            return "#9e9e9e"
+
+        _opp = primary["opportunity_score"]
+        _roi = financials["roi_pct"]
+        _roi_color = "#4caf50" if _roi > 30 else ("#ff9800" if _roi > 10 else "#f44336")
+
+        for _col, (_lbl, _val, _clr) in zip(
+            [_c1, _c2, _c3, _c4, _c5],
+            [
+                ("Opportunity Score",  f"{_opp:.1f}/100",                             _adv_score_color(_opp)),
+                ("Est. Total Cost",    f"${financials['total_cost']/1e6:.2f}M",         "#e8dfc4"),
+                ("Estimated ROI",      f"{_roi}%",                                     _roi_color),
+                ("Buildout Timeline",  f"{financials['buildout_months']} mo",           "#e8dfc4"),
+                ("Est. Exit Value",    f"${financials['exit_value']/1e6:.2f}M",          "#d4a843"),
+            ]
+        ):
+            _col.markdown(
+                f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                f'<div class="value" style="color:{_clr};font-size:1.5rem;">{_val}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Cross-Agent Signal Correlator ─────────────────────────────────────
+        section(" Cross-Agent Market Signal")
+        try:
+            from src.signal_correlator import run_signal_correlator as _run_corr
+            _corr = _run_corr()
+            _ov   = _corr["overall"]
+            _ov_c = _corr["color"]
+            _conf = _corr["confidence"]
+            _align = _corr["alignment"]
+            _sigs  = _corr["signals"]
+            _reasons = _corr["top_reasons"]
+            _risks   = _corr["top_risks"]
+
+            # Direction icon per signal
+            _dir_icon = {1: "▲", -1: "▼", 0: "→"}
+            _dir_clr  = {1: "#4caf50", -1: "#f44336", 0: "#ffb74d"}
+
+            _sig_rows = "".join([
+                f'<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;'
+                f'border-bottom:1px solid #1e1a08;">'
+                f'<span style="color:{_dir_clr[s["direction"]]};font-size:1rem;flex-shrink:0;width:14px;">{_dir_icon[s["direction"]]}</span>'
+                f'<div>'
+                f'<span style="color:#c8b890;font-size:0.82rem;font-weight:600;">{s["dimension"]}</span>'
+                f'<span style="color:{_dir_clr[s["direction"]]};font-size:0.76rem;margin-left:8px;">{s["verdict"]}'
+                + (f' · {s["label"]}' if s.get("label") and s["label"] not in ("N/A", "") else "")
+                + f'</span>'
+                f'<div style="color:#6a5630;font-size:0.76rem;margin-top:2px;">{s["reason"]}</div>'
+                f'</div></div>'
+                for s in _sigs if s.get("label") != "N/A"
+            ])
+
+            _reasons_html = "".join([f'<div style="color:#80c858;font-size:0.8rem;padding:3px 0;">+ {r}</div>' for r in _reasons])
+            _risks_html   = "".join([f'<div style="color:#ef9a9a;font-size:0.8rem;padding:3px 0;">− {r}</div>' for r in _risks])
+
+            st.markdown(f"""
+<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:20px 24px;margin-bottom:8px;">
+  <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;flex-wrap:wrap;">
+    <div style="font-size:1.6rem;font-weight:700;color:{_ov_c};letter-spacing:1px;">{_ov}</div>
+    <div>
+      <div style="color:#a09880;font-size:0.82rem;">Confidence: <span style="color:{_ov_c};font-weight:600;">{_conf}%</span></div>
+      <div style="color:#5a4820;font-size:0.76rem;">{_align}</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:16px;">
+      <div style="text-align:center;"><div style="color:#4caf50;font-size:1.2rem;font-weight:700;">{_corr['n_positive']}</div><div style="color:#3a3010;font-size:0.7rem;">Bullish</div></div>
+      <div style="text-align:center;"><div style="color:#ffb74d;font-size:1.2rem;font-weight:700;">{_corr['n_neutral']}</div><div style="color:#3a3010;font-size:0.7rem;">Neutral</div></div>
+      <div style="text-align:center;"><div style="color:#f44336;font-size:1.2rem;font-weight:700;">{_corr['n_negative']}</div><div style="color:#3a3010;font-size:0.7rem;">Cautionary</div></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div>{_sig_rows}</div>
+    <div>
+      {"<div style='color:#6a5228;font-size:0.7rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;'>Top Reasons</div>" + _reasons_html if _reasons_html else ""}
+      {"<div style='color:#6a5228;font-size:0.7rem;letter-spacing:.08em;text-transform:uppercase;margin:10px 0 6px;'>Key Risks</div>" + _risks_html if _risks_html else ""}
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+        except Exception as _ce:
+            st.caption(f"Signal correlator unavailable: {_ce}")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ══════════════════════════════════════════════════════════════════════
+        #  LOCATION MARKET INTELLIGENCE
+        # ══════════════════════════════════════════════════════════════════════
+        _loc_raw   = (params.get("location_raw") or "").lower().strip()
+        _prop_type = params.get("property_type", "Industrial")
+
+        # State name → abbr lookup for display and filtering
+        _STATE_ABBR = {
+            "alabama":"AL","alaska":"AK","arizona":"AZ","arkansas":"AR","california":"CA",
+            "colorado":"CO","connecticut":"CT","delaware":"DE","florida":"FL","georgia":"GA",
+            "hawaii":"HI","idaho":"ID","illinois":"IL","indiana":"IN","iowa":"IA","kansas":"KS",
+            "kentucky":"KY","louisiana":"LA","maine":"ME","maryland":"MD","massachusetts":"MA",
+            "michigan":"MI","minnesota":"MN","mississippi":"MS","missouri":"MO","montana":"MT",
+            "nebraska":"NE","nevada":"NV","new hampshire":"NH","new jersey":"NJ","new mexico":"NM",
+            "new york":"NY","north carolina":"NC","north dakota":"ND","ohio":"OH","oklahoma":"OK",
+            "oregon":"OR","pennsylvania":"PA","rhode island":"RI","south carolina":"SC",
+            "south dakota":"SD","tennessee":"TN","texas":"TX","utah":"UT","vermont":"VT",
+            "virginia":"VA","washington":"WA","west virginia":"WV","wisconsin":"WI","wyoming":"WY",
+            "sunbelt":"TX","southeast":"TN","midwest":"IL","northeast":"NY","southwest":"AZ",
+        }
+        _STATE_TAX = {
+            "TX":("0%","No state income tax — highest net operating income retention in the US"),
+            "FL":("0%","No state income tax — strong for REIT structures and passive investors"),
+            "NV":("0%","No state income tax — favorable for holding entities"),
+            "TN":("0%","No state income tax on wages — eliminated Hall Tax in 2021"),
+            "WY":("0%","No state income tax — minimal regulatory burden"),
+            "SD":("0%","No state income tax"),
+            "AK":("0%","No state income tax"),
+            "WA":("0%","No state personal income tax (capital gains tax enacted 2023)"),
+            "AZ":("2.5%","Flat 2.5% state income tax — among the lowest rates nationally"),
+            "CO":("4.4%","Flat 4.4% rate — Enterprise Zone credits available for development"),
+            "NC":("4.5%","Competitive flat tax with phased reductions through 2026"),
+            "GA":("5.49%","Flat tax trajectory; QOZ-heavy state with strong Job Tax Credits"),
+            "UT":("4.65%","Flat 4.65% — strong OZ pipeline in Salt Lake corridor"),
+            "SC":("6.4%","Standard rate but aggressive OZ and county incentive programs"),
+            "IN":("3.05%","One of the lowest flat rates in the Midwest"),
+            "OH":("3.75%","Progressive up to 3.75%; municipal taxes apply in metro areas"),
+            "IL":("4.95%","Flat rate; higher property taxes offset income tax savings"),
+            "CA":("13.3%","Highest marginal rate nationally — factor into hold period net returns"),
+            "NY":("10.9%","Combined city + state can exceed 14% in NYC"),
+        }
+
+        # Pull from caches
+        _lmi_lm   = (read_cache("labor_market").get("data") or {})
+        _lmi_rg   = (read_cache("rent_growth").get("data") or {})
+        _lmi_cap  = (read_cache("cap_rate").get("data") or {})
+        _lmi_vac  = (read_cache("vacancy").get("data") or {})
+        _lmi_oz   = (read_cache("opportunity_zone").get("data") or {})
+        _lmi_ms   = (read_cache("market_score").get("data") or {})
+
+        # Match state
+        _matched_abbr = None
+        for _sname, _sabb in _STATE_ABBR.items():
+            if _sname in _loc_raw:
+                _matched_abbr = _sabb; break
+
+        # Prop-type → cache key mapping
+        _pt_vac_key = {
+            "Industrial":"Industrial / Logistics","Multifamily":"Multifamily / Residential",
+            "Office":"Office","Retail":"Retail","Healthcare":"Healthcare / Medical Office",
+        }.get(_prop_type, "Industrial / Logistics")
+        _pt_rg_key = {
+            "Industrial":"Industrial","Multifamily":"Multifamily",
+            "Office":"Office","Retail":"Retail","Healthcare":"Office",
+        }.get(_prop_type, "Industrial")
+
+        section(f" Location Intelligence — {_location or 'Target Market'}")
+
+        # ── Row 1: live KPI stats ─────────────────────────────────────────────
+        _li1, _li2, _li3, _li4, _li5 = st.columns(5)
+
+        # Unemployment
+        _unemp_data = _lmi_lm.get("metro_unemployment", [])
+        _unemp_match = next((r for r in _unemp_data
+                             if _loc_raw and any(w in r["market"].lower() for w in _loc_raw.split()
+                             if len(w) > 3)), None)
+        _unemp_val = f"{_unemp_match['unemp_rate']:.1f}%" if _unemp_match else (
+            _lmi_lm.get("fred_labor", {}).get("Unemployment Rate", {}).get("current") or "—")
+        if isinstance(_unemp_val, float): _unemp_val = f"{_unemp_val:.1f}%"
+        _unemp_sig = _unemp_match.get("signal","") if _unemp_match else ""
+        _unemp_clr = "#4caf50" if _unemp_sig == "TIGHT" else ("#ff9800" if _unemp_sig == "BALANCED" else "#c8b890")
+
+        # Rent growth for property type
+        _rg_nat = _lmi_rg.get("national", {})
+        _rg_val = _rg_nat.get(_pt_rg_key, {}).get("yoy_pct") or _rg_nat.get(_pt_rg_key, {}).get("yoy") or "—"
+        _rg_clr = "#4caf50" if isinstance(_rg_val, (int,float)) and _rg_val > 2 else ("#ff9800" if isinstance(_rg_val, (int,float)) and _rg_val > 0 else "#ef5350")
+        _rg_fmt = f"{_rg_val:+.1f}%" if isinstance(_rg_val, (int,float)) else str(_rg_val)
+
+        # Cap rate
+        _cap_nat = _lmi_cap.get("national", {})
+        _cap_val = _cap_nat.get(_prop_type, {}).get("cap_rate") or _cap_nat.get(_prop_type, {}).get("rate")
+        if not _cap_val:
+            for _k, _v in _cap_nat.items():
+                if _prop_type.lower() in _k.lower():
+                    _cap_val = _v.get("cap_rate") or _v.get("rate"); break
+        _cap_fmt = f"{_cap_val:.2f}%" if isinstance(_cap_val, (int,float)) else f"{primary.get('cap_rate',0):.2f}%"
+
+        # Vacancy
+        _vac_nat = _lmi_vac.get("national", NATIONAL_VACANCY)
+        _vac_entry = _vac_nat.get(_pt_vac_key, {})
+        _vac_val = _vac_entry.get("rate") or _vac_entry.get("vacancy_rate") if isinstance(_vac_entry, dict) else _vac_entry
+        _vac_fmt = f"{_vac_val:.1f}%" if isinstance(_vac_val, (int,float)) else "—"
+
+        # Migration score
+        _mig_score = primary.get("mig_score", 0)
+
+        for _col, (_lbl, _val, _clr, _sub) in zip(
+            [_li1, _li2, _li3, _li4, _li5],
+            [
+                ("Unemployment",       _unemp_val,                  _unemp_clr,    _unemp_sig or "State rate"),
+                (f"{_prop_type} Rent Growth", _rg_fmt,             _rg_clr,       "YoY national"),
+                (f"{_prop_type} Cap Rate",    _cap_fmt,            "#d4a843",     "National benchmark"),
+                (f"{_prop_type} Vacancy",     _vac_fmt,            "#c8b890",     "National avg"),
+                ("Migration Score",   f"{_mig_score:.0f}/100",     "#d4a843",     "Demand proxy"),
+            ]
+        ):
+            _col.markdown(
+                f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                f'<div class="value" style="color:{_clr};font-size:1.35rem;">{_val}</div>'
+                f'<div class="sub">{_sub}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Row 2: Rent growth chart + Suggested markets ──────────────────────
+        _li_left, _li_right = st.columns([1, 1], gap="large")
+
+        with _li_left:
+            st.markdown(
+                f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;'
+                f'letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px;">'
+                f'Rent Growth by Property Type (National YoY)</div>',
+                unsafe_allow_html=True,
+            )
+            _rg_chart_data = {
+                k: v.get("yoy_pct") or v.get("yoy") or 0
+                for k, v in _rg_nat.items()
+                if isinstance(v, dict) and (v.get("yoy_pct") or v.get("yoy")) is not None
+            }
+            if _rg_chart_data:
+                _rg_types  = list(_rg_chart_data.keys())
+                _rg_vals   = [_rg_chart_data[t] for t in _rg_types]
+                _rg_colors = ["#4caf50" if v > 2 else ("#ff9800" if v > 0 else "#ef5350") for v in _rg_vals]
+                _highlight  = [1.0 if t == _pt_rg_key else 0.5 for t in _rg_types]
+                _fig_rg = go.Figure(go.Bar(
+                    x=_rg_types, y=_rg_vals,
+                    marker=dict(color=_rg_colors, opacity=_highlight),
+                    text=[f"{v:+.1f}%" for v in _rg_vals],
+                    textposition="outside",
+                    textfont=dict(color="#c8b890", size=11),
+                    hovertemplate="<b>%{x}</b><br>YoY: %{y:+.1f}%<extra></extra>",
+                ))
+                _fig_rg.add_hline(y=0, line_color="#555", line_width=1)
+                _fig_rg.update_layout(
+                    plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                    margin=dict(t=30, b=10, l=10, r=10), height=240,
+                    xaxis=dict(tickfont=dict(color="#c8b890", size=10), tickangle=-15),
+                    yaxis=dict(ticksuffix="%", gridcolor="#2a2a1a", tickfont=dict(color="#c8b890", size=10)),
+                    showlegend=False,
+                )
+                st.plotly_chart(_fig_rg, use_container_width=True, config={"displayModeBar": False})
+                st.caption(f"Highlighted bar = {_prop_type} (your target type). Source: Agent 15 / Zillow–CoStar benchmarks.")
+            else:
+                st.info("Rent growth data populating — refresh in ~30 seconds.")
+
+        with _li_right:
+            # Top markets from all_scored filtered to location, or just top overall
+            st.markdown(
+                f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;'
+                f'letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px;">'
+                f'Top Scored Markets{f" — {_location}" if _location else ""}</div>',
+                unsafe_allow_html=True,
+            )
+            # Filter all_scored by location if possible, else show top 6
+            _loc_words = [w for w in _loc_raw.split() if len(w) > 3]
+            _loc_filtered = [
+                m for m in all_scored
+                if any(w in m["market"].lower() for w in _loc_words)
+            ] if _loc_words else []
+            _show_markets = (_loc_filtered or all_scored)[:6]
+
+            if _show_markets:
+                _sm_rows = "".join([
+                    f'<tr style="border-bottom:1px solid #1e1a08;">'
+                    f'<td style="padding:7px 10px;color:#c8b890;font-size:12px;font-weight:{"700" if i==0 else "400"};">'
+                    f'{"★ " if i==0 else f"{i+1}. "}{m["market"]}</td>'
+                    f'<td style="padding:7px 10px;text-align:right;font-family:monospace;font-size:12px;'
+                    f'color:{"#4caf50" if m["opportunity_score"]>=75 else "#ff9800" if m["opportunity_score"]>=55 else "#ef5350"};">'
+                    f'{m["opportunity_score"]:.0f}</td>'
+                    f'<td style="padding:7px 10px;text-align:right;font-family:monospace;font-size:11px;color:#d4a843;">'
+                    f'{m.get("cap_rate",0):.2f}%</td>'
+                    f'<td style="padding:7px 10px;text-align:right;font-family:monospace;font-size:11px;'
+                    f'color:{"#4caf50" if m.get("rent_growth",0)>2 else "#ff9800"};">'
+                    f'{m.get("rent_growth",0):+.1f}%</td>'
+                    f'</tr>'
+                    for i, m in enumerate(_show_markets)
+                ])
+                st.markdown(f"""
+<table style="width:100%;border-collapse:collapse;background:#171309;border-radius:8px;overflow:hidden;border:1px solid #2a2208;">
+  <thead><tr style="border-bottom:1px solid #2a2208;">
+    <th style="padding:8px 10px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Market</th>
+    <th style="padding:8px 10px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Score</th>
+    <th style="padding:8px 10px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Cap Rate</th>
+    <th style="padding:8px 10px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Rent Δ</th>
+  </tr></thead>
+  <tbody>{_sm_rows}</tbody>
+</table>""", unsafe_allow_html=True)
+                st.caption("★ = top recommended market for your prompt. Score 0–100 composite.")
+            else:
+                st.info("Market scoring data loading.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Tax Advantages ─────────────────────────────────────────────────────
+        section(" Tax Advantages for This Location")
+
+        _tax_left, _tax_right = st.columns([1, 1], gap="large")
+
+        with _tax_left:
+            # State tax info
+            _st_tax_info = _STATE_TAX.get(_matched_abbr, None)
+            _st_display  = _matched_abbr or _location or "Target State"
+            if _st_tax_info:
+                _st_rate, _st_note = _st_tax_info
+                _st_color = "#4caf50" if _st_rate == "0%" else ("#ff9800" if float(_st_rate.replace("%","")) < 5 else "#ef5350")
+                st.markdown(f"""
+<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:18px 20px;margin-bottom:12px;">
+  <div style="color:#d4a843;font-size:0.82rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:12px;">State Tax Environment — {_st_display}</div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+    <div style="font-size:2rem;font-weight:700;color:{_st_color};font-family:monospace;">{_st_rate}</div>
+    <div style="color:#a09880;font-size:0.88rem;">State Income Tax Rate</div>
+  </div>
+  <div style="color:#c8b890;font-size:0.84rem;line-height:1.6;">{_st_note}</div>
+</div>""", unsafe_allow_html=True)
+
+            # Federal tax benefits
+            _fed_tax_rows = [
+                ("Cost Segregation",       "Accelerate depreciation on personal property (5-yr) and land improvements (15-yr). Year-1 deduction can offset 20–30% of building value."),
+                ("Bonus Depreciation",     "60% bonus depreciation in 2025 on qualifying assets — phases to 40% in 2026. Front-loads the tax shield into early hold years."),
+                ("1031 Exchange",          "Defer 100% of capital gains tax by rolling proceeds into a like-kind property within 45-day identification / 180-day close windows."),
+                ("Depreciation Recapture Strategy", "Structure the exit via an installment sale or OZ re-investment to manage 25% recapture tax on straight-line depreciation."),
+            ]
+            for _fed_name, _fed_desc in _fed_tax_rows:
+                st.markdown(
+                    f'<div style="background:#16140a;border-left:3px solid #705020;border-radius:4px;'
+                    f'padding:10px 14px;margin-bottom:8px;">'
+                    f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;margin-bottom:4px;">{_fed_name}</div>'
+                    f'<div style="color:#a09880;font-size:0.82rem;line-height:1.5;">{_fed_desc}</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+        with _tax_right:
+            # OZ markets near the location
+            _oz_mkts = _lmi_oz.get("oz_markets", {})
+            _oz_ranked_all = _lmi_oz.get("top_markets_by_score", [])
+
+            # Filter OZ markets by location
+            _loc_oz = [
+                (name, info) for name, info in _oz_mkts.items()
+                if any(w in name.lower() for w in _loc_words) or
+                   (_matched_abbr and _matched_abbr.lower() in name.lower())
+            ] if (_loc_words or _matched_abbr) else []
+            _show_oz = sorted(_loc_oz, key=lambda x: x[1].get("opportunity_score", 0), reverse=True)[:4]
+
+            # Fall back to top OZ markets if no location match
+            if not _show_oz and _oz_ranked_all:
+                _show_oz = [(r[0], {"opportunity_score": r[1], "key_zones": [], "property_focus": [], "highlights": []})
+                            for r in _oz_ranked_all[:4]]
+
+            if _show_oz:
+                st.markdown(
+                    f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;'
+                    f'letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;">'
+                    f'Opportunity Zone Markets{f" — {_location}" if _location else ""}</div>',
+                    unsafe_allow_html=True,
+                )
+                for _oz_name, _oz_info in _show_oz:
+                    _oz_sc   = _oz_info.get("opportunity_score", 0)
+                    _oz_sc_c = "#4caf50" if _oz_sc >= 80 else ("#d4a843" if _oz_sc >= 70 else "#ef5350")
+                    _oz_zones = " · ".join((_oz_info.get("key_zones") or [])[:2])
+                    _oz_focus = ", ".join((_oz_info.get("property_focus") or [])[:2])
+                    _oz_hi    = (_oz_info.get("highlights") or [""])[0]
+                    st.markdown(f"""
+<div style="background:#0a1e0a;border:1px solid #2a4a2a;border-left:3px solid #4caf50;
+            border-radius:6px;padding:12px 16px;margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="color:#80c858;font-weight:600;font-size:0.88rem;">{_oz_name}</div>
+    <div style="color:{_oz_sc_c};font-weight:700;font-family:monospace;font-size:1rem;">{_oz_sc}</div>
+  </div>
+  {"<div style='color:#5a9050;font-size:0.78rem;margin-top:4px;'>Zones: " + _oz_zones + "</div>" if _oz_zones else ""}
+  {"<div style='color:#5a9050;font-size:0.78rem;'>Focus: " + _oz_focus + "</div>" if _oz_focus else ""}
+  {"<div style='color:#a09880;font-size:0.78rem;margin-top:4px;'>" + _oz_hi + "</div>" if _oz_hi else ""}
+</div>""", unsafe_allow_html=True)
+
+                st.markdown(
+                    '<div style="background:#16140a;border:1px solid #3a3020;border-radius:6px;'
+                    'padding:10px 14px;margin-top:4px;">'
+                    '<div style="color:#d4a843;font-size:0.78rem;font-weight:600;margin-bottom:4px;">OZ 10-Year Benefit</div>'
+                    '<div style="color:#a09880;font-size:0.78rem;line-height:1.5;">'
+                    'Hold a QOF investment for 10+ years and pay <strong style="color:#4caf50;">zero capital gains tax</strong> '
+                    'on all appreciation inside the fund. A $5M gain on a $10M development = $0 federal tax at exit. '
+                    'Must invest unrealized gains within 180 days.</div></div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.info("Opportunity Zone data loading — check the Opportunity Zones tab for full detail.")
+
+        st.markdown(
+            '<hr style="border:none;border-top:1px solid #2a2208;margin:28px 0 24px;">',
+            unsafe_allow_html=True,
+        )
+
+        # ── Primary recommendation ────────────────────────────────────────────
+        section(f" Primary Recommendation — {primary['market']}")
+        _col_left, _col_right = st.columns([1.05, 0.95], gap="large")
+
+        with _col_left:
+            _bd         = primary.get("factor_scores", {})
+            _fnames     = list(_bd.keys())
+            _raw_s      = [_bd[f]["raw_score"] for f in _fnames]
+            _wt_s       = [_bd[f]["weighted"]   for f in _fnames]
+            _flabels    = [f.replace("_", " ").title() for f in _fnames]
+
+            _fig_score = go.Figure()
+            _fig_score.add_trace(go.Bar(
+                x=_raw_s, y=_flabels, orientation="h",
+                marker=dict(color=[_adv_score_color(s) for s in _raw_s]),
+                text=[f"{s:.0f}" for s in _raw_s],
+                textposition="auto",
+                textfont=dict(color="#fff", size=11),
+                name="Raw Score",
+                hovertemplate="<b>%{y}</b><br>Raw: %{x:.1f}/100<extra></extra>",
+            ))
+            _fig_score.add_trace(go.Bar(
+                x=_wt_s, y=_flabels, orientation="h",
+                marker=dict(color="rgba(212,168,67,0.35)", line=dict(color="#d4a843", width=1)),
+                text=[f"{v:.1f} wt" for v in _wt_s],
+                textposition="auto",
+                textfont=dict(color="#d4a843", size=10),
+                name="Weighted Score",
+                hovertemplate="<b>%{y}</b><br>Weighted: %{x:.1f}<extra></extra>",
+            ))
+            _fig_score.update_layout(
+                barmode="overlay",
+                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                margin=dict(t=10, b=10, l=120, r=10),
+                height=280,
+                legend=dict(font=dict(color="#a09880", size=10), bgcolor="rgba(0,0,0,0)",
+                            orientation="h", y=1.08, x=0),
+                xaxis=dict(range=[0, 100], tickfont=dict(color="#e8dfc4", size=10), gridcolor="#2a2a1a"),
+                yaxis=dict(tickfont=dict(color="#e8dfc4", size=11)),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+            )
+            st.plotly_chart(_fig_score, use_container_width=True, config={"displayModeBar": False})
+            st.caption("Bar length = raw factor score (0–100). Gold overlay = weighted contribution to composite.")
+
+        with _col_right:
+            _cap   = primary.get("cap_rate", 0)
+            _rg    = primary.get("rent_growth", 0)
+            _clbl  = primary.get("climate_label", "N/A")
+            _cscr  = primary.get("climate_score", 0)
+            _gdp   = primary.get("gdp_cycle", "N/A")
+            _cred  = primary.get("credit_signal", "N/A")
+            _mig   = primary.get("mig_score", 50)
+            _cc    = ("#4caf50" if _cscr < 25 else "#ff9800" if _cscr < 50
+                      else "#f44336" if _cscr < 75 else "#9c27b0")
+            _rg_c  = "#4caf50" if _rg > 3 else ("#ff9800" if _rg > 0 else "#f44336")
+
+            # Climate score penalty (matches market_score_agent formula)
+            _clim_penalty = round(min(10.0, (_cscr - 60) * 0.20), 1) if _cscr >= 60 else 0.0
+            _clim_penalty_row = ""
+            if _clim_penalty > 0:
+                _clim_penalty_row = (
+                    f'<tr><td style="color:#ef5350;padding:5px 0;font-size:0.82rem;">Score Adj. (climate)</td>'
+                    f'<td style="color:#ef5350;font-weight:700;text-align:right;font-size:0.82rem;">−{_clim_penalty:.1f} pts</td></tr>'
+                )
+
+            st.markdown(f"""
+<div style="background:#1a1208;border:1px solid #2a2010;border-radius:8px;padding:18px 20px;">
+  <div style="color:#d4a843;font-weight:600;font-size:0.95rem;margin-bottom:12px;">Market Signals</div>
+  <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+    <tr><td style="color:#a09880;padding:5px 0;">Cap Rate</td>
+        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_cap:.2f}%</td></tr>
+    <tr><td style="color:#a09880;padding:5px 0;">Rent Growth YoY</td>
+        <td style="color:{_rg_c};font-weight:600;text-align:right;">{_rg:+.1f}%</td></tr>
+    <tr><td style="color:#a09880;padding:5px 0;">Climate Risk</td>
+        <td style="color:{_cc};font-weight:600;text-align:right;">{_clbl} ({_cscr:.0f}/100)</td></tr>
+    {_clim_penalty_row}
+    <tr><td style="color:#a09880;padding:5px 0;">GDP Cycle</td>
+        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_gdp.title()}</td></tr>
+    <tr><td style="color:#a09880;padding:5px 0;">Credit Conditions</td>
+        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_cred.title()}</td></tr>
+    <tr><td style="color:#a09880;padding:5px 0;">Migration Score</td>
+        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_mig:.0f}/100</td></tr>
+  </table>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── Market Score Breakdown ────────────────────────────────────────────
+        _ms_cache_adv = read_cache("market_score")
+        _ms_data_adv  = (_ms_cache_adv.get("data") or {})
+        _ms_rankings  = _ms_data_adv.get("rankings", [])
+        _ms_entry     = next((r for r in _ms_rankings if r.get("market") == primary.get("market")), None)
+        if _ms_entry and _ms_entry.get("breakdown"):
+            _bd2 = _ms_entry["breakdown"]
+            _strengths = _bd2.get("strengths", [])
+            _weaknesses = _bd2.get("weaknesses", [])
+            _drag  = _bd2.get("drag_factor", "")
+            _drag_note = _bd2.get("drag_note", "")
+            _lift  = _bd2.get("lift_factor", "")
+            _lift_note = _bd2.get("lift_note", "")
+            _factor_notes = _bd2.get("notes", {})
+
+            _str_pills  = "".join([f'<span style="background:rgba(76,175,80,.2);color:#80c858;border-radius:12px;padding:3px 10px;font-size:0.75rem;margin:2px;">{s}</span>' for s in _strengths])
+            _weak_pills = "".join([f'<span style="background:rgba(244,67,54,.15);color:#ef9a9a;border-radius:12px;padding:3px 10px;font-size:0.75rem;margin:2px;">{w}</span>' for w in _weaknesses])
+
+            _factor_rows = "".join([
+                f'<tr><td style="color:#a09880;padding:4px 0;font-size:0.8rem;">{_factor_notes.get(k, "").split(" — ")[0] if " — " not in str(_factor_notes.get(k,"")) else k.title()}</td>'
+                f'<td style="text-align:right;"><div style="display:inline-block;background:{"#4caf50" if v>=65 else "#f44336" if v<=40 else "#ffb74d"};'
+                f'height:6px;width:{max(4,int(v*0.6))}px;border-radius:3px;"></div>'
+                f'<span style="color:#a09880;font-size:0.75rem;margin-left:6px;">{v:.0f}</span></td></tr>'
+                for k, v in _ms_entry.get("factors", {}).items()
+            ])
+
+            st.markdown(f"""
+<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:18px 22px;margin:12px 0;">
+  <div style="color:#d4a843;font-weight:600;font-size:0.9rem;margin-bottom:12px;">
+    Market Score Breakdown — {_ms_entry['market']}
+    <span style="color:#a09880;font-weight:400;font-size:0.82rem;margin-left:10px;">Composite: {_ms_entry['composite']}/100 · Grade: {_ms_entry['grade']}</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div>
+      <table style="width:100%;border-collapse:collapse;">{_factor_rows}</table>
+      {"<div style='margin-top:10px;'><span style='color:#6a5228;font-size:0.7rem;text-transform:uppercase;letter-spacing:.08em;'>Strengths</span><div style='margin-top:4px;'>" + _str_pills + "</div></div>" if _strengths else ""}
+      {"<div style='margin-top:8px;'><span style='color:#6a5228;font-size:0.7rem;text-transform:uppercase;letter-spacing:.08em;'>Weaknesses</span><div style='margin-top:4px;'>" + _weak_pills + "</div></div>" if _weaknesses else ""}
+    </div>
+    <div>
+      {"<div style='background:#0d2a12;border-left:3px solid #4caf50;border-radius:4px;padding:10px 14px;margin-bottom:8px;'><div style='color:#4caf50;font-size:0.76rem;font-weight:600;margin-bottom:4px;'>Biggest Lift: " + _lift + "</div><div style='color:#a09880;font-size:0.78rem;'>" + _lift_note + "</div></div>" if _lift else ""}
+      {"<div style='background:#2a0d0d;border-left:3px solid #f44336;border-radius:4px;padding:10px 14px;'><div style='color:#f44336;font-size:0.76rem;font-weight:600;margin-bottom:4px;'>Biggest Drag: " + _drag + "</div><div style='color:#a09880;font-size:0.78rem;'>" + _drag_note + "</div></div>" if _drag else ""}
+      {"<div style='margin-top:8px;background:#1a1208;border-left:3px solid #ff9800;border-radius:4px;padding:8px 14px;'><div style='color:#ff9800;font-size:0.74rem;font-weight:600;'>Climate Adjustment</div><div style='color:#a09880;font-size:0.76rem;'>−" + str(_ms_entry.get('climate_penalty', 0)) + " pts applied to composite score</div></div>" if _ms_entry.get("climate_penalty", 0) > 0 else ""}
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Financials breakdown ──────────────────────────────────────────────
+        section(" Financial Estimates")
+
+        _fc1, _fc2, _fc3, _fc4 = st.columns(4)
+        for _fc, (_lbl, _tip, _val, _clr) in zip(
+            [_fc1, _fc2, _fc3, _fc4],
+            [
+                ("Land Cost",          "Estimated cost to acquire the land parcel. Based on $/sqft land comps for the selected market and property type.",
+                 f"${financials['land_cost']/1e6:.2f}M",         "#e8dfc4"),
+                ("Construction",       "Hard construction cost — materials, labor, and contractor fees. Adjusted by the platform's energy cost signal (LOW/MODERATE/HIGH).",
+                 f"${financials['construction_cost']/1e6:.2f}M", "#e8dfc4"),
+                ("Soft Costs",         "Architecture, engineering, permits, legal, financing fees, and contingency (typically 15–20% of hard costs).",
+                 f"${financials['soft_costs']/1e6:.2f}M",         "#e8dfc4"),
+                ("Total Project Cost", "All-in development cost: Land + Construction + Soft Costs. This is the capital you need to deploy before the project generates income.",
+                 f"${financials['total_cost']/1e6:.2f}M",         "#d4a843"),
+            ]
+        ):
+            _fc.markdown(
+                f'<div class="metric-card"><div class="label">{_tt(_lbl, _tip)}</div>'
+                f'<div class="value" style="color:{_clr};">{_val}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
+        _fc5, _fc6, _fc7, _fc8 = st.columns(4)
+        _irr_c = "#4caf50" if financials["irr_est"] > 10 else "#ff9800"
+        _pft_c = "#4caf50" if financials["total_profit"] > 0 else "#f44336"
+        for _fc, (_lbl, _tip, _val, _clr) in zip(
+            [_fc5, _fc6, _fc7, _fc8],
+            [
+                ("Annual NOI",     "Net Operating Income per year: Effective Gross Income minus operating expenses (management, insurance, taxes, maintenance). Does NOT include debt service.",
+                 f"${financials['annual_noi']/1e3:.0f}K",     "#e8dfc4"),
+                ("Cumulative NOI", "Total NOI earned over the full hold period (typically 10 years). Measures how much income the property generates before financing costs.",
+                 f"${financials['total_noi']/1e6:.2f}M",       "#e8dfc4"),
+                ("Estimated IRR",  "Internal Rate of Return — annualized return on your total investment including both cash flows and projected exit proceeds. A target of 10%+ is generally considered strong for CRE development.",
+                 f"{financials['irr_est']:.1f}%",              _irr_c),
+                ("Total Profit",   "Total cash profit over the hold period: Cumulative NOI + Exit Value − Total Project Cost. A positive number means the deal made money; negative means a loss.",
+                 f"${financials['total_profit']/1e6:.2f}M",    _pft_c),
+            ]
+        ):
+            _fc.markdown(
+                f'<div class="metric-card"><div class="label">{_tt(_lbl, _tip)}</div>'
+                f'<div class="value" style="color:{_clr};">{_val}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        _esig = financials.get("energy_signal", "MODERATE")
+        _emult = {"LOW": "0.88×", "MODERATE": "1.0×", "HIGH": "1.20×"}.get(_esig, "1.0×")
+        st.caption(
+            f"Construction cost signal: **{_esig}** (platform energy agent). "
+            f"Cost multiplier: {_emult}. Buildout estimate: {financials['buildout_months']} months."
+        )
+
+        # ── Income vs Expense Line Chart ──────────────────────────────────────
+        st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
+        st.markdown(
+            _tt("Income vs Expense Projection",
+                "Year-by-year forecast over the hold period.<br>"
+                "<b>Gold (Income)</b> = rent collected after vacancy (EGI).<br>"
+                "<b>Red (Expenses)</b> = operating costs + loan payments.<br>"
+                "<b>Green dotted (NOI)</b> = income before debt service.<br>"
+                "<b>Blue dashed (Cash Flow)</b> = what's left after paying the loan."),
+            unsafe_allow_html=True,
+        )
+        _hold_yrs  = int(financials.get("hold_years", params.get("timeline_years", 5)) or 5)
+        _base_noi  = financials.get("annual_noi", 0)
+        _total_cost = financials.get("total_cost", 0)
+        _equity     = _adv_result.get("financing", {}).get("equity_required", _total_cost)
+        _base_egi  = _base_noi / 0.65 if _base_noi else 0
+        _base_opex = _base_egi - _base_noi
+        _ann_ds    = _adv_result.get("financing", {}).get("annual_debt_service", 0)
+
+        # Year 0 = construction / equity deployment (no income yet)
+        _chart_yrs = [0]
+        _chart_egi = [0]
+        _chart_exp = [_equity]          # initial equity outlay shown as Year-0 expense
+        _chart_noi = [0]
+        _chart_cf  = [-_equity]         # negative — money going out
+
+        _chart_opex_only = [0]          # for hover detail
+        _chart_ds_only   = [0]
+
+        for _yr in range(1, _hold_yrs + 1):
+            _g    = 1.03 ** (_yr - 1)
+            _egi  = round(_base_egi  * _g)
+            _opex = round(_base_opex * (1.025 ** (_yr - 1)))
+            _noi  = _egi - _opex
+            _cf   = _noi - _ann_ds
+            _chart_yrs.append(_yr)
+            _chart_egi.append(_egi)
+            _chart_exp.append(_opex + _ann_ds)
+            _chart_noi.append(_noi)
+            _chart_cf.append(_cf)
+            _chart_opex_only.append(_opex)
+            _chart_ds_only.append(_ann_ds)
+
+        _fin_fig = go.Figure()
+        # Income line — hover shows gross rent components
+        _fin_fig.add_trace(go.Scatter(
+            x=_chart_yrs, y=_chart_egi,
+            name="Revenue (EGI = Gross Rent − Vacancy)",
+            line=dict(color="#d4a843", width=2.5),
+            customdata=list(zip(
+                [round(v / 0.92) for v in _chart_egi],   # approx gross rent (8% vacancy)
+                [round(v * 0.08) for v in _chart_egi],   # approx vacancy loss
+            )),
+            hovertemplate=(
+                "<b>Year %{x} — Revenue</b><br>"
+                "Gross Rent: $%{customdata[0]:,.0f}<br>"
+                "− Vacancy Loss: $%{customdata[1]:,.0f}<br>"
+                "<b>= EGI: $%{y:,.0f}</b><extra></extra>"
+            ),
+        ))
+        # Expense line — hover shows OpEx + debt breakdown
+        _fin_fig.add_trace(go.Scatter(
+            x=_chart_yrs, y=_chart_exp,
+            name="Expenses (OpEx + Debt Service)",
+            line=dict(color="#ef5350", width=2.5),
+            customdata=list(zip(_chart_opex_only, _chart_ds_only)),
+            hovertemplate=(
+                "<b>Year %{x} — Expenses</b><br>"
+                "Operating Costs: $%{customdata[0]:,.0f}<br>"
+                "+ Debt Service: $%{customdata[1]:,.0f}<br>"
+                "<b>= Total: $%{y:,.0f}</b><extra></extra>"
+            ),
+        ))
+        _fin_fig.add_trace(go.Scatter(
+            x=_chart_yrs, y=_chart_noi,
+            name="NOI (Revenue − OpEx)",
+            line=dict(color="#4caf50", width=2, dash="dot"),
+            hovertemplate="<b>Year %{x} — NOI</b><br>$%{y:,.0f}<extra></extra>",
+        ))
+        _fin_fig.add_trace(go.Scatter(
+            x=_chart_yrs, y=_chart_cf,
+            name="Cash Flow After Debt",
+            line=dict(color="#64b5f6", width=2, dash="dash"),
+            hovertemplate="<b>Year %{x} — Cash Flow</b><br>$%{y:,.0f}<extra></extra>",
+        ))
+        # Year-0 annotation
+        _fin_fig.add_annotation(
+            x=0, y=_equity,
+            text=f"Equity In<br>${_equity/1e6:.1f}M",
+            showarrow=True, arrowhead=2, arrowcolor="#ef5350",
+            font=dict(color="#ef5350", size=10),
+            bgcolor="#1a1208", bordercolor="#ef5350", borderwidth=1,
+            ax=40, ay=-30,
+        )
+        _fin_fig.update_layout(
+            plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+            font=dict(color="#a09880", size=11),
+            xaxis=dict(title="Hold Year", gridcolor="#2a2a20", tickmode="linear", dtick=1),
+            yaxis=dict(title="$ Amount", gridcolor="#2a2a20", tickformat="$,.0f"),
+            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10), orientation="h", y=-0.22),
+            margin=dict(l=10, r=10, t=10, b=70),
+            height=360,
+        )
+        st.plotly_chart(_fin_fig, use_container_width=True, key="fin_proj_chart", config={"displayModeBar": False})
+        st.caption(
+            "Revenue = Gross Rent − Vacancy Loss = EGI (Effective Gross Income).  "
+            "Expenses = Operating Costs (mgmt, taxes, insurance, maintenance) + Annual Debt Service.  "
+            "NOI = Revenue − Operating Costs only.  "
+            "Cash Flow = NOI − Debt Service.  "
+            "Year 0 = equity deployed at construction/close."
+        )
+
+
+        # ── Financing Structure ───────────────────────────────────────────────
+        financing = _adv_result.get("financing", {})
+        if financing:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Financing Structure")
+            _fn1, _fn2, _fn3, _fn4, _fn5 = st.columns(5)
+            _dscr_c = "#4caf50" if financing.get("dscr", 0) >= 1.25 else ("#ff9800" if financing.get("dscr", 0) >= 1.0 else "#f44336")
+            _coc_c  = "#4caf50" if financing.get("cash_on_cash_pct", 0) >= 6 else "#ff9800"
+            _irrl_c = "#4caf50" if financing.get("leveraged_irr_pct", 0) >= 15 else "#ff9800"
+            for _fc, (_lbl, _val, _clr) in zip(
+                [_fn1, _fn2, _fn3, _fn4, _fn5],
+                [
+                    ("LTV",               f"{financing['ltv_pct']:.0f}%",                         "#e8dfc4"),
+                    ("Loan Amount",        f"${financing['loan_amount']/1e6:.2f}M",                "#e8dfc4"),
+                    ("Equity Required",    f"${financing['equity_required']/1e6:.2f}M",            "#d4a843"),
+                    ("Annual Debt Service",f"${financing['annual_debt_service']/1e3:.0f}K",        "#e8dfc4"),
+                    ("DSCR",               f"{financing['dscr']:.2f}x",                            _dscr_c),
+                ]
+            ):
+                _fc.markdown(
+                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                    f'<div class="value" style="color:{_clr};">{_val}</div></div>',
+                    unsafe_allow_html=True,
+                )
+            st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
+            _fn6, _fn7, _fn8, _fn9 = st.columns(4)
+            for _fc, (_lbl, _val, _clr) in zip(
+                [_fn6, _fn7, _fn8, _fn9],
+                [
+                    ("Loan Rate",          f"{financing['loan_rate_pct']:.2f}% / {financing['amort_years']}yr", "#e8dfc4"),
+                    ("Cash Flow After DS", f"${financing['cash_flow_after_ds']/1e3:.0f}K/yr",                  _coc_c),
+                    ("Cash-on-Cash",       f"{financing['cash_on_cash_pct']:.1f}%",                            _coc_c),
+                    ("Leveraged IRR",      f"{financing['leveraged_irr_pct']:.1f}%",                           _irrl_c),
+                ]
+            ):
+                _fc.markdown(
+                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                    f'<div class="value" style="color:{_clr};">{_val}</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+        # ── 10-Year P&L Pro Forma ─────────────────────────────────────────────
+        proforma = _adv_result.get("proforma", [])
+        if proforma:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" 10-Year P&L Pro Forma")
+            _pf_hdr = ["Year","Gross Revenue","Vacancy Loss","EGI","Operating Exp.","NOI","Debt Service","Cash Flow","Cumulative CF"]
+            _pf_keys = ["year","gross_revenue","vacancy_loss","egi","opex","noi","debt_service","cf_after_ds","cum_cf"]
+            _pf_aligns = ["center"] + ["right"] * 8
+
+            def _pf_fmt(k, v):
+                if k == "year": return str(v)
+                return f"${v/1e3:.0f}K" if abs(v) < 1e6 else f"${v/1e6:.2f}M"
+
+            _pf_hcells = "".join(
+                f'<th style="padding:8px 10px;color:#c8a040;font-size:0.72rem;font-weight:700;'
+                f'letter-spacing:0.08em;text-align:{al};border-bottom:1px solid #2a2410;'
+                f'white-space:nowrap;">{h}</th>'
+                for h, al in zip(_pf_hdr, _pf_aligns)
+            )
+            _pf_rows_html = ""
+            for _row in proforma:
+                _noi_c  = "#4caf50" if _row["noi"] > 0 else "#f44336"
+                _cf_c   = "#4caf50" if _row["cf_after_ds"] >= 0 else "#f44336"
+                _cum_c  = "#4caf50" if _row["cum_cf"] >= 0 else "#f44336"
+                _sep    = "border-bottom:1px solid #1a1808;"
+                _cells  = ""
+                for k, al in zip(_pf_keys, _pf_aligns):
+                    v = _row[k]
+                    fmt = _pf_fmt(k, v)
+                    if k == "noi":
+                        clr = _noi_c
+                    elif k == "cf_after_ds":
+                        clr = _cf_c
+                    elif k == "cum_cf":
+                        clr = _cum_c
+                    elif k == "year":
+                        clr = "#c8a040"
+                    else:
+                        clr = "#c8b890"
+                    _cells += (f'<td style="padding:7px 10px;{_sep}text-align:{al};'
+                               f'color:{clr};font-size:0.83rem;white-space:nowrap;">{fmt}</td>')
+                _pf_rows_html += f"<tr>{_cells}</tr>"
+
+            st.markdown(
+                f'<div style="background:#13110a;border-radius:10px;padding:20px 24px;'
+                f'margin-bottom:8px;overflow-x:auto;">'
+                f'<table style="border-collapse:collapse;width:100%;font-family:\'Source Sans Pro\',sans-serif;">'
+                f'<thead><tr>{_pf_hcells}</tr></thead>'
+                f'<tbody>{_pf_rows_html}</tbody></table></div>',
+                unsafe_allow_html=True,
+            )
+            st.caption("NOI = EGI − Operating Expenses. Cash Flow = NOI − Debt Service. "
+                       "Year-1 shows lease-up vacancy premium. Rent grows at market rate; OpEx inflates 2.5%/yr.")
+
+        # ── Tax & Depreciation Benefits ───────────────────────────────────────
+        tax = _adv_result.get("tax_benefits", {})
+        if tax:
+            st.markdown("<br>", unsafe_allow_html=True)
+            section(" Tax & Depreciation Benefits")
+
+            _tx1, _tx2, _tx3, _tx4, _tx5 = st.columns(5)
+            for _fc, (_lbl, _val, _clr) in zip(
+                [_tx1, _tx2, _tx3, _tx4, _tx5],
+                [
+                    ("Building Value",        f"${tax['building_value']/1e6:.2f}M",      "#e8dfc4"),
+                    ("Year-1 Depreciation",   f"${tax['yr1_depreciation']/1e3:.0f}K",    "#d4a843"),
+                    ("Year-1 Tax Shield",     f"${tax['yr1_tax_shield']/1e3:.0f}K",      "#4caf50"),
+                    ("Annual Tax Shield",     f"${tax['annual_tax_shield']/1e3:.0f}K/yr","#80c858"),
+                    ("10-Yr Tax Savings",     f"${tax['cum10_tax_savings']/1e6:.2f}M",   "#4caf50"),
+                ]
+            ):
+                _fc.markdown(
+                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                    f'<div class="value" style="color:{_clr};">{_val}</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
+
+            # Depreciation breakdown table
+            _depr_rows = [
+                ("Personal Property (5-yr)", tax["personal_prop_value"], f"{tax['bonus_depr_pct']}% bonus + straight-line"),
+                ("Land Improvements (15-yr)", tax["land_improv_value"],  f"{tax['bonus_depr_pct']}% bonus + straight-line"),
+                (f"Structure ({tax['struct_depr_life']}-yr)",            tax["structure_value"],   "Straight-line"),
+                ("Land (non-depreciable)",   tax["land_value"],          "N/A"),
+            ]
+            _depr_html = ""
+            for _dn, _dv, _dm in _depr_rows:
+                _bar_w = int(_dv / max(tax["building_value"] + tax["land_value"], 1) * 280)
+                _depr_html += (
+                    f'<tr>'
+                    f'<td style="padding:8px 12px;color:#c8b890;font-size:0.84rem;border-bottom:1px solid #1e1c0e;">{_dn}</td>'
+                    f'<td style="padding:8px 12px;text-align:right;color:#c8a040;font-size:0.84rem;border-bottom:1px solid #1e1c0e;">${_dv/1e6:.2f}M</td>'
+                    f'<td style="padding:8px 12px;border-bottom:1px solid #1e1c0e;">'
+                    f'<div style="background:#2a2410;border-radius:3px;height:8px;width:300px;">'
+                    f'<div style="background:#c8a040;border-radius:3px;height:8px;width:{_bar_w}px;"></div></div></td>'
+                    f'<td style="padding:8px 12px;color:#7a7060;font-size:0.78rem;border-bottom:1px solid #1e1c0e;">{_dm}</td>'
+                    f'</tr>'
+                )
+            st.markdown(
+                f'<div style="background:#13110a;border-radius:10px;padding:20px 24px;margin-bottom:8px;">'
+                f'<table style="border-collapse:collapse;width:100%;">'
+                f'<thead><tr>'
+                f'<th style="padding:8px 12px;color:#c8a040;font-size:0.72rem;letter-spacing:0.08em;border-bottom:1px solid #2a2410;">COMPONENT</th>'
+                f'<th style="padding:8px 12px;color:#c8a040;font-size:0.72rem;letter-spacing:0.08em;text-align:right;border-bottom:1px solid #2a2410;">VALUE</th>'
+                f'<th style="padding:8px 12px;border-bottom:1px solid #2a2410;"></th>'
+                f'<th style="padding:8px 12px;color:#c8a040;font-size:0.72rem;letter-spacing:0.08em;border-bottom:1px solid #2a2410;">METHOD</th>'
+                f'</tr></thead><tbody>{_depr_html}</tbody></table></div>',
+                unsafe_allow_html=True,
+            )
+
+            if tax.get("oz_eligible"):
+                st.markdown(
+                    f'<div style="background:#0a1e0a;border:1px solid #2a6030;border-left:4px solid #4caf50;'
+                    f'border-radius:6px;padding:12px 18px;margin-top:4px;color:#80c858;font-size:0.88rem;">'
+                    f'<strong>&#9733; Opportunity Zone</strong> &mdash; {tax["oz_note"]}</div>',
+                    unsafe_allow_html=True,
+                )
+            st.caption(
+                f"Assumes {tax['tax_rate_pct']}% combined federal tax rate. "
+                f"Cost-segregation allocation: 15% personal property (5-yr), 10% land improvements (15-yr), "
+                f"75% structure ({tax['struct_depr_life']}-yr). "
+                f"{tax['bonus_depr_pct']}% bonus depreciation applied (2025 schedule)."
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Investment narrative ──────────────────────────────────────────────
+        section(" Investment Rationale")
+        for _para in narrative.strip().split("\n\n"):
+            if _para.strip():
+                st.markdown(
+                    f'<div style="background:#16140a;border-left:3px solid #a07830;'
+                    f'border-radius:4px;padding:14px 18px;margin-bottom:12px;'
+                    f'color:#e8dfc4;font-size:0.93rem;line-height:1.65;">{_para.strip()}</div>',
+                    unsafe_allow_html=True,
+                )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Forecasting (Agent 22 · FRED projections) ─────────────────────────
+        _fc_cache = read_cache("forecast") or {}
+        _fc_data  = _fc_cache.get("data") or {}
+        _fc_proj  = _fc_data.get("projections", {}) or {}
+        _fc_hist  = _fc_data.get("historical",  {}) or {}
+
+        if _fc_proj:
+            section(" Forecasting — Macro Projections")
+            st.markdown(
+                '<div style="color:#a09880;font-size:0.86rem;margin-top:-6px;margin-bottom:14px;">'
+                'Forward-looking macro drivers: Atlanta Fed GDPNow, FOMC Summary of Economic Projections '
+                '(real GDP & Fed funds), and market-implied 10-year breakeven inflation. '
+                'Feed into exit cap rate, debt service, and rent growth assumptions.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
+            # ── Projections table ─────────────────────────────────────────────
+            _fc_header = (
+                '<tr style="background:#1a1408;">'
+                '  <th style="text-align:left;padding:10px 14px;color:#d4a843;'
+                '      font-size:0.8rem;letter-spacing:0.06em;border-bottom:1px solid #2a2208;">'
+                '      INDICATOR</th>'
+                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
+                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">CURRENT</th>'
+                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
+                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">Q2 2026</th>'
+                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
+                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">Q3 2026</th>'
+                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
+                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">Q4 2026</th>'
+                '</tr>'
+            )
+            _fc_rows = []
+            for _name, _p in _fc_proj.items():
+                _cur = _p.get("current")
+                _q2  = _p.get("q2_2026")
+                _q3  = _p.get("q3_2026")
+                _q4  = _p.get("q4_2026")
+                _unit = _p.get("unit", "%")
+                _delta = (_q4 - _cur) if (_q4 is not None and _cur is not None) else 0
+                _dir_col = ("#4caf50" if _delta > 0.05 else
+                            "#ef5350" if _delta < -0.05 else "#c8b890")
+                def _fmt(v):
+                    return f"{v:.2f}{_unit}" if v is not None else "—"
+                _fc_rows.append(
+                    f'<tr>'
+                    f'  <td style="padding:10px 14px;color:#e8dfc4;font-size:0.9rem;'
+                    f'      border-bottom:1px solid #2a2208;">{_name}'
+                    f'      <div style="color:#6a5228;font-size:0.72rem;">FRED {_p.get("series_id","")}</div></td>'
+                    f'  <td style="padding:10px 14px;text-align:right;color:#c8b890;'
+                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;">{_fmt(_cur)}</td>'
+                    f'  <td style="padding:10px 14px;text-align:right;color:{_dir_col};'
+                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;">{_fmt(_q2)}</td>'
+                    f'  <td style="padding:10px 14px;text-align:right;color:{_dir_col};'
+                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;">{_fmt(_q3)}</td>'
+                    f'  <td style="padding:10px 14px;text-align:right;color:{_dir_col};'
+                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;font-weight:700;">{_fmt(_q4)}</td>'
+                    f'</tr>'
+                )
+            st.markdown(
+                f'<div style="background:#0f0d06;border:1px solid #2a2208;border-radius:8px;'
+                f'overflow:hidden;margin-bottom:14px;">'
+                f'  <table style="width:100%;border-collapse:collapse;">'
+                f'    <thead>{_fc_header}</thead>'
+                f'    <tbody>{"".join(_fc_rows)}</tbody>'
+                f'  </table>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+            # ── History + forecast line chart ─────────────────────────────────
+            try:
+                import plotly.graph_objects as _go
+                _fig_fc = _go.Figure()
+                _line_colors = {
+                    "GDP Nowcast (Atlanta Fed)":  "#d4a843",
+                    "GDP Projection (FOMC)":      "#c8a040",
+                    "10Y Breakeven Inflation":    "#80a848",
+                    "Fed Funds Projection (FOMC)":"#9868b8",
+                }
+                for _name, _h in _fc_hist.items():
+                    _pts = _h.get("points", []) or []
+                    if not _pts:
+                        continue
+                    _hx = [p["date"] for p in _pts]
+                    _hy = [p["value"] for p in _pts]
+                    _clr = _line_colors.get(_name, "#d4a843")
+
+                    # Historical solid line
+                    _fig_fc.add_trace(_go.Scatter(
+                        x=_hx, y=_hy, mode="lines", name=_name,
+                        line=dict(color=_clr, width=2),
+                        hovertemplate="<b>%{fullData.name}</b><br>%{x}<br>%{y:.2f}%<extra></extra>",
+                    ))
+                    # Forecast dotted extension (last historical → Q4 2026)
+                    _p = _fc_proj.get(_name, {})
+                    _fx = [_hx[-1], "2026-06-30", "2026-09-30", "2026-12-31"]
+                    _fy = [_hy[-1], _p.get("q2_2026"), _p.get("q3_2026"), _p.get("q4_2026")]
+                    _fig_fc.add_trace(_go.Scatter(
+                        x=_fx, y=_fy, mode="lines", name=f"{_name} (forecast)",
+                        line=dict(color=_clr, width=2, dash="dot"),
+                        showlegend=False,
+                        hovertemplate="<b>%{fullData.name}</b><br>%{x}<br>%{y:.2f}%<extra></extra>",
+                    ))
+
+                _fig_fc.update_layout(
+                    plot_bgcolor="#0f0f0c",
+                    paper_bgcolor="#16160f",
+                    margin=dict(t=20, b=20, l=30, r=20),
+                    height=360,
+                    xaxis=dict(tickfont=dict(color="#e8dfc4", size=10),
+                               gridcolor="#2a2a1a", title=""),
+                    yaxis=dict(tickfont=dict(color="#e8dfc4", size=10),
+                               gridcolor="#2a2a1a", title="Rate (%)",
+                               titlefont=dict(color="#a09880")),
+                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                                xanchor="left", x=0,
+                                font=dict(color="#c8b890", size=10),
+                                bgcolor="rgba(0,0,0,0)"),
+                )
+                st.plotly_chart(_fig_fc, use_container_width=True,
+                                config={"displayModeBar": False})
+                st.caption("Solid lines = historical (FRED). Dotted = projected Q2–Q4 2026.")
+            except Exception as _fc_err:
+                st.caption(f"Chart unavailable: {_fc_err}")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Conditional: Climate risk detail if High/Severe ───────────────────
+        if primary.get("climate_score", 0) >= 50:
+            section(f" Climate Risk Alert — {primary['market']} ({primary['climate_label']})")
+            _cf = primary.get("climate_factors", {})
+            if _cf:
+                _cf_cols = st.columns(len(_cf))
+                _cf_display = {"flood": "Flood", "wildfire": "Wildfire",
+                               "heat": "Extreme Heat", "wind": "Wind/Hurricane",
+                               "sea_level": "Sea Level Rise"}
+                for _cfc, (_fk, _fv) in zip(_cf_cols, _cf.items()):
+                    _fc_color = ("#4caf50" if _fv < 25 else "#ff9800" if _fv < 50
+                                 else "#f44336" if _fv < 75 else "#9c27b0")
+                    _cfc.markdown(
+                        f'<div class="metric-card"><div class="label">{_cf_display.get(_fk, _fk)}</div>'
+                        f'<div class="value" style="color:{_fc_color};font-size:1.3rem;">{_fv:.0f}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+            st.warning(
+                f"{primary['market']} carries **{primary['climate_label'].upper()}** physical climate risk "
+                f"(composite {primary['climate_score']:.0f}/100). "
+                f"Factor higher insurance budgets, resilience design costs, and potential exit cap rate "
+                f"expansion into your underwriting.",
+                icon="⚠️",
+            )
+            st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Runner-up comparison ──────────────────────────────────────────────
+        if runners:
+            section(" Runner-Up Markets")
+            _compare = [primary] + runners
+            _cmp_rows = []
+            for _i, _m in enumerate(_compare):
+                _bd_m  = _m.get("factor_scores", {})
+                _cscr2 = _m.get("climate_score", 0)
+                _clim_pen2 = round(min(10.0, (_cscr2 - 60) * 0.20), 1) if _cscr2 >= 60 else 0.0
+                _clim_str  = f"{_cscr2:.0f} ({_m.get('climate_label', 'N/A')})"
+                if _clim_pen2 > 0:
+                    _clim_str += f" −{_clim_pen2:.1f}pts"
+                _cmp_rows.append({
+                    "Rank":              "Primary" if _i == 0 else f"#{_i+1} Runner-Up",
+                    "Market":            _m["market"],
+                    "Opp. Score":        _m["opportunity_score"],
+                    "Cap Rate":          f"{_m.get('cap_rate', 0):.2f}%",
+                    "Rent Growth":       f"{_m.get('rent_growth', 0):+.1f}%",
+                    "Climate Risk":      _clim_str,
+                    "Mkt Fundamentals":  f"{_bd_m.get('market_fundamentals', {}).get('raw_score', 0):.0f}",
+                    "Migration Score":   f"{_m.get('mig_score', 0):.0f}",
+                })
+            _cmp_df = pd.DataFrame(_cmp_rows)
+
+            def _adv_style_rank(val):
+                if val == "Primary": return "color:#d4a843;font-weight:700"
+                return "color:#a09880"
+
+            def _adv_style_climate(val):
+                """Colour-code climate risk: green low, orange mid, red/purple high."""
+                try:
+                    score = float(str(val).split("(")[0].strip())
+                except Exception:
+                    return ""
+                if score < 25:   return "color:#4caf50;font-weight:600"
+                if score < 50:   return "color:#ff9800;font-weight:600"
+                if score < 75:   return "color:#f44336;font-weight:600"
+                return "color:#9c27b0;font-weight:700"
+
+            st.markdown(_render_generic_table(
+                _cmp_df,
+                title="Primary vs Runner-Up Markets",
+                count_label=f"{len(_cmp_df)} markets",
+                hints={
+                    "Rank":             {"type": "badge", "flex": 0.9, "badge_map": {
+                        "Primary": "background:#2a1a04;color:#d4a843",
+                    }},
+                    "Market":           {"type": "name",      "flex": 1.8},
+                    "Opp. Score":       {"type": "score_bar", "flex": 1.2},
+                    "Cap Rate":         {"type": "text",      "flex": 0.8},
+                    "Rent Growth":      {"type": "pct_bar",   "flex": 1.2},
+                    "Climate Risk":     {"type": "text",      "flex": 1.2},
+                    "Mkt Fundamentals": {"type": "score_bar", "flex": 1},
+                    "Migration Score":  {"type": "score_bar", "flex": 1},
+                },
+            ), unsafe_allow_html=True)
+
+            # Composite score bar chart
+            _cmp_names  = [_m["market"] for _m in _compare]
+            _cmp_scores = [_m["opportunity_score"] for _m in _compare]
+            _fig_cmp = go.Figure(go.Bar(
+                x=_cmp_names,
+                y=_cmp_scores,
+                marker=dict(color=[_adv_score_color(s) for s in _cmp_scores]),
+                text=[f"{s:.1f}" for s in _cmp_scores],
+                textposition="outside",
+                textfont=dict(color="#e8dfc4", size=12),
+                hovertemplate="<b>%{x}</b><br>Score: %{y:.1f}/100<extra></extra>",
+            ))
+            _fig_cmp.update_layout(
+                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
+                margin=dict(t=20, b=20, l=20, r=20),
+                height=260,
+                xaxis=dict(tickfont=dict(color="#e8dfc4", size=11), gridcolor="#2a2a1a"),
+                yaxis=dict(range=[0, 110], tickfont=dict(color="#e8dfc4", size=10),
+                           gridcolor="#2a2a1a", title="Opportunity Score"),
+                font=dict(family="Source Sans Pro", color="#e8dfc4"),
+                showlegend=False,
+            )
+            st.plotly_chart(_fig_cmp, use_container_width=True, config={"displayModeBar": False})
+            st.caption("Composite opportunity scores (0–100). Green ≥ 75, Orange 55–74, Red < 55.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── All scored markets (collapsed) ────────────────────────────────────
+        if all_scored and len(all_scored) > 3:
+            with st.expander(f"All {len(all_scored)} candidate markets scored"):
+                _all_rows = []
+                for _i, _m in enumerate(all_scored):
+                    _all_rows.append({
+                        "Rank":           _i + 1,
+                        "Market":         _m["market"],
+                        "Score":          _m["opportunity_score"],
+                        "Cap Rate":       f"{_m.get('cap_rate', 0):.2f}%",
+                        "Rent Growth":    f"{_m.get('rent_growth', 0):+.1f}%",
+                        "Climate Score":  _m.get("climate_score", 0),
+                        "Migration":      f"{_m.get('mig_score', 0):.0f}",
+                    })
+                _all_df = pd.DataFrame(_all_rows)
+                st.markdown(_render_generic_table(
+                    _all_df,
+                    title="All Candidate Markets — Scored & Ranked",
+                    count_label=f"{len(_all_df)} markets",
+                    scrollable=True, max_height=400,
+                    hints={
+                        "Rank":          {"type": "text",      "flex": 0.5},
+                        "Market":        {"type": "name",      "flex": 1.8},
+                        "Score":         {"type": "score_bar", "flex": 1.2},
+                        "Cap Rate":      {"type": "text",      "flex": 0.8},
+                        "Rent Growth":   {"type": "pct_bar",   "flex": 1.2},
+                        "Climate Score": {"type": "score_bar", "flex": 1},
+                        "Migration":     {"type": "text",      "flex": 0.8},
+                    },
+                ), unsafe_allow_html=True)
+
+        # ── Methodology & weights ─────────────────────────────────────────────
+        with st.expander("Scoring Methodology & Factor Weights"):
+            _meth   = weights.get("methodology", "")
+            _wsrc   = "AI-determined (Groq)" if weights.get("source") == "groq" else "Platform default"
+            st.markdown(
+                f'<div style="background:#16140a;border-left:3px solid #d4a843;border-radius:4px;'
+                f'padding:12px 16px;margin-bottom:16px;color:#e8dfc4;font-size:0.9rem;">'
+                f'<b>Weight source:</b> {_wsrc}<br>'
+                f'<b>Methodology:</b> {_meth}</div>',
+                unsafe_allow_html=True,
+            )
+            _wt_data  = weights.get("weights", {})
+            _rat_data = weights.get("rationales", {})
+            if _wt_data:
+                _wt_rows = []
+                for _f, _w in sorted(_wt_data.items(), key=lambda x: -x[1]):
+                    _bd_f = primary.get("factor_scores", {}).get(_f, {})
+                    _wt_rows.append({
+                        "Factor":         _f.replace("_", " ").title(),
+                        "Weight":         f"{_w*100:.0f}%",
+                        "Raw Score":      f"{_bd_f.get('raw_score', 0):.1f}/100",
+                        "Contribution":   f"{_bd_f.get('weighted', 0):.1f} pts",
+                        "Rationale":      _rat_data.get(_f, ""),
+                    })
+                st.markdown(_render_generic_table(
+                    pd.DataFrame(_wt_rows),
+                    title="Factor Weights & Scores",
+                    count_label=f"{len(_wt_rows)} factors",
+                    hints={
+                        "Factor":       {"type": "name",    "flex": 1.2},
+                        "Weight":       {"type": "pct_bar", "flex": 0.8},
+                        "Raw Score":    {"type": "text",    "flex": 0.8},
+                        "Contribution": {"type": "text",    "flex": 0.8},
+                        "Rationale":    {"type": "text",    "flex": 2.5},
+                    },
+                ), unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+      except Exception as _render_err:
+        import traceback as _tb2
+        st.error(f"**Render error** — this usually means a stale result is cached. Click **Generate Recommendation** to refresh.")
+        with st.expander("Technical details"):
+            st.code(_tb2.format_exc(), language="python")
+        if st.button("Clear cached result", key="adv_clear_cache"):
+            st.session_state.adv_result = None
+            st.rerun()
+
+    elif _adv_result and "error" in _adv_result:
+        st.error(_adv_result["error"])
+
+    else:
+        # Idle state — example prompts
+        st.markdown("""
+<div style="background:#16140a;border:1px solid #2a2010;border-radius:8px;
+            padding:24px 28px;margin-top:12px;">
+  <div style="color:#d4a843;font-weight:600;margin-bottom:14px;">Example prompts to get started:</div>
+  <ul style="color:#a09880;font-size:0.92rem;line-height:2.0;padding-left:20px;margin:0;">
+    <li>"I want to build a 50,000 sq ft warehouse in southern Texas with an $8M budget over a 5-year hold."</li>
+    <li>"Looking for multifamily development in the Southeast. $15M budget, 7-year hold, moderate risk."</li>
+    <li>"Office development, 20,000 sq ft, $12M, in the Sunbelt &mdash; where should I build?"</li>
+    <li>"Conservative industrial play in the Midwest, $5M, 3 years."</li>
+  </ul>
+</div>
+""", unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MAIN TAB — ABOUT
+# ═══════════════════════════════════════════════════════════════════════════════
 with main_tab_re:
     tab1, tab2, tab3, tab4, tab5, tab_supply, tab_returns, tab_oz, tab_score, tab_climate = st.tabs([
         "Migration Intelligence",
@@ -8945,1588 +10527,6 @@ The cycle phase is determined by combining multiple indicators:
 **Data Source:** FRED (corporate spreads, VIX, lending surveys), updated every 6 hours via Agent 12.
 """)
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  MAIN TAB — INVESTMENT ADVISOR
-# ═══════════════════════════════════════════════════════════════════════════════
-with main_tab_advisor:
-    from src.recommendation_engine import (
-        build_recommendation, parse_prompt,
-        ALL_MARKETS, _PROP_SYNONYMS,
-    )
-
-    st.markdown("""
-<div style="background:linear-gradient(135deg,#1a1208 0%,#2a1e08 100%);
-            border:1px solid #a07830; border-top:3px solid #d4a843;
-            border-radius:10px; padding:28px 36px; margin-bottom:16px;">
-  <div style="color:#d4a843;font-size:1.45rem;font-weight:700;letter-spacing:1px;">
-    AI-Powered Commercial Real Estate Advisor
-  </div>
-  <div style="color:#a09880;font-size:0.92rem;margin-top:6px;max-width:780px;line-height:1.65;">
-    Describe your investment goal in plain English. The platform parses your intent, scores
-    every candidate market across 10+ live data signals, and generates a full institutional-grade
-    investment brief &mdash; complete with a year-by-year P&amp;L pro forma, debt structure,
-    depreciation tax shield, and Opportunity Zone analysis.
-  </div>
-  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;">
-    <span style="background:#1e2e0a;border:1px solid #507028;color:#80a848;font-size:0.74rem;
-                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Market Scoring</span>
-    <span style="background:#0a1e1e;border:1px solid #287068;color:#48a898;font-size:0.74rem;
-                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; 10-Year P&amp;L Pro Forma</span>
-    <span style="background:#1a1408;border:1px solid #705828;color:#a88048;font-size:0.74rem;
-                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Financing &amp; DSCR</span>
-    <span style="background:#1a0a1e;border:1px solid #603880;color:#9868b8;font-size:0.74rem;
-                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Depreciation Tax Shield</span>
-    <span style="background:#1e0a0a;border:1px solid #802828;color:#b85858;font-size:0.74rem;
-                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Opportunity Zone Benefits</span>
-    <span style="background:#0a0e1e;border:1px solid #284870;color:#4878a8;font-size:0.74rem;
-                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; Climate &amp; Risk Analysis</span>
-    <span style="background:#1a1208;border:1px solid #705020;color:#a87838;font-size:0.74rem;
-                 padding:4px 10px;border-radius:12px;letter-spacing:0.05em;">&#10003; AI Investment Rationale</span>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-    # ── Session state for advisor ─────────────────────────────────────────────
-    if "adv_result" not in st.session_state:
-        st.session_state.adv_result = None
-    if "adv_show_followup" not in st.session_state:
-        st.session_state.adv_show_followup = False
-    if "adv_parsed" not in st.session_state:
-        st.session_state.adv_parsed = None
-
-    # Pre-populate text area with home/chat bar query if routed here
-    _home_prompt = st.session_state.get("adv_home_prompt")
-    if _home_prompt and not st.session_state.get("adv_prompt_text"):
-        st.session_state["adv_prompt_text"] = _home_prompt
-
-    # Pre-fill from global intent if text area is still empty
-    _adv_intent    = st.session_state.user_intent
-    _adv_intent_pt = _adv_intent.get("property_type")
-    _adv_intent_loc = _adv_intent.get("city") or _adv_intent.get("state") or _adv_intent.get("location")
-
-    if _adv_intent_pt and not st.session_state.get("adv_prompt_text") and not st.session_state.get("adv_result"):
-        _adv_pt_hints = {
-            "Industrial":  ("warehouse / industrial facility", "10,000 sq ft", "$5M"),
-            "Multifamily": ("multifamily / apartment complex", "24 units",     "$8M"),
-            "Office":      ("office building",                  "8,000 sq ft",  "$4M"),
-            "Retail":      ("retail strip center",              "5,000 sq ft",  "$3M"),
-            "Healthcare":  ("medical office / healthcare",       "6,000 sq ft",  "$4M"),
-        }
-        _adv_hint = _adv_pt_hints.get(_adv_intent_pt, (_adv_intent_pt.lower(), "10,000 sq ft", "$5M"))
-        _adv_loc_str = f" in {_adv_intent_loc}" if _adv_intent_loc else ""
-        st.session_state["adv_prompt_text"] = (
-            f"I want to invest in a {_adv_hint[0]}{_adv_loc_str} — "
-            f"approximately {_adv_hint[1]} with a {_adv_hint[2]} budget over a 5-year hold"
-        )
-
-    # Context banner when intent is populated
-    if _adv_intent_pt:
-        _adv_ctx_loc = f" · {_adv_intent_loc}" if _adv_intent_loc else ""
-        st.markdown(
-            f'<div style="background:#0d1a0d;border:1px solid #2a4a2a;border-radius:7px;'
-            f'padding:8px 14px;margin-bottom:8px;font-size:0.8rem;color:#7ab07a;">'
-            f'Session focus: <b style="color:#a0d0a0;">{_adv_intent_pt}{_adv_ctx_loc}</b> — '
-            f'prompt pre-filled from your selection. Edit freely.</div>',
-            unsafe_allow_html=True,
-        )
-
-    # ── Input area ────────────────────────────────────────────────────────────
-    st.markdown("""
-<div style="background:#16140a;border:1px solid #3a3020;border-radius:8px;
-            padding:20px 24px 8px 24px;margin-bottom:8px;">
-  <div style="color:#d4a843;font-weight:600;font-size:0.95rem;margin-bottom:10px;">
-    Describe your investment
-  </div>
-""", unsafe_allow_html=True)
-
-    prompt_input = st.text_area(
-        label="prompt",
-        label_visibility="collapsed",
-        placeholder='e.g. "I want to build a 50,000 sq ft warehouse in southern Texas with a $8M budget over a 5-year hold"',
-        height=90,
-        key="adv_prompt_text",
-    )
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    col_parse, col_generate, col_regen = st.columns([1.5, 1.8, 1], gap="small")
-
-    with col_parse:
-        do_parse = st.button("Analyze Prompt", key="adv_btn_parse", use_container_width=True)
-
-    if do_parse and prompt_input.strip():
-        try:
-            parsed = parse_prompt(prompt_input.strip())
-            st.session_state.adv_parsed = parsed
-            st.session_state.adv_show_followup = bool(parsed["missing_fields"])
-            st.session_state.adv_result = None
-            if not parsed.get("missing_fields"):
-                st.success("Prompt analyzed — all fields detected. Click **Generate Recommendation** to proceed.")
-            else:
-                st.info(f"Prompt analyzed — {len(parsed['missing_fields'])} field(s) need clarification below.")
-        except Exception as _pe:
-            st.error(f"Could not parse prompt: {_pe}")
-
-    # ── Follow-up inputs for missing fields ───────────────────────────────────
-    followup_values = {}
-    if st.session_state.adv_parsed and st.session_state.adv_show_followup:
-        missing = st.session_state.adv_parsed.get("missing_fields", [])
-        if missing:
-            st.markdown("""
-<div style="background:#1a1208;border-left:3px solid #d4a843;border-radius:4px;
-            padding:12px 18px;margin:12px 0 8px 0;color:#e8dfc4;font-size:0.9rem;">
-  A few details were not found in your prompt. Fill in the fields below to improve accuracy
-  (or leave blank to use platform defaults).
-</div>
-""", unsafe_allow_html=True)
-            fu_cols = st.columns(min(len(missing), 4))
-            for i, field in enumerate(missing):
-                col = fu_cols[i % len(fu_cols)]
-                if field == "property_type":
-                    prop_options = sorted(set(_PROP_SYNONYMS.values()))
-                    sel = col.selectbox("Property Type", [""] + prop_options, key="adv_fu_pt")
-                    followup_values["property_type"] = sel or None
-                elif field == "location":
-                    followup_values["location_raw"] = col.text_input(
-                        "Target Market / Region", key="adv_fu_loc",
-                        placeholder="e.g. Texas, Southeast, Phoenix"
-                    ) or None
-                elif field == "budget":
-                    raw_budget = col.text_input(
-                        "Total Budget ($)", key="adv_fu_budget",
-                        placeholder="e.g. 8M or 8000000"
-                    )
-                    if raw_budget:
-                        try:
-                            v = raw_budget.strip().lower().replace(",", "")
-                            if v.endswith("m"):   v = float(v[:-1]) * 1_000_000
-                            elif v.endswith("b"): v = float(v[:-1]) * 1_000_000_000
-                            elif v.endswith("k"): v = float(v[:-1]) * 1_000
-                            else:                 v = float(v)
-                            followup_values["budget"] = v
-                        except Exception:
-                            followup_values["budget"] = None
-                elif field == "sqft":
-                    raw_sf = col.text_input(
-                        "Square Footage", key="adv_fu_sqft",
-                        placeholder="e.g. 50000"
-                    )
-                    if raw_sf:
-                        try:
-                            followup_values["sqft"] = float(raw_sf.replace(",", ""))
-                        except Exception:
-                            followup_values["sqft"] = None
-                elif field == "timeline_years":
-                    followup_values["timeline_years"] = col.number_input(
-                        "Hold Period (years)", min_value=1, max_value=30,
-                        value=5, key="adv_fu_timeline"
-                    )
-
-    # ── Generate / Regenerate buttons ─────────────────────────────────────────
-    with col_generate:
-        do_generate = st.button("Generate Recommendation", key="adv_btn_gen",
-                                type="primary", use_container_width=True)
-
-    with col_regen:
-        do_regen = st.button("Regenerate", key="adv_btn_regen", use_container_width=True,
-                             disabled=(st.session_state.adv_result is None))
-
-    def _run_advisor(prompt_text, override_fields):
-        parsed = parse_prompt(prompt_text)
-        for k, v in override_fields.items():
-            if v is not None:
-                parsed[k] = v
-        if not parsed.get("property_type"):  parsed["property_type"]  = "Industrial"
-        if not parsed.get("location_raw"):   parsed["location_raw"]   = "sunbelt"
-        if not parsed.get("budget"):         parsed["budget"]         = 10_000_000
-        if not parsed.get("sqft"):           parsed["sqft"]           = 50_000
-        if not parsed.get("timeline_years"): parsed["timeline_years"] = 5
-        if not parsed.get("risk_tolerance"): parsed["risk_tolerance"] = "moderate"
-        return build_recommendation(parsed)
-
-    # Pick up auto-generate flag set by chat bar routing
-    _auto_gen = st.session_state.get("adv_auto_generate", False)
-    if _auto_gen:
-        st.session_state.adv_auto_generate = False   # consume flag
-
-    trigger_generate = do_generate or do_regen or _auto_gen
-
-    _effective_prompt = prompt_input.strip() or (st.session_state.get("adv_home_prompt") or "").strip()
-
-    if trigger_generate and _effective_prompt:
-        # Clear the home prompt so it doesn't re-fire on next rerun
-        st.session_state.adv_home_prompt = None
-        with st.spinner("Analyzing markets and building your investment brief…"):
-            try:
-                result = _run_advisor(_effective_prompt, followup_values)
-                st.session_state.adv_result = result
-                st.session_state.adv_show_followup = False
-            except Exception as _adv_err:
-                import traceback as _tb
-                st.error(f"Error generating recommendation: {_adv_err}")
-                st.code(_tb.format_exc(), language="python")
-
-    # ── Data source freshness banner ──────────────────────────────────────────
-    _mgr_report = (read_cache("manager_report").get("data") or {})
-    _adv_deps   = _mgr_report.get("advisor_dependencies", [])
-    _dep_issues = [d for d in _adv_deps if d.get("health") not in ("OK", "RUNNING")]
-    _backed_off = _mgr_report.get("backed_off_agents", [])
-    if _dep_issues:
-        _dep_names  = ", ".join(d["agent"].replace("_", " ").title() for d in _dep_issues)
-        _hints      = list({d["hint"] for d in _dep_issues if d.get("hint")})
-        _hint_txt   = f" — {_hints[0]}" if _hints else ""
-        st.warning(
-            f"Some data sources used by the Investment Advisor are stale or missing: "
-            f"**{_dep_names}**{_hint_txt}. "
-            f"Results may be less accurate until they refresh. "
-            f"Go to the **About** tab → System Health to trigger a manual refresh.",
-            icon="⚠️",
-        )
-    if _backed_off:
-        _bo_names = ", ".join(a.replace("_", " ").title() for a in _backed_off)
-        st.error(
-            f"**{_bo_names}** failed 3+ times and need manual attention. "
-            f"Check your API keys in the .env file or verify network access.",
-            icon="❌",
-        )
-
-    # ══════════════════════════════════════════════════════════════════════════
-    #  REPORT OUTPUT
-    # ══════════════════════════════════════════════════════════════════════════
-    _adv_result = st.session_state.adv_result
-    # Validate stored result has required keys (clears stale results from old code versions)
-    if _adv_result and "error" not in _adv_result:
-        _required_keys = {"primary", "financials", "runners", "weights", "narrative", "params"}
-        if not _required_keys.issubset(_adv_result.keys()):
-            st.session_state.adv_result = None
-            _adv_result = None
-    if _adv_result and "error" not in _adv_result:
-      try:
-        primary    = _adv_result["primary"]
-        runners    = _adv_result["runners"]
-        financials = _adv_result["financials"]
-        weights    = _adv_result["weights"]
-        narrative  = _adv_result["narrative"]
-        params     = _adv_result["params"]
-        all_scored = _adv_result.get("all_scored", [])
-
-        # ── Parsed-params banner ─────────────────────────────────────────────
-        _prop_type = params.get("property_type", "")
-        _location  = params.get("location_raw", "")
-        _timeline  = params.get("timeline_years", "N/A")
-        _risk_tol  = (params.get("risk_tolerance") or "moderate").title()
-        _budget_m  = f"${params['budget']/1_000_000:.1f}M" if params.get("budget") else "N/A"
-        _sqft_k    = f"{params['sqft']/1000:.0f}K sq ft" if params.get("sqft") else "N/A"
-
-        st.markdown(f"""
-<div style="background:#16140a;border:1px solid #3a3020;border-radius:6px;
-            padding:10px 18px;margin:8px 0 20px 0;font-size:0.88rem;color:#a09880;">
-  <span style="color:#d4a843;font-weight:600;">Parsed: </span>
-  {_prop_type} &nbsp;&middot;&nbsp; {_location or 'All Markets'} &nbsp;&middot;&nbsp;
-  {_budget_m} budget &nbsp;&middot;&nbsp; {_sqft_k} &nbsp;&middot;&nbsp;
-  {_timeline}-yr hold &nbsp;&middot;&nbsp; {_risk_tol} risk
-  <span style="float:right;color:#5a5040;">Generated {_adv_result['generated_at'][:16].replace('T', ' ')} UTC</span>
-</div>
-""", unsafe_allow_html=True)
-
-        # ── "What does this mean for me?" AI explanation ─────────────────────
-        if "adv_plain_english" not in st.session_state:
-            st.session_state.adv_plain_english = None
-
-        _wtm_col, _wtm_btn_col = st.columns([5, 1])
-        with _wtm_btn_col:
-            if st.button("What does this mean for me?", key="wtm_btn",
-                         help="Get a plain-English explanation of these results — no jargon"):
-                st.session_state.adv_plain_english = None   # clear previous
-                with st.spinner("Generating plain-English explanation..."):
-                    try:
-                        import os as _wtm_os
-                        from groq import Groq as _WGroq
-                        _wtm_key = _wtm_os.getenv("GROQ_API_KEY", "")
-                        if not _wtm_key:
-                            st.session_state.adv_plain_english = "GROQ_API_KEY not set — add it to .env to enable AI explanations."
-                        else:
-                            _wtm_client = _WGroq(api_key=_wtm_key)
-                            _wtm_fin    = _adv_result.get("financials", {})
-                            _wtm_prim   = _adv_result.get("primary", {})
-                            _wtm_params = _adv_result.get("params", {})
-                            _wtm_prompt = (
-                                f"An investor asked: '{st.session_state.get('adv_prompt_submitted', _wtm_params.get('location_raw',''))}'\n\n"
-                                f"The AI recommended: {_wtm_prim.get('market','N/A')} for {_wtm_params.get('property_type','CRE')} development.\n"
-                                f"Key numbers:\n"
-                                f"- Total project cost: ${_wtm_fin.get('total_cost',0)/1e6:.1f}M\n"
-                                f"- Estimated IRR: {_wtm_fin.get('irr_est',0):.1f}%\n"
-                                f"- Annual NOI: ${_wtm_fin.get('annual_noi',0)/1e3:.0f}K\n"
-                                f"- Total profit over hold: ${_wtm_fin.get('total_profit',0)/1e6:.1f}M\n"
-                                f"- Opportunity score: {_wtm_prim.get('opportunity_score',0):.0f}/100\n"
-                                f"- Market grade: {_wtm_prim.get('grade','N/A')}\n"
-                                f"- Climate risk: {_wtm_prim.get('climate_label','N/A')}\n"
-                                f"- Hold period: {_wtm_params.get('timeline_years',5)} years\n"
-                            )
-                            _wtm_resp = _wtm_client.chat.completions.create(
-                                model="llama-3.3-70b-versatile",
-                                messages=[
-                                    {"role": "system", "content": (
-                                        "You are a patient, friendly real estate advisor explaining a CRE investment "
-                                        "recommendation to someone with no finance background. Use plain English — no jargon. "
-                                        "Structure your response as:\n"
-                                        "1. What the AI is recommending and why (2 sentences)\n"
-                                        "2. What the numbers mean in simple terms (3-4 sentences — explain IRR, NOI, profit in everyday language)\n"
-                                        "3. The biggest opportunity (1 sentence)\n"
-                                        "4. The biggest risk to watch (1 sentence)\n"
-                                        "Be encouraging but honest. Write like you're talking to a friend, not writing a report."
-                                    )},
-                                    {"role": "user", "content": _wtm_prompt},
-                                ],
-                                max_tokens=400,
-                                temperature=0.4,
-                            )
-                            st.session_state.adv_plain_english = _wtm_resp.choices[0].message.content.strip()
-                    except Exception as _wtm_err:
-                        st.session_state.adv_plain_english = f"Could not generate explanation: {_wtm_err}"
-
-        if st.session_state.adv_plain_english:
-            with _wtm_col:
-                st.markdown(f"""
-<div style="background:linear-gradient(135deg,#0d1a0d 0%,#111a08 100%);
-            border:1px solid #2a4020;border-left:4px solid #4caf50;
-            border-radius:8px;padding:18px 22px;margin-bottom:16px;">
-  <div style="color:#80c858;font-size:0.78rem;font-weight:600;letter-spacing:.08em;
-              text-transform:uppercase;margin-bottom:10px;">Plain-English Explanation</div>
-  <div style="color:#d4e8c4;font-size:0.92rem;line-height:1.65;white-space:pre-wrap;">{st.session_state.adv_plain_english}</div>
-</div>
-""", unsafe_allow_html=True)
-
-        # ── Summary metric cards ─────────────────────────────────────────────
-        section(" Summary")
-        _c1, _c2, _c3, _c4, _c5 = st.columns(5)
-
-        def _adv_score_color(s):
-            if s >= 75: return "#4caf50"
-            if s >= 55: return "#ff9800"
-            if s >= 35: return "#f44336"
-            return "#9e9e9e"
-
-        _opp = primary["opportunity_score"]
-        _roi = financials["roi_pct"]
-        _roi_color = "#4caf50" if _roi > 30 else ("#ff9800" if _roi > 10 else "#f44336")
-
-        for _col, (_lbl, _val, _clr) in zip(
-            [_c1, _c2, _c3, _c4, _c5],
-            [
-                ("Opportunity Score",  f"{_opp:.1f}/100",                             _adv_score_color(_opp)),
-                ("Est. Total Cost",    f"${financials['total_cost']/1e6:.2f}M",         "#e8dfc4"),
-                ("Estimated ROI",      f"{_roi}%",                                     _roi_color),
-                ("Buildout Timeline",  f"{financials['buildout_months']} mo",           "#e8dfc4"),
-                ("Est. Exit Value",    f"${financials['exit_value']/1e6:.2f}M",          "#d4a843"),
-            ]
-        ):
-            _col.markdown(
-                f'<div class="metric-card"><div class="label">{_lbl}</div>'
-                f'<div class="value" style="color:{_clr};font-size:1.5rem;">{_val}</div></div>',
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Cross-Agent Signal Correlator ─────────────────────────────────────
-        section(" Cross-Agent Market Signal")
-        try:
-            from src.signal_correlator import run_signal_correlator as _run_corr
-            _corr = _run_corr()
-            _ov   = _corr["overall"]
-            _ov_c = _corr["color"]
-            _conf = _corr["confidence"]
-            _align = _corr["alignment"]
-            _sigs  = _corr["signals"]
-            _reasons = _corr["top_reasons"]
-            _risks   = _corr["top_risks"]
-
-            # Direction icon per signal
-            _dir_icon = {1: "▲", -1: "▼", 0: "→"}
-            _dir_clr  = {1: "#4caf50", -1: "#f44336", 0: "#ffb74d"}
-
-            _sig_rows = "".join([
-                f'<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;'
-                f'border-bottom:1px solid #1e1a08;">'
-                f'<span style="color:{_dir_clr[s["direction"]]};font-size:1rem;flex-shrink:0;width:14px;">{_dir_icon[s["direction"]]}</span>'
-                f'<div>'
-                f'<span style="color:#c8b890;font-size:0.82rem;font-weight:600;">{s["dimension"]}</span>'
-                f'<span style="color:{_dir_clr[s["direction"]]};font-size:0.76rem;margin-left:8px;">{s["verdict"]}'
-                + (f' · {s["label"]}' if s.get("label") and s["label"] not in ("N/A", "") else "")
-                + f'</span>'
-                f'<div style="color:#6a5630;font-size:0.76rem;margin-top:2px;">{s["reason"]}</div>'
-                f'</div></div>'
-                for s in _sigs if s.get("label") != "N/A"
-            ])
-
-            _reasons_html = "".join([f'<div style="color:#80c858;font-size:0.8rem;padding:3px 0;">+ {r}</div>' for r in _reasons])
-            _risks_html   = "".join([f'<div style="color:#ef9a9a;font-size:0.8rem;padding:3px 0;">− {r}</div>' for r in _risks])
-
-            st.markdown(f"""
-<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:20px 24px;margin-bottom:8px;">
-  <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;flex-wrap:wrap;">
-    <div style="font-size:1.6rem;font-weight:700;color:{_ov_c};letter-spacing:1px;">{_ov}</div>
-    <div>
-      <div style="color:#a09880;font-size:0.82rem;">Confidence: <span style="color:{_ov_c};font-weight:600;">{_conf}%</span></div>
-      <div style="color:#5a4820;font-size:0.76rem;">{_align}</div>
-    </div>
-    <div style="margin-left:auto;display:flex;gap:16px;">
-      <div style="text-align:center;"><div style="color:#4caf50;font-size:1.2rem;font-weight:700;">{_corr['n_positive']}</div><div style="color:#3a3010;font-size:0.7rem;">Bullish</div></div>
-      <div style="text-align:center;"><div style="color:#ffb74d;font-size:1.2rem;font-weight:700;">{_corr['n_neutral']}</div><div style="color:#3a3010;font-size:0.7rem;">Neutral</div></div>
-      <div style="text-align:center;"><div style="color:#f44336;font-size:1.2rem;font-weight:700;">{_corr['n_negative']}</div><div style="color:#3a3010;font-size:0.7rem;">Cautionary</div></div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-    <div>{_sig_rows}</div>
-    <div>
-      {"<div style='color:#6a5228;font-size:0.7rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;'>Top Reasons</div>" + _reasons_html if _reasons_html else ""}
-      {"<div style='color:#6a5228;font-size:0.7rem;letter-spacing:.08em;text-transform:uppercase;margin:10px 0 6px;'>Key Risks</div>" + _risks_html if _risks_html else ""}
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-        except Exception as _ce:
-            st.caption(f"Signal correlator unavailable: {_ce}")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ══════════════════════════════════════════════════════════════════════
-        #  LOCATION MARKET INTELLIGENCE
-        # ══════════════════════════════════════════════════════════════════════
-        _loc_raw   = (params.get("location_raw") or "").lower().strip()
-        _prop_type = params.get("property_type", "Industrial")
-
-        # State name → abbr lookup for display and filtering
-        _STATE_ABBR = {
-            "alabama":"AL","alaska":"AK","arizona":"AZ","arkansas":"AR","california":"CA",
-            "colorado":"CO","connecticut":"CT","delaware":"DE","florida":"FL","georgia":"GA",
-            "hawaii":"HI","idaho":"ID","illinois":"IL","indiana":"IN","iowa":"IA","kansas":"KS",
-            "kentucky":"KY","louisiana":"LA","maine":"ME","maryland":"MD","massachusetts":"MA",
-            "michigan":"MI","minnesota":"MN","mississippi":"MS","missouri":"MO","montana":"MT",
-            "nebraska":"NE","nevada":"NV","new hampshire":"NH","new jersey":"NJ","new mexico":"NM",
-            "new york":"NY","north carolina":"NC","north dakota":"ND","ohio":"OH","oklahoma":"OK",
-            "oregon":"OR","pennsylvania":"PA","rhode island":"RI","south carolina":"SC",
-            "south dakota":"SD","tennessee":"TN","texas":"TX","utah":"UT","vermont":"VT",
-            "virginia":"VA","washington":"WA","west virginia":"WV","wisconsin":"WI","wyoming":"WY",
-            "sunbelt":"TX","southeast":"TN","midwest":"IL","northeast":"NY","southwest":"AZ",
-        }
-        _STATE_TAX = {
-            "TX":("0%","No state income tax — highest net operating income retention in the US"),
-            "FL":("0%","No state income tax — strong for REIT structures and passive investors"),
-            "NV":("0%","No state income tax — favorable for holding entities"),
-            "TN":("0%","No state income tax on wages — eliminated Hall Tax in 2021"),
-            "WY":("0%","No state income tax — minimal regulatory burden"),
-            "SD":("0%","No state income tax"),
-            "AK":("0%","No state income tax"),
-            "WA":("0%","No state personal income tax (capital gains tax enacted 2023)"),
-            "AZ":("2.5%","Flat 2.5% state income tax — among the lowest rates nationally"),
-            "CO":("4.4%","Flat 4.4% rate — Enterprise Zone credits available for development"),
-            "NC":("4.5%","Competitive flat tax with phased reductions through 2026"),
-            "GA":("5.49%","Flat tax trajectory; QOZ-heavy state with strong Job Tax Credits"),
-            "UT":("4.65%","Flat 4.65% — strong OZ pipeline in Salt Lake corridor"),
-            "SC":("6.4%","Standard rate but aggressive OZ and county incentive programs"),
-            "IN":("3.05%","One of the lowest flat rates in the Midwest"),
-            "OH":("3.75%","Progressive up to 3.75%; municipal taxes apply in metro areas"),
-            "IL":("4.95%","Flat rate; higher property taxes offset income tax savings"),
-            "CA":("13.3%","Highest marginal rate nationally — factor into hold period net returns"),
-            "NY":("10.9%","Combined city + state can exceed 14% in NYC"),
-        }
-
-        # Pull from caches
-        _lmi_lm   = (read_cache("labor_market").get("data") or {})
-        _lmi_rg   = (read_cache("rent_growth").get("data") or {})
-        _lmi_cap  = (read_cache("cap_rate").get("data") or {})
-        _lmi_vac  = (read_cache("vacancy").get("data") or {})
-        _lmi_oz   = (read_cache("opportunity_zone").get("data") or {})
-        _lmi_ms   = (read_cache("market_score").get("data") or {})
-
-        # Match state
-        _matched_abbr = None
-        for _sname, _sabb in _STATE_ABBR.items():
-            if _sname in _loc_raw:
-                _matched_abbr = _sabb; break
-
-        # Prop-type → cache key mapping
-        _pt_vac_key = {
-            "Industrial":"Industrial / Logistics","Multifamily":"Multifamily / Residential",
-            "Office":"Office","Retail":"Retail","Healthcare":"Healthcare / Medical Office",
-        }.get(_prop_type, "Industrial / Logistics")
-        _pt_rg_key = {
-            "Industrial":"Industrial","Multifamily":"Multifamily",
-            "Office":"Office","Retail":"Retail","Healthcare":"Office",
-        }.get(_prop_type, "Industrial")
-
-        section(f" Location Intelligence — {_location or 'Target Market'}")
-
-        # ── Row 1: live KPI stats ─────────────────────────────────────────────
-        _li1, _li2, _li3, _li4, _li5 = st.columns(5)
-
-        # Unemployment
-        _unemp_data = _lmi_lm.get("metro_unemployment", [])
-        _unemp_match = next((r for r in _unemp_data
-                             if _loc_raw and any(w in r["market"].lower() for w in _loc_raw.split()
-                             if len(w) > 3)), None)
-        _unemp_val = f"{_unemp_match['unemp_rate']:.1f}%" if _unemp_match else (
-            _lmi_lm.get("fred_labor", {}).get("Unemployment Rate", {}).get("current") or "—")
-        if isinstance(_unemp_val, float): _unemp_val = f"{_unemp_val:.1f}%"
-        _unemp_sig = _unemp_match.get("signal","") if _unemp_match else ""
-        _unemp_clr = "#4caf50" if _unemp_sig == "TIGHT" else ("#ff9800" if _unemp_sig == "BALANCED" else "#c8b890")
-
-        # Rent growth for property type
-        _rg_nat = _lmi_rg.get("national", {})
-        _rg_val = _rg_nat.get(_pt_rg_key, {}).get("yoy_pct") or _rg_nat.get(_pt_rg_key, {}).get("yoy") or "—"
-        _rg_clr = "#4caf50" if isinstance(_rg_val, (int,float)) and _rg_val > 2 else ("#ff9800" if isinstance(_rg_val, (int,float)) and _rg_val > 0 else "#ef5350")
-        _rg_fmt = f"{_rg_val:+.1f}%" if isinstance(_rg_val, (int,float)) else str(_rg_val)
-
-        # Cap rate
-        _cap_nat = _lmi_cap.get("national", {})
-        _cap_val = _cap_nat.get(_prop_type, {}).get("cap_rate") or _cap_nat.get(_prop_type, {}).get("rate")
-        if not _cap_val:
-            for _k, _v in _cap_nat.items():
-                if _prop_type.lower() in _k.lower():
-                    _cap_val = _v.get("cap_rate") or _v.get("rate"); break
-        _cap_fmt = f"{_cap_val:.2f}%" if isinstance(_cap_val, (int,float)) else f"{primary.get('cap_rate',0):.2f}%"
-
-        # Vacancy
-        _vac_nat = _lmi_vac.get("national", NATIONAL_VACANCY)
-        _vac_entry = _vac_nat.get(_pt_vac_key, {})
-        _vac_val = _vac_entry.get("rate") or _vac_entry.get("vacancy_rate") if isinstance(_vac_entry, dict) else _vac_entry
-        _vac_fmt = f"{_vac_val:.1f}%" if isinstance(_vac_val, (int,float)) else "—"
-
-        # Migration score
-        _mig_score = primary.get("mig_score", 0)
-
-        for _col, (_lbl, _val, _clr, _sub) in zip(
-            [_li1, _li2, _li3, _li4, _li5],
-            [
-                ("Unemployment",       _unemp_val,                  _unemp_clr,    _unemp_sig or "State rate"),
-                (f"{_prop_type} Rent Growth", _rg_fmt,             _rg_clr,       "YoY national"),
-                (f"{_prop_type} Cap Rate",    _cap_fmt,            "#d4a843",     "National benchmark"),
-                (f"{_prop_type} Vacancy",     _vac_fmt,            "#c8b890",     "National avg"),
-                ("Migration Score",   f"{_mig_score:.0f}/100",     "#d4a843",     "Demand proxy"),
-            ]
-        ):
-            _col.markdown(
-                f'<div class="metric-card"><div class="label">{_lbl}</div>'
-                f'<div class="value" style="color:{_clr};font-size:1.35rem;">{_val}</div>'
-                f'<div class="sub">{_sub}</div></div>',
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Row 2: Rent growth chart + Suggested markets ──────────────────────
-        _li_left, _li_right = st.columns([1, 1], gap="large")
-
-        with _li_left:
-            st.markdown(
-                f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;'
-                f'letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px;">'
-                f'Rent Growth by Property Type (National YoY)</div>',
-                unsafe_allow_html=True,
-            )
-            _rg_chart_data = {
-                k: v.get("yoy_pct") or v.get("yoy") or 0
-                for k, v in _rg_nat.items()
-                if isinstance(v, dict) and (v.get("yoy_pct") or v.get("yoy")) is not None
-            }
-            if _rg_chart_data:
-                _rg_types  = list(_rg_chart_data.keys())
-                _rg_vals   = [_rg_chart_data[t] for t in _rg_types]
-                _rg_colors = ["#4caf50" if v > 2 else ("#ff9800" if v > 0 else "#ef5350") for v in _rg_vals]
-                _highlight  = [1.0 if t == _pt_rg_key else 0.5 for t in _rg_types]
-                _fig_rg = go.Figure(go.Bar(
-                    x=_rg_types, y=_rg_vals,
-                    marker=dict(color=_rg_colors, opacity=_highlight),
-                    text=[f"{v:+.1f}%" for v in _rg_vals],
-                    textposition="outside",
-                    textfont=dict(color="#c8b890", size=11),
-                    hovertemplate="<b>%{x}</b><br>YoY: %{y:+.1f}%<extra></extra>",
-                ))
-                _fig_rg.add_hline(y=0, line_color="#555", line_width=1)
-                _fig_rg.update_layout(
-                    plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
-                    margin=dict(t=30, b=10, l=10, r=10), height=240,
-                    xaxis=dict(tickfont=dict(color="#c8b890", size=10), tickangle=-15),
-                    yaxis=dict(ticksuffix="%", gridcolor="#2a2a1a", tickfont=dict(color="#c8b890", size=10)),
-                    showlegend=False,
-                )
-                st.plotly_chart(_fig_rg, use_container_width=True, config={"displayModeBar": False})
-                st.caption(f"Highlighted bar = {_prop_type} (your target type). Source: Agent 15 / Zillow–CoStar benchmarks.")
-            else:
-                st.info("Rent growth data populating — refresh in ~30 seconds.")
-
-        with _li_right:
-            # Top markets from all_scored filtered to location, or just top overall
-            st.markdown(
-                f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;'
-                f'letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px;">'
-                f'Top Scored Markets{f" — {_location}" if _location else ""}</div>',
-                unsafe_allow_html=True,
-            )
-            # Filter all_scored by location if possible, else show top 6
-            _loc_words = [w for w in _loc_raw.split() if len(w) > 3]
-            _loc_filtered = [
-                m for m in all_scored
-                if any(w in m["market"].lower() for w in _loc_words)
-            ] if _loc_words else []
-            _show_markets = (_loc_filtered or all_scored)[:6]
-
-            if _show_markets:
-                _sm_rows = "".join([
-                    f'<tr style="border-bottom:1px solid #1e1a08;">'
-                    f'<td style="padding:7px 10px;color:#c8b890;font-size:12px;font-weight:{"700" if i==0 else "400"};">'
-                    f'{"★ " if i==0 else f"{i+1}. "}{m["market"]}</td>'
-                    f'<td style="padding:7px 10px;text-align:right;font-family:monospace;font-size:12px;'
-                    f'color:{"#4caf50" if m["opportunity_score"]>=75 else "#ff9800" if m["opportunity_score"]>=55 else "#ef5350"};">'
-                    f'{m["opportunity_score"]:.0f}</td>'
-                    f'<td style="padding:7px 10px;text-align:right;font-family:monospace;font-size:11px;color:#d4a843;">'
-                    f'{m.get("cap_rate",0):.2f}%</td>'
-                    f'<td style="padding:7px 10px;text-align:right;font-family:monospace;font-size:11px;'
-                    f'color:{"#4caf50" if m.get("rent_growth",0)>2 else "#ff9800"};">'
-                    f'{m.get("rent_growth",0):+.1f}%</td>'
-                    f'</tr>'
-                    for i, m in enumerate(_show_markets)
-                ])
-                st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;background:#171309;border-radius:8px;overflow:hidden;border:1px solid #2a2208;">
-  <thead><tr style="border-bottom:1px solid #2a2208;">
-    <th style="padding:8px 10px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Market</th>
-    <th style="padding:8px 10px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Score</th>
-    <th style="padding:8px 10px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Cap Rate</th>
-    <th style="padding:8px 10px;text-align:right;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Rent Δ</th>
-  </tr></thead>
-  <tbody>{_sm_rows}</tbody>
-</table>""", unsafe_allow_html=True)
-                st.caption("★ = top recommended market for your prompt. Score 0–100 composite.")
-            else:
-                st.info("Market scoring data loading.")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Tax Advantages ─────────────────────────────────────────────────────
-        section(" Tax Advantages for This Location")
-
-        _tax_left, _tax_right = st.columns([1, 1], gap="large")
-
-        with _tax_left:
-            # State tax info
-            _st_tax_info = _STATE_TAX.get(_matched_abbr, None)
-            _st_display  = _matched_abbr or _location or "Target State"
-            if _st_tax_info:
-                _st_rate, _st_note = _st_tax_info
-                _st_color = "#4caf50" if _st_rate == "0%" else ("#ff9800" if float(_st_rate.replace("%","")) < 5 else "#ef5350")
-                st.markdown(f"""
-<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:18px 20px;margin-bottom:12px;">
-  <div style="color:#d4a843;font-size:0.82rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:12px;">State Tax Environment — {_st_display}</div>
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-    <div style="font-size:2rem;font-weight:700;color:{_st_color};font-family:monospace;">{_st_rate}</div>
-    <div style="color:#a09880;font-size:0.88rem;">State Income Tax Rate</div>
-  </div>
-  <div style="color:#c8b890;font-size:0.84rem;line-height:1.6;">{_st_note}</div>
-</div>""", unsafe_allow_html=True)
-
-            # Federal tax benefits
-            _fed_tax_rows = [
-                ("Cost Segregation",       "Accelerate depreciation on personal property (5-yr) and land improvements (15-yr). Year-1 deduction can offset 20–30% of building value."),
-                ("Bonus Depreciation",     "60% bonus depreciation in 2025 on qualifying assets — phases to 40% in 2026. Front-loads the tax shield into early hold years."),
-                ("1031 Exchange",          "Defer 100% of capital gains tax by rolling proceeds into a like-kind property within 45-day identification / 180-day close windows."),
-                ("Depreciation Recapture Strategy", "Structure the exit via an installment sale or OZ re-investment to manage 25% recapture tax on straight-line depreciation."),
-            ]
-            for _fed_name, _fed_desc in _fed_tax_rows:
-                st.markdown(
-                    f'<div style="background:#16140a;border-left:3px solid #705020;border-radius:4px;'
-                    f'padding:10px 14px;margin-bottom:8px;">'
-                    f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;margin-bottom:4px;">{_fed_name}</div>'
-                    f'<div style="color:#a09880;font-size:0.82rem;line-height:1.5;">{_fed_desc}</div></div>',
-                    unsafe_allow_html=True,
-                )
-
-        with _tax_right:
-            # OZ markets near the location
-            _oz_mkts = _lmi_oz.get("oz_markets", {})
-            _oz_ranked_all = _lmi_oz.get("top_markets_by_score", [])
-
-            # Filter OZ markets by location
-            _loc_oz = [
-                (name, info) for name, info in _oz_mkts.items()
-                if any(w in name.lower() for w in _loc_words) or
-                   (_matched_abbr and _matched_abbr.lower() in name.lower())
-            ] if (_loc_words or _matched_abbr) else []
-            _show_oz = sorted(_loc_oz, key=lambda x: x[1].get("opportunity_score", 0), reverse=True)[:4]
-
-            # Fall back to top OZ markets if no location match
-            if not _show_oz and _oz_ranked_all:
-                _show_oz = [(r[0], {"opportunity_score": r[1], "key_zones": [], "property_focus": [], "highlights": []})
-                            for r in _oz_ranked_all[:4]]
-
-            if _show_oz:
-                st.markdown(
-                    f'<div style="color:#d4a843;font-size:0.82rem;font-weight:600;'
-                    f'letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;">'
-                    f'Opportunity Zone Markets{f" — {_location}" if _location else ""}</div>',
-                    unsafe_allow_html=True,
-                )
-                for _oz_name, _oz_info in _show_oz:
-                    _oz_sc   = _oz_info.get("opportunity_score", 0)
-                    _oz_sc_c = "#4caf50" if _oz_sc >= 80 else ("#d4a843" if _oz_sc >= 70 else "#ef5350")
-                    _oz_zones = " · ".join((_oz_info.get("key_zones") or [])[:2])
-                    _oz_focus = ", ".join((_oz_info.get("property_focus") or [])[:2])
-                    _oz_hi    = (_oz_info.get("highlights") or [""])[0]
-                    st.markdown(f"""
-<div style="background:#0a1e0a;border:1px solid #2a4a2a;border-left:3px solid #4caf50;
-            border-radius:6px;padding:12px 16px;margin-bottom:8px;">
-  <div style="display:flex;justify-content:space-between;align-items:center;">
-    <div style="color:#80c858;font-weight:600;font-size:0.88rem;">{_oz_name}</div>
-    <div style="color:{_oz_sc_c};font-weight:700;font-family:monospace;font-size:1rem;">{_oz_sc}</div>
-  </div>
-  {"<div style='color:#5a9050;font-size:0.78rem;margin-top:4px;'>Zones: " + _oz_zones + "</div>" if _oz_zones else ""}
-  {"<div style='color:#5a9050;font-size:0.78rem;'>Focus: " + _oz_focus + "</div>" if _oz_focus else ""}
-  {"<div style='color:#a09880;font-size:0.78rem;margin-top:4px;'>" + _oz_hi + "</div>" if _oz_hi else ""}
-</div>""", unsafe_allow_html=True)
-
-                st.markdown(
-                    '<div style="background:#16140a;border:1px solid #3a3020;border-radius:6px;'
-                    'padding:10px 14px;margin-top:4px;">'
-                    '<div style="color:#d4a843;font-size:0.78rem;font-weight:600;margin-bottom:4px;">OZ 10-Year Benefit</div>'
-                    '<div style="color:#a09880;font-size:0.78rem;line-height:1.5;">'
-                    'Hold a QOF investment for 10+ years and pay <strong style="color:#4caf50;">zero capital gains tax</strong> '
-                    'on all appreciation inside the fund. A $5M gain on a $10M development = $0 federal tax at exit. '
-                    'Must invest unrealized gains within 180 days.</div></div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.info("Opportunity Zone data loading — check the Opportunity Zones tab for full detail.")
-
-        st.markdown(
-            '<hr style="border:none;border-top:1px solid #2a2208;margin:28px 0 24px;">',
-            unsafe_allow_html=True,
-        )
-
-        # ── Primary recommendation ────────────────────────────────────────────
-        section(f" Primary Recommendation — {primary['market']}")
-        _col_left, _col_right = st.columns([1.05, 0.95], gap="large")
-
-        with _col_left:
-            _bd         = primary.get("factor_scores", {})
-            _fnames     = list(_bd.keys())
-            _raw_s      = [_bd[f]["raw_score"] for f in _fnames]
-            _wt_s       = [_bd[f]["weighted"]   for f in _fnames]
-            _flabels    = [f.replace("_", " ").title() for f in _fnames]
-
-            _fig_score = go.Figure()
-            _fig_score.add_trace(go.Bar(
-                x=_raw_s, y=_flabels, orientation="h",
-                marker=dict(color=[_adv_score_color(s) for s in _raw_s]),
-                text=[f"{s:.0f}" for s in _raw_s],
-                textposition="auto",
-                textfont=dict(color="#fff", size=11),
-                name="Raw Score",
-                hovertemplate="<b>%{y}</b><br>Raw: %{x:.1f}/100<extra></extra>",
-            ))
-            _fig_score.add_trace(go.Bar(
-                x=_wt_s, y=_flabels, orientation="h",
-                marker=dict(color="rgba(212,168,67,0.35)", line=dict(color="#d4a843", width=1)),
-                text=[f"{v:.1f} wt" for v in _wt_s],
-                textposition="auto",
-                textfont=dict(color="#d4a843", size=10),
-                name="Weighted Score",
-                hovertemplate="<b>%{y}</b><br>Weighted: %{x:.1f}<extra></extra>",
-            ))
-            _fig_score.update_layout(
-                barmode="overlay",
-                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
-                margin=dict(t=10, b=10, l=120, r=10),
-                height=280,
-                legend=dict(font=dict(color="#a09880", size=10), bgcolor="rgba(0,0,0,0)",
-                            orientation="h", y=1.08, x=0),
-                xaxis=dict(range=[0, 100], tickfont=dict(color="#e8dfc4", size=10), gridcolor="#2a2a1a"),
-                yaxis=dict(tickfont=dict(color="#e8dfc4", size=11)),
-                font=dict(family="Source Sans Pro", color="#e8dfc4"),
-            )
-            st.plotly_chart(_fig_score, use_container_width=True, config={"displayModeBar": False})
-            st.caption("Bar length = raw factor score (0–100). Gold overlay = weighted contribution to composite.")
-
-        with _col_right:
-            _cap   = primary.get("cap_rate", 0)
-            _rg    = primary.get("rent_growth", 0)
-            _clbl  = primary.get("climate_label", "N/A")
-            _cscr  = primary.get("climate_score", 0)
-            _gdp   = primary.get("gdp_cycle", "N/A")
-            _cred  = primary.get("credit_signal", "N/A")
-            _mig   = primary.get("mig_score", 50)
-            _cc    = ("#4caf50" if _cscr < 25 else "#ff9800" if _cscr < 50
-                      else "#f44336" if _cscr < 75 else "#9c27b0")
-            _rg_c  = "#4caf50" if _rg > 3 else ("#ff9800" if _rg > 0 else "#f44336")
-
-            # Climate score penalty (matches market_score_agent formula)
-            _clim_penalty = round(min(10.0, (_cscr - 60) * 0.20), 1) if _cscr >= 60 else 0.0
-            _clim_penalty_row = ""
-            if _clim_penalty > 0:
-                _clim_penalty_row = (
-                    f'<tr><td style="color:#ef5350;padding:5px 0;font-size:0.82rem;">Score Adj. (climate)</td>'
-                    f'<td style="color:#ef5350;font-weight:700;text-align:right;font-size:0.82rem;">−{_clim_penalty:.1f} pts</td></tr>'
-                )
-
-            st.markdown(f"""
-<div style="background:#1a1208;border:1px solid #2a2010;border-radius:8px;padding:18px 20px;">
-  <div style="color:#d4a843;font-weight:600;font-size:0.95rem;margin-bottom:12px;">Market Signals</div>
-  <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
-    <tr><td style="color:#a09880;padding:5px 0;">Cap Rate</td>
-        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_cap:.2f}%</td></tr>
-    <tr><td style="color:#a09880;padding:5px 0;">Rent Growth YoY</td>
-        <td style="color:{_rg_c};font-weight:600;text-align:right;">{_rg:+.1f}%</td></tr>
-    <tr><td style="color:#a09880;padding:5px 0;">Climate Risk</td>
-        <td style="color:{_cc};font-weight:600;text-align:right;">{_clbl} ({_cscr:.0f}/100)</td></tr>
-    {_clim_penalty_row}
-    <tr><td style="color:#a09880;padding:5px 0;">GDP Cycle</td>
-        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_gdp.title()}</td></tr>
-    <tr><td style="color:#a09880;padding:5px 0;">Credit Conditions</td>
-        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_cred.title()}</td></tr>
-    <tr><td style="color:#a09880;padding:5px 0;">Migration Score</td>
-        <td style="color:#e8dfc4;font-weight:600;text-align:right;">{_mig:.0f}/100</td></tr>
-  </table>
-</div>
-""", unsafe_allow_html=True)
-
-        # ── Market Score Breakdown ────────────────────────────────────────────
-        _ms_cache_adv = read_cache("market_score")
-        _ms_data_adv  = (_ms_cache_adv.get("data") or {})
-        _ms_rankings  = _ms_data_adv.get("rankings", [])
-        _ms_entry     = next((r for r in _ms_rankings if r.get("market") == primary.get("market")), None)
-        if _ms_entry and _ms_entry.get("breakdown"):
-            _bd2 = _ms_entry["breakdown"]
-            _strengths = _bd2.get("strengths", [])
-            _weaknesses = _bd2.get("weaknesses", [])
-            _drag  = _bd2.get("drag_factor", "")
-            _drag_note = _bd2.get("drag_note", "")
-            _lift  = _bd2.get("lift_factor", "")
-            _lift_note = _bd2.get("lift_note", "")
-            _factor_notes = _bd2.get("notes", {})
-
-            _str_pills  = "".join([f'<span style="background:rgba(76,175,80,.2);color:#80c858;border-radius:12px;padding:3px 10px;font-size:0.75rem;margin:2px;">{s}</span>' for s in _strengths])
-            _weak_pills = "".join([f'<span style="background:rgba(244,67,54,.15);color:#ef9a9a;border-radius:12px;padding:3px 10px;font-size:0.75rem;margin:2px;">{w}</span>' for w in _weaknesses])
-
-            _factor_rows = "".join([
-                f'<tr><td style="color:#a09880;padding:4px 0;font-size:0.8rem;">{_factor_notes.get(k, "").split(" — ")[0] if " — " not in str(_factor_notes.get(k,"")) else k.title()}</td>'
-                f'<td style="text-align:right;"><div style="display:inline-block;background:{"#4caf50" if v>=65 else "#f44336" if v<=40 else "#ffb74d"};'
-                f'height:6px;width:{max(4,int(v*0.6))}px;border-radius:3px;"></div>'
-                f'<span style="color:#a09880;font-size:0.75rem;margin-left:6px;">{v:.0f}</span></td></tr>'
-                for k, v in _ms_entry.get("factors", {}).items()
-            ])
-
-            st.markdown(f"""
-<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:18px 22px;margin:12px 0;">
-  <div style="color:#d4a843;font-weight:600;font-size:0.9rem;margin-bottom:12px;">
-    Market Score Breakdown — {_ms_entry['market']}
-    <span style="color:#a09880;font-weight:400;font-size:0.82rem;margin-left:10px;">Composite: {_ms_entry['composite']}/100 · Grade: {_ms_entry['grade']}</span>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-    <div>
-      <table style="width:100%;border-collapse:collapse;">{_factor_rows}</table>
-      {"<div style='margin-top:10px;'><span style='color:#6a5228;font-size:0.7rem;text-transform:uppercase;letter-spacing:.08em;'>Strengths</span><div style='margin-top:4px;'>" + _str_pills + "</div></div>" if _strengths else ""}
-      {"<div style='margin-top:8px;'><span style='color:#6a5228;font-size:0.7rem;text-transform:uppercase;letter-spacing:.08em;'>Weaknesses</span><div style='margin-top:4px;'>" + _weak_pills + "</div></div>" if _weaknesses else ""}
-    </div>
-    <div>
-      {"<div style='background:#0d2a12;border-left:3px solid #4caf50;border-radius:4px;padding:10px 14px;margin-bottom:8px;'><div style='color:#4caf50;font-size:0.76rem;font-weight:600;margin-bottom:4px;'>Biggest Lift: " + _lift + "</div><div style='color:#a09880;font-size:0.78rem;'>" + _lift_note + "</div></div>" if _lift else ""}
-      {"<div style='background:#2a0d0d;border-left:3px solid #f44336;border-radius:4px;padding:10px 14px;'><div style='color:#f44336;font-size:0.76rem;font-weight:600;margin-bottom:4px;'>Biggest Drag: " + _drag + "</div><div style='color:#a09880;font-size:0.78rem;'>" + _drag_note + "</div></div>" if _drag else ""}
-      {"<div style='margin-top:8px;background:#1a1208;border-left:3px solid #ff9800;border-radius:4px;padding:8px 14px;'><div style='color:#ff9800;font-size:0.74rem;font-weight:600;'>Climate Adjustment</div><div style='color:#a09880;font-size:0.76rem;'>−" + str(_ms_entry.get('climate_penalty', 0)) + " pts applied to composite score</div></div>" if _ms_entry.get("climate_penalty", 0) > 0 else ""}
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Financials breakdown ──────────────────────────────────────────────
-        section(" Financial Estimates")
-
-        _fc1, _fc2, _fc3, _fc4 = st.columns(4)
-        for _fc, (_lbl, _tip, _val, _clr) in zip(
-            [_fc1, _fc2, _fc3, _fc4],
-            [
-                ("Land Cost",          "Estimated cost to acquire the land parcel. Based on $/sqft land comps for the selected market and property type.",
-                 f"${financials['land_cost']/1e6:.2f}M",         "#e8dfc4"),
-                ("Construction",       "Hard construction cost — materials, labor, and contractor fees. Adjusted by the platform's energy cost signal (LOW/MODERATE/HIGH).",
-                 f"${financials['construction_cost']/1e6:.2f}M", "#e8dfc4"),
-                ("Soft Costs",         "Architecture, engineering, permits, legal, financing fees, and contingency (typically 15–20% of hard costs).",
-                 f"${financials['soft_costs']/1e6:.2f}M",         "#e8dfc4"),
-                ("Total Project Cost", "All-in development cost: Land + Construction + Soft Costs. This is the capital you need to deploy before the project generates income.",
-                 f"${financials['total_cost']/1e6:.2f}M",         "#d4a843"),
-            ]
-        ):
-            _fc.markdown(
-                f'<div class="metric-card"><div class="label">{_tt(_lbl, _tip)}</div>'
-                f'<div class="value" style="color:{_clr};">{_val}</div></div>',
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
-        _fc5, _fc6, _fc7, _fc8 = st.columns(4)
-        _irr_c = "#4caf50" if financials["irr_est"] > 10 else "#ff9800"
-        _pft_c = "#4caf50" if financials["total_profit"] > 0 else "#f44336"
-        for _fc, (_lbl, _tip, _val, _clr) in zip(
-            [_fc5, _fc6, _fc7, _fc8],
-            [
-                ("Annual NOI",     "Net Operating Income per year: Effective Gross Income minus operating expenses (management, insurance, taxes, maintenance). Does NOT include debt service.",
-                 f"${financials['annual_noi']/1e3:.0f}K",     "#e8dfc4"),
-                ("Cumulative NOI", "Total NOI earned over the full hold period (typically 10 years). Measures how much income the property generates before financing costs.",
-                 f"${financials['total_noi']/1e6:.2f}M",       "#e8dfc4"),
-                ("Estimated IRR",  "Internal Rate of Return — annualized return on your total investment including both cash flows and projected exit proceeds. A target of 10%+ is generally considered strong for CRE development.",
-                 f"{financials['irr_est']:.1f}%",              _irr_c),
-                ("Total Profit",   "Total cash profit over the hold period: Cumulative NOI + Exit Value − Total Project Cost. A positive number means the deal made money; negative means a loss.",
-                 f"${financials['total_profit']/1e6:.2f}M",    _pft_c),
-            ]
-        ):
-            _fc.markdown(
-                f'<div class="metric-card"><div class="label">{_tt(_lbl, _tip)}</div>'
-                f'<div class="value" style="color:{_clr};">{_val}</div></div>',
-                unsafe_allow_html=True,
-            )
-
-        _esig = financials.get("energy_signal", "MODERATE")
-        _emult = {"LOW": "0.88×", "MODERATE": "1.0×", "HIGH": "1.20×"}.get(_esig, "1.0×")
-        st.caption(
-            f"Construction cost signal: **{_esig}** (platform energy agent). "
-            f"Cost multiplier: {_emult}. Buildout estimate: {financials['buildout_months']} months."
-        )
-
-        # ── Income vs Expense Line Chart ──────────────────────────────────────
-        st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
-        st.markdown(
-            _tt("Income vs Expense Projection",
-                "Year-by-year forecast over the hold period.<br>"
-                "<b>Gold (Income)</b> = rent collected after vacancy (EGI).<br>"
-                "<b>Red (Expenses)</b> = operating costs + loan payments.<br>"
-                "<b>Green dotted (NOI)</b> = income before debt service.<br>"
-                "<b>Blue dashed (Cash Flow)</b> = what's left after paying the loan."),
-            unsafe_allow_html=True,
-        )
-        _hold_yrs  = int(financials.get("hold_years", params.get("timeline_years", 5)) or 5)
-        _base_noi  = financials.get("annual_noi", 0)
-        _total_cost = financials.get("total_cost", 0)
-        _equity     = _adv_result.get("financing", {}).get("equity_required", _total_cost)
-        _base_egi  = _base_noi / 0.65 if _base_noi else 0
-        _base_opex = _base_egi - _base_noi
-        _ann_ds    = _adv_result.get("financing", {}).get("annual_debt_service", 0)
-
-        # Year 0 = construction / equity deployment (no income yet)
-        _chart_yrs = [0]
-        _chart_egi = [0]
-        _chart_exp = [_equity]          # initial equity outlay shown as Year-0 expense
-        _chart_noi = [0]
-        _chart_cf  = [-_equity]         # negative — money going out
-
-        _chart_opex_only = [0]          # for hover detail
-        _chart_ds_only   = [0]
-
-        for _yr in range(1, _hold_yrs + 1):
-            _g    = 1.03 ** (_yr - 1)
-            _egi  = round(_base_egi  * _g)
-            _opex = round(_base_opex * (1.025 ** (_yr - 1)))
-            _noi  = _egi - _opex
-            _cf   = _noi - _ann_ds
-            _chart_yrs.append(_yr)
-            _chart_egi.append(_egi)
-            _chart_exp.append(_opex + _ann_ds)
-            _chart_noi.append(_noi)
-            _chart_cf.append(_cf)
-            _chart_opex_only.append(_opex)
-            _chart_ds_only.append(_ann_ds)
-
-        _fin_fig = go.Figure()
-        # Income line — hover shows gross rent components
-        _fin_fig.add_trace(go.Scatter(
-            x=_chart_yrs, y=_chart_egi,
-            name="Revenue (EGI = Gross Rent − Vacancy)",
-            line=dict(color="#d4a843", width=2.5),
-            customdata=list(zip(
-                [round(v / 0.92) for v in _chart_egi],   # approx gross rent (8% vacancy)
-                [round(v * 0.08) for v in _chart_egi],   # approx vacancy loss
-            )),
-            hovertemplate=(
-                "<b>Year %{x} — Revenue</b><br>"
-                "Gross Rent: $%{customdata[0]:,.0f}<br>"
-                "− Vacancy Loss: $%{customdata[1]:,.0f}<br>"
-                "<b>= EGI: $%{y:,.0f}</b><extra></extra>"
-            ),
-        ))
-        # Expense line — hover shows OpEx + debt breakdown
-        _fin_fig.add_trace(go.Scatter(
-            x=_chart_yrs, y=_chart_exp,
-            name="Expenses (OpEx + Debt Service)",
-            line=dict(color="#ef5350", width=2.5),
-            customdata=list(zip(_chart_opex_only, _chart_ds_only)),
-            hovertemplate=(
-                "<b>Year %{x} — Expenses</b><br>"
-                "Operating Costs: $%{customdata[0]:,.0f}<br>"
-                "+ Debt Service: $%{customdata[1]:,.0f}<br>"
-                "<b>= Total: $%{y:,.0f}</b><extra></extra>"
-            ),
-        ))
-        _fin_fig.add_trace(go.Scatter(
-            x=_chart_yrs, y=_chart_noi,
-            name="NOI (Revenue − OpEx)",
-            line=dict(color="#4caf50", width=2, dash="dot"),
-            hovertemplate="<b>Year %{x} — NOI</b><br>$%{y:,.0f}<extra></extra>",
-        ))
-        _fin_fig.add_trace(go.Scatter(
-            x=_chart_yrs, y=_chart_cf,
-            name="Cash Flow After Debt",
-            line=dict(color="#64b5f6", width=2, dash="dash"),
-            hovertemplate="<b>Year %{x} — Cash Flow</b><br>$%{y:,.0f}<extra></extra>",
-        ))
-        # Year-0 annotation
-        _fin_fig.add_annotation(
-            x=0, y=_equity,
-            text=f"Equity In<br>${_equity/1e6:.1f}M",
-            showarrow=True, arrowhead=2, arrowcolor="#ef5350",
-            font=dict(color="#ef5350", size=10),
-            bgcolor="#1a1208", bordercolor="#ef5350", borderwidth=1,
-            ax=40, ay=-30,
-        )
-        _fin_fig.update_layout(
-            plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
-            font=dict(color="#a09880", size=11),
-            xaxis=dict(title="Hold Year", gridcolor="#2a2a20", tickmode="linear", dtick=1),
-            yaxis=dict(title="$ Amount", gridcolor="#2a2a20", tickformat="$,.0f"),
-            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10), orientation="h", y=-0.22),
-            margin=dict(l=10, r=10, t=10, b=70),
-            height=360,
-        )
-        st.plotly_chart(_fin_fig, use_container_width=True, key="fin_proj_chart", config={"displayModeBar": False})
-        st.caption(
-            "Revenue = Gross Rent − Vacancy Loss = EGI (Effective Gross Income).  "
-            "Expenses = Operating Costs (mgmt, taxes, insurance, maintenance) + Annual Debt Service.  "
-            "NOI = Revenue − Operating Costs only.  "
-            "Cash Flow = NOI − Debt Service.  "
-            "Year 0 = equity deployed at construction/close."
-        )
-
-
-        # ── Financing Structure ───────────────────────────────────────────────
-        financing = _adv_result.get("financing", {})
-        if financing:
-            st.markdown("<br>", unsafe_allow_html=True)
-            section(" Financing Structure")
-            _fn1, _fn2, _fn3, _fn4, _fn5 = st.columns(5)
-            _dscr_c = "#4caf50" if financing.get("dscr", 0) >= 1.25 else ("#ff9800" if financing.get("dscr", 0) >= 1.0 else "#f44336")
-            _coc_c  = "#4caf50" if financing.get("cash_on_cash_pct", 0) >= 6 else "#ff9800"
-            _irrl_c = "#4caf50" if financing.get("leveraged_irr_pct", 0) >= 15 else "#ff9800"
-            for _fc, (_lbl, _val, _clr) in zip(
-                [_fn1, _fn2, _fn3, _fn4, _fn5],
-                [
-                    ("LTV",               f"{financing['ltv_pct']:.0f}%",                         "#e8dfc4"),
-                    ("Loan Amount",        f"${financing['loan_amount']/1e6:.2f}M",                "#e8dfc4"),
-                    ("Equity Required",    f"${financing['equity_required']/1e6:.2f}M",            "#d4a843"),
-                    ("Annual Debt Service",f"${financing['annual_debt_service']/1e3:.0f}K",        "#e8dfc4"),
-                    ("DSCR",               f"{financing['dscr']:.2f}x",                            _dscr_c),
-                ]
-            ):
-                _fc.markdown(
-                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
-                    f'<div class="value" style="color:{_clr};">{_val}</div></div>',
-                    unsafe_allow_html=True,
-                )
-            st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
-            _fn6, _fn7, _fn8, _fn9 = st.columns(4)
-            for _fc, (_lbl, _val, _clr) in zip(
-                [_fn6, _fn7, _fn8, _fn9],
-                [
-                    ("Loan Rate",          f"{financing['loan_rate_pct']:.2f}% / {financing['amort_years']}yr", "#e8dfc4"),
-                    ("Cash Flow After DS", f"${financing['cash_flow_after_ds']/1e3:.0f}K/yr",                  _coc_c),
-                    ("Cash-on-Cash",       f"{financing['cash_on_cash_pct']:.1f}%",                            _coc_c),
-                    ("Leveraged IRR",      f"{financing['leveraged_irr_pct']:.1f}%",                           _irrl_c),
-                ]
-            ):
-                _fc.markdown(
-                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
-                    f'<div class="value" style="color:{_clr};">{_val}</div></div>',
-                    unsafe_allow_html=True,
-                )
-
-        # ── 10-Year P&L Pro Forma ─────────────────────────────────────────────
-        proforma = _adv_result.get("proforma", [])
-        if proforma:
-            st.markdown("<br>", unsafe_allow_html=True)
-            section(" 10-Year P&L Pro Forma")
-            _pf_hdr = ["Year","Gross Revenue","Vacancy Loss","EGI","Operating Exp.","NOI","Debt Service","Cash Flow","Cumulative CF"]
-            _pf_keys = ["year","gross_revenue","vacancy_loss","egi","opex","noi","debt_service","cf_after_ds","cum_cf"]
-            _pf_aligns = ["center"] + ["right"] * 8
-
-            def _pf_fmt(k, v):
-                if k == "year": return str(v)
-                return f"${v/1e3:.0f}K" if abs(v) < 1e6 else f"${v/1e6:.2f}M"
-
-            _pf_hcells = "".join(
-                f'<th style="padding:8px 10px;color:#c8a040;font-size:0.72rem;font-weight:700;'
-                f'letter-spacing:0.08em;text-align:{al};border-bottom:1px solid #2a2410;'
-                f'white-space:nowrap;">{h}</th>'
-                for h, al in zip(_pf_hdr, _pf_aligns)
-            )
-            _pf_rows_html = ""
-            for _row in proforma:
-                _noi_c  = "#4caf50" if _row["noi"] > 0 else "#f44336"
-                _cf_c   = "#4caf50" if _row["cf_after_ds"] >= 0 else "#f44336"
-                _cum_c  = "#4caf50" if _row["cum_cf"] >= 0 else "#f44336"
-                _sep    = "border-bottom:1px solid #1a1808;"
-                _cells  = ""
-                for k, al in zip(_pf_keys, _pf_aligns):
-                    v = _row[k]
-                    fmt = _pf_fmt(k, v)
-                    if k == "noi":
-                        clr = _noi_c
-                    elif k == "cf_after_ds":
-                        clr = _cf_c
-                    elif k == "cum_cf":
-                        clr = _cum_c
-                    elif k == "year":
-                        clr = "#c8a040"
-                    else:
-                        clr = "#c8b890"
-                    _cells += (f'<td style="padding:7px 10px;{_sep}text-align:{al};'
-                               f'color:{clr};font-size:0.83rem;white-space:nowrap;">{fmt}</td>')
-                _pf_rows_html += f"<tr>{_cells}</tr>"
-
-            st.markdown(
-                f'<div style="background:#13110a;border-radius:10px;padding:20px 24px;'
-                f'margin-bottom:8px;overflow-x:auto;">'
-                f'<table style="border-collapse:collapse;width:100%;font-family:\'Source Sans Pro\',sans-serif;">'
-                f'<thead><tr>{_pf_hcells}</tr></thead>'
-                f'<tbody>{_pf_rows_html}</tbody></table></div>',
-                unsafe_allow_html=True,
-            )
-            st.caption("NOI = EGI − Operating Expenses. Cash Flow = NOI − Debt Service. "
-                       "Year-1 shows lease-up vacancy premium. Rent grows at market rate; OpEx inflates 2.5%/yr.")
-
-        # ── Tax & Depreciation Benefits ───────────────────────────────────────
-        tax = _adv_result.get("tax_benefits", {})
-        if tax:
-            st.markdown("<br>", unsafe_allow_html=True)
-            section(" Tax & Depreciation Benefits")
-
-            _tx1, _tx2, _tx3, _tx4, _tx5 = st.columns(5)
-            for _fc, (_lbl, _val, _clr) in zip(
-                [_tx1, _tx2, _tx3, _tx4, _tx5],
-                [
-                    ("Building Value",        f"${tax['building_value']/1e6:.2f}M",      "#e8dfc4"),
-                    ("Year-1 Depreciation",   f"${tax['yr1_depreciation']/1e3:.0f}K",    "#d4a843"),
-                    ("Year-1 Tax Shield",     f"${tax['yr1_tax_shield']/1e3:.0f}K",      "#4caf50"),
-                    ("Annual Tax Shield",     f"${tax['annual_tax_shield']/1e3:.0f}K/yr","#80c858"),
-                    ("10-Yr Tax Savings",     f"${tax['cum10_tax_savings']/1e6:.2f}M",   "#4caf50"),
-                ]
-            ):
-                _fc.markdown(
-                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
-                    f'<div class="value" style="color:{_clr};">{_val}</div></div>',
-                    unsafe_allow_html=True,
-                )
-
-            st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
-
-            # Depreciation breakdown table
-            _depr_rows = [
-                ("Personal Property (5-yr)", tax["personal_prop_value"], f"{tax['bonus_depr_pct']}% bonus + straight-line"),
-                ("Land Improvements (15-yr)", tax["land_improv_value"],  f"{tax['bonus_depr_pct']}% bonus + straight-line"),
-                (f"Structure ({tax['struct_depr_life']}-yr)",            tax["structure_value"],   "Straight-line"),
-                ("Land (non-depreciable)",   tax["land_value"],          "N/A"),
-            ]
-            _depr_html = ""
-            for _dn, _dv, _dm in _depr_rows:
-                _bar_w = int(_dv / max(tax["building_value"] + tax["land_value"], 1) * 280)
-                _depr_html += (
-                    f'<tr>'
-                    f'<td style="padding:8px 12px;color:#c8b890;font-size:0.84rem;border-bottom:1px solid #1e1c0e;">{_dn}</td>'
-                    f'<td style="padding:8px 12px;text-align:right;color:#c8a040;font-size:0.84rem;border-bottom:1px solid #1e1c0e;">${_dv/1e6:.2f}M</td>'
-                    f'<td style="padding:8px 12px;border-bottom:1px solid #1e1c0e;">'
-                    f'<div style="background:#2a2410;border-radius:3px;height:8px;width:300px;">'
-                    f'<div style="background:#c8a040;border-radius:3px;height:8px;width:{_bar_w}px;"></div></div></td>'
-                    f'<td style="padding:8px 12px;color:#7a7060;font-size:0.78rem;border-bottom:1px solid #1e1c0e;">{_dm}</td>'
-                    f'</tr>'
-                )
-            st.markdown(
-                f'<div style="background:#13110a;border-radius:10px;padding:20px 24px;margin-bottom:8px;">'
-                f'<table style="border-collapse:collapse;width:100%;">'
-                f'<thead><tr>'
-                f'<th style="padding:8px 12px;color:#c8a040;font-size:0.72rem;letter-spacing:0.08em;border-bottom:1px solid #2a2410;">COMPONENT</th>'
-                f'<th style="padding:8px 12px;color:#c8a040;font-size:0.72rem;letter-spacing:0.08em;text-align:right;border-bottom:1px solid #2a2410;">VALUE</th>'
-                f'<th style="padding:8px 12px;border-bottom:1px solid #2a2410;"></th>'
-                f'<th style="padding:8px 12px;color:#c8a040;font-size:0.72rem;letter-spacing:0.08em;border-bottom:1px solid #2a2410;">METHOD</th>'
-                f'</tr></thead><tbody>{_depr_html}</tbody></table></div>',
-                unsafe_allow_html=True,
-            )
-
-            if tax.get("oz_eligible"):
-                st.markdown(
-                    f'<div style="background:#0a1e0a;border:1px solid #2a6030;border-left:4px solid #4caf50;'
-                    f'border-radius:6px;padding:12px 18px;margin-top:4px;color:#80c858;font-size:0.88rem;">'
-                    f'<strong>&#9733; Opportunity Zone</strong> &mdash; {tax["oz_note"]}</div>',
-                    unsafe_allow_html=True,
-                )
-            st.caption(
-                f"Assumes {tax['tax_rate_pct']}% combined federal tax rate. "
-                f"Cost-segregation allocation: 15% personal property (5-yr), 10% land improvements (15-yr), "
-                f"75% structure ({tax['struct_depr_life']}-yr). "
-                f"{tax['bonus_depr_pct']}% bonus depreciation applied (2025 schedule)."
-            )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Investment narrative ──────────────────────────────────────────────
-        section(" Investment Rationale")
-        for _para in narrative.strip().split("\n\n"):
-            if _para.strip():
-                st.markdown(
-                    f'<div style="background:#16140a;border-left:3px solid #a07830;'
-                    f'border-radius:4px;padding:14px 18px;margin-bottom:12px;'
-                    f'color:#e8dfc4;font-size:0.93rem;line-height:1.65;">{_para.strip()}</div>',
-                    unsafe_allow_html=True,
-                )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Forecasting (Agent 22 · FRED projections) ─────────────────────────
-        _fc_cache = read_cache("forecast") or {}
-        _fc_data  = _fc_cache.get("data") or {}
-        _fc_proj  = _fc_data.get("projections", {}) or {}
-        _fc_hist  = _fc_data.get("historical",  {}) or {}
-
-        if _fc_proj:
-            section(" Forecasting — Macro Projections")
-            st.markdown(
-                '<div style="color:#a09880;font-size:0.86rem;margin-top:-6px;margin-bottom:14px;">'
-                'Forward-looking macro drivers: Atlanta Fed GDPNow, FOMC Summary of Economic Projections '
-                '(real GDP & Fed funds), and market-implied 10-year breakeven inflation. '
-                'Feed into exit cap rate, debt service, and rent growth assumptions.'
-                '</div>',
-                unsafe_allow_html=True,
-            )
-
-            # ── Projections table ─────────────────────────────────────────────
-            _fc_header = (
-                '<tr style="background:#1a1408;">'
-                '  <th style="text-align:left;padding:10px 14px;color:#d4a843;'
-                '      font-size:0.8rem;letter-spacing:0.06em;border-bottom:1px solid #2a2208;">'
-                '      INDICATOR</th>'
-                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
-                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">CURRENT</th>'
-                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
-                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">Q2 2026</th>'
-                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
-                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">Q3 2026</th>'
-                '  <th style="text-align:right;padding:10px 14px;color:#d4a843;'
-                '      font-size:0.8rem;border-bottom:1px solid #2a2208;">Q4 2026</th>'
-                '</tr>'
-            )
-            _fc_rows = []
-            for _name, _p in _fc_proj.items():
-                _cur = _p.get("current")
-                _q2  = _p.get("q2_2026")
-                _q3  = _p.get("q3_2026")
-                _q4  = _p.get("q4_2026")
-                _unit = _p.get("unit", "%")
-                _delta = (_q4 - _cur) if (_q4 is not None and _cur is not None) else 0
-                _dir_col = ("#4caf50" if _delta > 0.05 else
-                            "#ef5350" if _delta < -0.05 else "#c8b890")
-                def _fmt(v):
-                    return f"{v:.2f}{_unit}" if v is not None else "—"
-                _fc_rows.append(
-                    f'<tr>'
-                    f'  <td style="padding:10px 14px;color:#e8dfc4;font-size:0.9rem;'
-                    f'      border-bottom:1px solid #2a2208;">{_name}'
-                    f'      <div style="color:#6a5228;font-size:0.72rem;">FRED {_p.get("series_id","")}</div></td>'
-                    f'  <td style="padding:10px 14px;text-align:right;color:#c8b890;'
-                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;">{_fmt(_cur)}</td>'
-                    f'  <td style="padding:10px 14px;text-align:right;color:{_dir_col};'
-                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;">{_fmt(_q2)}</td>'
-                    f'  <td style="padding:10px 14px;text-align:right;color:{_dir_col};'
-                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;">{_fmt(_q3)}</td>'
-                    f'  <td style="padding:10px 14px;text-align:right;color:{_dir_col};'
-                    f'      font-size:0.92rem;border-bottom:1px solid #2a2208;font-weight:700;">{_fmt(_q4)}</td>'
-                    f'</tr>'
-                )
-            st.markdown(
-                f'<div style="background:#0f0d06;border:1px solid #2a2208;border-radius:8px;'
-                f'overflow:hidden;margin-bottom:14px;">'
-                f'  <table style="width:100%;border-collapse:collapse;">'
-                f'    <thead>{_fc_header}</thead>'
-                f'    <tbody>{"".join(_fc_rows)}</tbody>'
-                f'  </table>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-            # ── History + forecast line chart ─────────────────────────────────
-            try:
-                import plotly.graph_objects as _go
-                _fig_fc = _go.Figure()
-                _line_colors = {
-                    "GDP Nowcast (Atlanta Fed)":  "#d4a843",
-                    "GDP Projection (FOMC)":      "#c8a040",
-                    "10Y Breakeven Inflation":    "#80a848",
-                    "Fed Funds Projection (FOMC)":"#9868b8",
-                }
-                for _name, _h in _fc_hist.items():
-                    _pts = _h.get("points", []) or []
-                    if not _pts:
-                        continue
-                    _hx = [p["date"] for p in _pts]
-                    _hy = [p["value"] for p in _pts]
-                    _clr = _line_colors.get(_name, "#d4a843")
-
-                    # Historical solid line
-                    _fig_fc.add_trace(_go.Scatter(
-                        x=_hx, y=_hy, mode="lines", name=_name,
-                        line=dict(color=_clr, width=2),
-                        hovertemplate="<b>%{fullData.name}</b><br>%{x}<br>%{y:.2f}%<extra></extra>",
-                    ))
-                    # Forecast dotted extension (last historical → Q4 2026)
-                    _p = _fc_proj.get(_name, {})
-                    _fx = [_hx[-1], "2026-06-30", "2026-09-30", "2026-12-31"]
-                    _fy = [_hy[-1], _p.get("q2_2026"), _p.get("q3_2026"), _p.get("q4_2026")]
-                    _fig_fc.add_trace(_go.Scatter(
-                        x=_fx, y=_fy, mode="lines", name=f"{_name} (forecast)",
-                        line=dict(color=_clr, width=2, dash="dot"),
-                        showlegend=False,
-                        hovertemplate="<b>%{fullData.name}</b><br>%{x}<br>%{y:.2f}%<extra></extra>",
-                    ))
-
-                _fig_fc.update_layout(
-                    plot_bgcolor="#0f0f0c",
-                    paper_bgcolor="#16160f",
-                    margin=dict(t=20, b=20, l=30, r=20),
-                    height=360,
-                    xaxis=dict(tickfont=dict(color="#e8dfc4", size=10),
-                               gridcolor="#2a2a1a", title=""),
-                    yaxis=dict(tickfont=dict(color="#e8dfc4", size=10),
-                               gridcolor="#2a2a1a", title="Rate (%)",
-                               titlefont=dict(color="#a09880")),
-                    font=dict(family="Source Sans Pro", color="#e8dfc4"),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                                xanchor="left", x=0,
-                                font=dict(color="#c8b890", size=10),
-                                bgcolor="rgba(0,0,0,0)"),
-                )
-                st.plotly_chart(_fig_fc, use_container_width=True,
-                                config={"displayModeBar": False})
-                st.caption("Solid lines = historical (FRED). Dotted = projected Q2–Q4 2026.")
-            except Exception as _fc_err:
-                st.caption(f"Chart unavailable: {_fc_err}")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Conditional: Climate risk detail if High/Severe ───────────────────
-        if primary.get("climate_score", 0) >= 50:
-            section(f" Climate Risk Alert — {primary['market']} ({primary['climate_label']})")
-            _cf = primary.get("climate_factors", {})
-            if _cf:
-                _cf_cols = st.columns(len(_cf))
-                _cf_display = {"flood": "Flood", "wildfire": "Wildfire",
-                               "heat": "Extreme Heat", "wind": "Wind/Hurricane",
-                               "sea_level": "Sea Level Rise"}
-                for _cfc, (_fk, _fv) in zip(_cf_cols, _cf.items()):
-                    _fc_color = ("#4caf50" if _fv < 25 else "#ff9800" if _fv < 50
-                                 else "#f44336" if _fv < 75 else "#9c27b0")
-                    _cfc.markdown(
-                        f'<div class="metric-card"><div class="label">{_cf_display.get(_fk, _fk)}</div>'
-                        f'<div class="value" style="color:{_fc_color};font-size:1.3rem;">{_fv:.0f}</div></div>',
-                        unsafe_allow_html=True,
-                    )
-            st.warning(
-                f"{primary['market']} carries **{primary['climate_label'].upper()}** physical climate risk "
-                f"(composite {primary['climate_score']:.0f}/100). "
-                f"Factor higher insurance budgets, resilience design costs, and potential exit cap rate "
-                f"expansion into your underwriting.",
-                icon="⚠️",
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Runner-up comparison ──────────────────────────────────────────────
-        if runners:
-            section(" Runner-Up Markets")
-            _compare = [primary] + runners
-            _cmp_rows = []
-            for _i, _m in enumerate(_compare):
-                _bd_m  = _m.get("factor_scores", {})
-                _cscr2 = _m.get("climate_score", 0)
-                _clim_pen2 = round(min(10.0, (_cscr2 - 60) * 0.20), 1) if _cscr2 >= 60 else 0.0
-                _clim_str  = f"{_cscr2:.0f} ({_m.get('climate_label', 'N/A')})"
-                if _clim_pen2 > 0:
-                    _clim_str += f" −{_clim_pen2:.1f}pts"
-                _cmp_rows.append({
-                    "Rank":              "Primary" if _i == 0 else f"#{_i+1} Runner-Up",
-                    "Market":            _m["market"],
-                    "Opp. Score":        _m["opportunity_score"],
-                    "Cap Rate":          f"{_m.get('cap_rate', 0):.2f}%",
-                    "Rent Growth":       f"{_m.get('rent_growth', 0):+.1f}%",
-                    "Climate Risk":      _clim_str,
-                    "Mkt Fundamentals":  f"{_bd_m.get('market_fundamentals', {}).get('raw_score', 0):.0f}",
-                    "Migration Score":   f"{_m.get('mig_score', 0):.0f}",
-                })
-            _cmp_df = pd.DataFrame(_cmp_rows)
-
-            def _adv_style_rank(val):
-                if val == "Primary": return "color:#d4a843;font-weight:700"
-                return "color:#a09880"
-
-            def _adv_style_climate(val):
-                """Colour-code climate risk: green low, orange mid, red/purple high."""
-                try:
-                    score = float(str(val).split("(")[0].strip())
-                except Exception:
-                    return ""
-                if score < 25:   return "color:#4caf50;font-weight:600"
-                if score < 50:   return "color:#ff9800;font-weight:600"
-                if score < 75:   return "color:#f44336;font-weight:600"
-                return "color:#9c27b0;font-weight:700"
-
-            st.markdown(_render_generic_table(
-                _cmp_df,
-                title="Primary vs Runner-Up Markets",
-                count_label=f"{len(_cmp_df)} markets",
-                hints={
-                    "Rank":             {"type": "badge", "flex": 0.9, "badge_map": {
-                        "Primary": "background:#2a1a04;color:#d4a843",
-                    }},
-                    "Market":           {"type": "name",      "flex": 1.8},
-                    "Opp. Score":       {"type": "score_bar", "flex": 1.2},
-                    "Cap Rate":         {"type": "text",      "flex": 0.8},
-                    "Rent Growth":      {"type": "pct_bar",   "flex": 1.2},
-                    "Climate Risk":     {"type": "text",      "flex": 1.2},
-                    "Mkt Fundamentals": {"type": "score_bar", "flex": 1},
-                    "Migration Score":  {"type": "score_bar", "flex": 1},
-                },
-            ), unsafe_allow_html=True)
-
-            # Composite score bar chart
-            _cmp_names  = [_m["market"] for _m in _compare]
-            _cmp_scores = [_m["opportunity_score"] for _m in _compare]
-            _fig_cmp = go.Figure(go.Bar(
-                x=_cmp_names,
-                y=_cmp_scores,
-                marker=dict(color=[_adv_score_color(s) for s in _cmp_scores]),
-                text=[f"{s:.1f}" for s in _cmp_scores],
-                textposition="outside",
-                textfont=dict(color="#e8dfc4", size=12),
-                hovertemplate="<b>%{x}</b><br>Score: %{y:.1f}/100<extra></extra>",
-            ))
-            _fig_cmp.update_layout(
-                plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
-                margin=dict(t=20, b=20, l=20, r=20),
-                height=260,
-                xaxis=dict(tickfont=dict(color="#e8dfc4", size=11), gridcolor="#2a2a1a"),
-                yaxis=dict(range=[0, 110], tickfont=dict(color="#e8dfc4", size=10),
-                           gridcolor="#2a2a1a", title="Opportunity Score"),
-                font=dict(family="Source Sans Pro", color="#e8dfc4"),
-                showlegend=False,
-            )
-            st.plotly_chart(_fig_cmp, use_container_width=True, config={"displayModeBar": False})
-            st.caption("Composite opportunity scores (0–100). Green ≥ 75, Orange 55–74, Red < 55.")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── All scored markets (collapsed) ────────────────────────────────────
-        if all_scored and len(all_scored) > 3:
-            with st.expander(f"All {len(all_scored)} candidate markets scored"):
-                _all_rows = []
-                for _i, _m in enumerate(all_scored):
-                    _all_rows.append({
-                        "Rank":           _i + 1,
-                        "Market":         _m["market"],
-                        "Score":          _m["opportunity_score"],
-                        "Cap Rate":       f"{_m.get('cap_rate', 0):.2f}%",
-                        "Rent Growth":    f"{_m.get('rent_growth', 0):+.1f}%",
-                        "Climate Score":  _m.get("climate_score", 0),
-                        "Migration":      f"{_m.get('mig_score', 0):.0f}",
-                    })
-                _all_df = pd.DataFrame(_all_rows)
-                st.markdown(_render_generic_table(
-                    _all_df,
-                    title="All Candidate Markets — Scored & Ranked",
-                    count_label=f"{len(_all_df)} markets",
-                    scrollable=True, max_height=400,
-                    hints={
-                        "Rank":          {"type": "text",      "flex": 0.5},
-                        "Market":        {"type": "name",      "flex": 1.8},
-                        "Score":         {"type": "score_bar", "flex": 1.2},
-                        "Cap Rate":      {"type": "text",      "flex": 0.8},
-                        "Rent Growth":   {"type": "pct_bar",   "flex": 1.2},
-                        "Climate Score": {"type": "score_bar", "flex": 1},
-                        "Migration":     {"type": "text",      "flex": 0.8},
-                    },
-                ), unsafe_allow_html=True)
-
-        # ── Methodology & weights ─────────────────────────────────────────────
-        with st.expander("Scoring Methodology & Factor Weights"):
-            _meth   = weights.get("methodology", "")
-            _wsrc   = "AI-determined (Groq)" if weights.get("source") == "groq" else "Platform default"
-            st.markdown(
-                f'<div style="background:#16140a;border-left:3px solid #d4a843;border-radius:4px;'
-                f'padding:12px 16px;margin-bottom:16px;color:#e8dfc4;font-size:0.9rem;">'
-                f'<b>Weight source:</b> {_wsrc}<br>'
-                f'<b>Methodology:</b> {_meth}</div>',
-                unsafe_allow_html=True,
-            )
-            _wt_data  = weights.get("weights", {})
-            _rat_data = weights.get("rationales", {})
-            if _wt_data:
-                _wt_rows = []
-                for _f, _w in sorted(_wt_data.items(), key=lambda x: -x[1]):
-                    _bd_f = primary.get("factor_scores", {}).get(_f, {})
-                    _wt_rows.append({
-                        "Factor":         _f.replace("_", " ").title(),
-                        "Weight":         f"{_w*100:.0f}%",
-                        "Raw Score":      f"{_bd_f.get('raw_score', 0):.1f}/100",
-                        "Contribution":   f"{_bd_f.get('weighted', 0):.1f} pts",
-                        "Rationale":      _rat_data.get(_f, ""),
-                    })
-                st.markdown(_render_generic_table(
-                    pd.DataFrame(_wt_rows),
-                    title="Factor Weights & Scores",
-                    count_label=f"{len(_wt_rows)} factors",
-                    hints={
-                        "Factor":       {"type": "name",    "flex": 1.2},
-                        "Weight":       {"type": "pct_bar", "flex": 0.8},
-                        "Raw Score":    {"type": "text",    "flex": 0.8},
-                        "Contribution": {"type": "text",    "flex": 0.8},
-                        "Rationale":    {"type": "text",    "flex": 2.5},
-                    },
-                ), unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-      except Exception as _render_err:
-        import traceback as _tb2
-        st.error(f"**Render error** — this usually means a stale result is cached. Click **Generate Recommendation** to refresh.")
-        with st.expander("Technical details"):
-            st.code(_tb2.format_exc(), language="python")
-        if st.button("Clear cached result", key="adv_clear_cache"):
-            st.session_state.adv_result = None
-            st.rerun()
-
-    elif _adv_result and "error" in _adv_result:
-        st.error(_adv_result["error"])
-
-    else:
-        # Idle state — example prompts
-        st.markdown("""
-<div style="background:#16140a;border:1px solid #2a2010;border-radius:8px;
-            padding:24px 28px;margin-top:12px;">
-  <div style="color:#d4a843;font-weight:600;margin-bottom:14px;">Example prompts to get started:</div>
-  <ul style="color:#a09880;font-size:0.92rem;line-height:2.0;padding-left:20px;margin:0;">
-    <li>"I want to build a 50,000 sq ft warehouse in southern Texas with an $8M budget over a 5-year hold."</li>
-    <li>"Looking for multifamily development in the Southeast. $15M budget, 7-year hold, moderate risk."</li>
-    <li>"Office development, 20,000 sq ft, $12M, in the Sunbelt &mdash; where should I build?"</li>
-    <li>"Conservative industrial play in the Midwest, $5M, 3 years."</li>
-  </ul>
-</div>
-""", unsafe_allow_html=True)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  MAIN TAB — ABOUT
-# ═══════════════════════════════════════════════════════════════════════════════
 with main_tab_about:
     tab_about_team, tab_about_monitor = st.tabs(["Meet the Team", "System Monitor"])
 
