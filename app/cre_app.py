@@ -3169,18 +3169,23 @@ with main_tab_advisor:
         _roi = financials["roi_pct"]
         _roi_color = "#4caf50" if _roi > 30 else ("#ff9800" if _roi > 10 else "#f44336")
 
-        for _col, (_lbl, _val, _clr) in zip(
+        for _col, (_lbl, _tip, _val, _clr) in zip(
             [_c1, _c2, _c3, _c4, _c5],
             [
-                ("Opportunity Score",  f"{_opp:.1f}/100",                             _adv_score_color(_opp)),
-                ("Est. Total Cost",    f"${financials['total_cost']/1e6:.2f}M",         "#e8dfc4"),
-                ("Estimated ROI",      f"{_roi}%",                                     _roi_color),
-                ("Buildout Timeline",  f"{financials['buildout_months']} mo",           "#e8dfc4"),
-                ("Est. Exit Value",    f"${financials['exit_value']/1e6:.2f}M",          "#d4a843"),
+                ("Opportunity Score",  "Composite 0–100 score weighing migration (25%), vacancy (20%), rent growth (15%), labor (15%), cap rate (10%), land (10%), and macro (5%). ≥75 = A-grade market, ≥60 = B, below 50 = avoid.",
+                 f"{_opp:.1f}/100",                             _adv_score_color(_opp)),
+                ("Est. Total Cost",    "All-in development cost: land purchase + hard construction + soft costs (architecture, permits, financing fees, contingency). This is the total capital needed before the property generates any income.",
+                 f"${financials['total_cost']/1e6:.2f}M",         "#e8dfc4"),
+                ("Estimated ROI",      "Return on Investment over the full hold period: (Total Profit ÷ Total Cost) × 100. Includes rental income and estimated exit sale proceeds. Does NOT account for leverage. Target: 20%+ is strong for CRE development.",
+                 f"{_roi}%",                                     _roi_color),
+                ("Buildout Timeline",  "Estimated months from land acquisition to Certificate of Occupancy. Includes entitlement, design, and construction phases. Longer buildout = more capital at risk before income begins.",
+                 f"{financials['buildout_months']} mo",           "#e8dfc4"),
+                ("Est. Exit Value",    "Projected sale price at end of hold period, calculated as: stabilized NOI ÷ exit cap rate. A lower exit cap rate (strong market) = higher sale price. This drives most of the total return.",
+                 f"${financials['exit_value']/1e6:.2f}M",          "#d4a843"),
             ]
         ):
             _col.markdown(
-                f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                f'<div class="metric-card"><div class="label">{_tt(_lbl, _tip)}</div>'
                 f'<div class="value" style="color:{_clr};font-size:1.5rem;">{_val}</div></div>',
                 unsafe_allow_html=True,
             )
@@ -3754,30 +3759,31 @@ with main_tab_advisor:
         st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
         st.markdown(
             _tt("Income vs Expense Projection",
-                "Year-by-year forecast over the hold period.<br>"
-                "<b>Gold (Income)</b> = rent collected after vacancy (EGI).<br>"
-                "<b>Red (Expenses)</b> = operating costs + loan payments.<br>"
-                "<b>Green dotted (NOI)</b> = income before debt service.<br>"
-                "<b>Blue dashed (Cash Flow)</b> = what's left after paying the loan."),
+                "Year-by-year operating forecast (Years 1–N). Year 0 is the construction/equity phase shown above.<br><br>"
+                "<b>Gold — Revenue (EGI)</b>: Gross rent collected minus vacancy loss. This is your top-line income.<br>"
+                "<b>Red — Expenses</b>: Operating costs (management, taxes, insurance, maintenance) PLUS annual loan payments.<br>"
+                "<b>Green dotted — NOI</b>: Net Operating Income = Revenue minus operating costs only (before debt).<br>"
+                "<b>Blue dashed — Cash Flow</b>: What you actually pocket each year = NOI minus loan payment.<br><br>"
+                "When the <b>gold line is above red</b>, the property generates more income than it costs — it's profitable. "
+                "The green shaded area shows the profit margin; red shading shows a loss period."),
             unsafe_allow_html=True,
         )
-        _hold_yrs  = int(financials.get("hold_years", params.get("timeline_years", 5)) or 5)
-        _base_noi  = financials.get("annual_noi", 0)
+        _hold_yrs   = int(financials.get("hold_years", params.get("timeline_years", 5)) or 5)
+        _base_noi   = financials.get("annual_noi", 0)
         _total_cost = financials.get("total_cost", 0)
         _equity     = _adv_result.get("financing", {}).get("equity_required", _total_cost)
-        _base_egi  = _base_noi / 0.65 if _base_noi else 0
-        _base_opex = _base_egi - _base_noi
-        _ann_ds    = _adv_result.get("financing", {}).get("annual_debt_service", 0)
+        _base_egi   = _base_noi / 0.65 if _base_noi else 0
+        _base_opex  = _base_egi - _base_noi
+        _ann_ds     = _adv_result.get("financing", {}).get("annual_debt_service", 0)
 
-        # Year 0 = construction / equity deployment (no income yet)
-        _chart_yrs = [0]
-        _chart_egi = [0]
-        _chart_exp = [_equity]          # initial equity outlay shown as Year-0 expense
-        _chart_noi = [0]
-        _chart_cf  = [-_equity]         # negative — money going out
-
-        _chart_opex_only = [0]          # for hover detail
-        _chart_ds_only   = [0]
+        # Build data for Years 1–N only (Year 0 shown as callout, not on chart)
+        _chart_yrs = []
+        _chart_egi = []
+        _chart_exp = []
+        _chart_noi = []
+        _chart_cf  = []
+        _chart_opex_only = []
+        _chart_ds_only   = []
 
         for _yr in range(1, _hold_yrs + 1):
             _g    = 1.03 ** (_yr - 1)
@@ -3793,15 +3799,50 @@ with main_tab_advisor:
             _chart_opex_only.append(_opex)
             _chart_ds_only.append(_ann_ds)
 
+        # Year 0 equity callout above chart
+        _yr1_cf_color = "#4caf50" if (_chart_cf[0] if _chart_cf else 0) >= 0 else "#ef5350"
+        _yr1_cf_label = "Cash Flow Positive" if (_chart_cf[0] if _chart_cf else 0) >= 0 else "Cash Flow Negative"
+        st.markdown(f"""
+<div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
+  <div style="background:#1a1208;border:1px solid #3a2510;border-left:3px solid #ef5350;
+              border-radius:6px;padding:8px 14px;font-size:0.8rem;">
+    <span style="color:#6a4020;">Year 0 — Equity Deployed:</span>
+    <span style="color:#ef5350;font-weight:700;margin-left:6px;">${_equity/1e6:.2f}M</span>
+    <span style="color:#5a4020;font-size:0.72rem;margin-left:6px;">(construction + close)</span>
+  </div>
+  <div style="background:#0d1a0d;border:1px solid #1a3010;border-left:3px solid {_yr1_cf_color};
+              border-radius:6px;padding:8px 14px;font-size:0.8rem;">
+    <span style="color:#4a6030;">Year 1 Cash Flow:</span>
+    <span style="color:{_yr1_cf_color};font-weight:700;margin-left:6px;">${(_chart_cf[0] if _chart_cf else 0)/1e3:.0f}K/yr</span>
+    <span style="color:#3a5020;font-size:0.72rem;margin-left:6px;">({_yr1_cf_label})</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
         _fin_fig = go.Figure()
-        # Income line — hover shows gross rent components
+
+        # Profit fill: green where revenue > expenses, red otherwise
+        _fill_egi = _chart_egi[:]
+        _fill_exp = _chart_exp[:]
+        _fin_fig.add_trace(go.Scatter(
+            x=_chart_yrs + _chart_yrs[::-1],
+            y=_fill_egi + _fill_exp[::-1],
+            fill="toself",
+            fillcolor="rgba(76,175,80,0.10)",
+            line=dict(color="rgba(0,0,0,0)"),
+            hoverinfo="skip", showlegend=False,
+            name="_profit_fill",
+        ))
+
+        # Revenue line
         _fin_fig.add_trace(go.Scatter(
             x=_chart_yrs, y=_chart_egi,
             name="Revenue (EGI = Gross Rent − Vacancy)",
             line=dict(color="#d4a843", width=2.5),
+            mode="lines+markers", marker=dict(size=5),
             customdata=list(zip(
-                [round(v / 0.92) for v in _chart_egi],   # approx gross rent (8% vacancy)
-                [round(v * 0.08) for v in _chart_egi],   # approx vacancy loss
+                [round(v / 0.92) for v in _chart_egi],
+                [round(v * 0.08) for v in _chart_egi],
             )),
             hovertemplate=(
                 "<b>Year %{x} — Revenue</b><br>"
@@ -3810,11 +3851,12 @@ with main_tab_advisor:
                 "<b>= EGI: $%{y:,.0f}</b><extra></extra>"
             ),
         ))
-        # Expense line — hover shows OpEx + debt breakdown
+        # Expense line
         _fin_fig.add_trace(go.Scatter(
             x=_chart_yrs, y=_chart_exp,
             name="Expenses (OpEx + Debt Service)",
             line=dict(color="#ef5350", width=2.5),
+            mode="lines+markers", marker=dict(size=5),
             customdata=list(zip(_chart_opex_only, _chart_ds_only)),
             hovertemplate=(
                 "<b>Year %{x} — Expenses</b><br>"
@@ -3823,43 +3865,53 @@ with main_tab_advisor:
                 "<b>= Total: $%{y:,.0f}</b><extra></extra>"
             ),
         ))
+        # NOI line
         _fin_fig.add_trace(go.Scatter(
             x=_chart_yrs, y=_chart_noi,
             name="NOI (Revenue − OpEx)",
             line=dict(color="#4caf50", width=2, dash="dot"),
+            mode="lines+markers", marker=dict(size=4),
             hovertemplate="<b>Year %{x} — NOI</b><br>$%{y:,.0f}<extra></extra>",
         ))
+        # Cash flow line
         _fin_fig.add_trace(go.Scatter(
             x=_chart_yrs, y=_chart_cf,
             name="Cash Flow After Debt",
             line=dict(color="#64b5f6", width=2, dash="dash"),
+            mode="lines+markers", marker=dict(size=4),
             hovertemplate="<b>Year %{x} — Cash Flow</b><br>$%{y:,.0f}<extra></extra>",
         ))
-        # Year-0 annotation
-        _fin_fig.add_annotation(
-            x=0, y=_equity,
-            text=f"Equity In<br>${_equity/1e6:.1f}M",
-            showarrow=True, arrowhead=2, arrowcolor="#ef5350",
-            font=dict(color="#ef5350", size=10),
-            bgcolor="#1a1208", bordercolor="#ef5350", borderwidth=1,
-            ax=40, ay=-30,
+
+        # Zero reference line (break-even)
+        _fin_fig.add_hline(
+            y=0, line=dict(color="rgba(255,255,255,0.18)", width=1, dash="dot"),
+            annotation_text="Break-even", annotation_position="right",
+            annotation_font=dict(color="rgba(255,255,255,0.35)", size=9),
         )
+
         _fin_fig.update_layout(
             plot_bgcolor="#0f0f0c", paper_bgcolor="#16160f",
             font=dict(color="#a09880", size=11),
-            xaxis=dict(title="Hold Year", gridcolor="#2a2a20", tickmode="linear", dtick=1),
-            yaxis=dict(title="$ Amount", gridcolor="#2a2a20", tickformat="$,.0f"),
-            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10), orientation="h", y=-0.22),
-            margin=dict(l=10, r=10, t=10, b=70),
-            height=360,
+            xaxis=dict(
+                title=_tt("Hold Year", "Each year of property ownership after completion. Year 1 = first full operating year."),
+                gridcolor="#2a2a20", tickmode="linear", dtick=1,
+                title_font=dict(color="#a09880"),
+            ),
+            yaxis=dict(
+                title=_tt("Annual $ Amount", "Dollar amounts per year. Positive = money coming in. Negative = money going out. The gap between gold (revenue) and red (expenses) is your profit."),
+                gridcolor="#2a2a20", tickformat="$~s",
+                title_font=dict(color="#a09880"),
+            ),
+            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10), orientation="h", y=-0.28),
+            margin=dict(l=10, r=10, t=20, b=80),
+            height=380,
         )
         st.plotly_chart(_fin_fig, use_container_width=True, key="fin_proj_chart", config={"displayModeBar": False})
         st.caption(
-            "Revenue = Gross Rent − Vacancy Loss = EGI (Effective Gross Income).  "
-            "Expenses = Operating Costs (mgmt, taxes, insurance, maintenance) + Annual Debt Service.  "
-            "NOI = Revenue − Operating Costs only.  "
-            "Cash Flow = NOI − Debt Service.  "
-            "Year 0 = equity deployed at construction/close."
+            "Chart shows Years 1–" + str(_hold_yrs) + " (operating phase). "
+            "Revenue (gold) above Expenses (red) = profitable year — green shading shows the profit margin. "
+            "NOI = revenue minus operating costs only (before loan payments). "
+            "Cash Flow (blue) = what you pocket after paying the loan each year."
         )
 
 
@@ -3872,34 +3924,43 @@ with main_tab_advisor:
             _dscr_c = "#4caf50" if financing.get("dscr", 0) >= 1.25 else ("#ff9800" if financing.get("dscr", 0) >= 1.0 else "#f44336")
             _coc_c  = "#4caf50" if financing.get("cash_on_cash_pct", 0) >= 6 else "#ff9800"
             _irrl_c = "#4caf50" if financing.get("leveraged_irr_pct", 0) >= 15 else "#ff9800"
-            for _fc, (_lbl, _val, _clr) in zip(
+            for _fc, (_lbl, _tip, _val, _clr) in zip(
                 [_fn1, _fn2, _fn3, _fn4, _fn5],
                 [
-                    ("LTV",               f"{financing['ltv_pct']:.0f}%",                         "#e8dfc4"),
-                    ("Loan Amount",        f"${financing['loan_amount']/1e6:.2f}M",                "#e8dfc4"),
-                    ("Equity Required",    f"${financing['equity_required']/1e6:.2f}M",            "#d4a843"),
-                    ("Annual Debt Service",f"${financing['annual_debt_service']/1e3:.0f}K",        "#e8dfc4"),
-                    ("DSCR",               f"{financing['dscr']:.2f}x",                            _dscr_c),
+                    ("LTV",               "Loan-to-Value ratio: how much of the project cost is financed by debt. 65% LTV = lender covers 65%, you put in 35% equity. Higher LTV = more leverage but more risk.",
+                     f"{financing['ltv_pct']:.0f}%",                         "#e8dfc4"),
+                    ("Loan Amount",        "Total debt drawn from the construction/permanent lender. This is the amount you borrow, not the total project cost.",
+                     f"${financing['loan_amount']/1e6:.2f}M",                "#e8dfc4"),
+                    ("Equity Required",    "Your out-of-pocket cash investment: Total Project Cost minus the loan. This is the minimum you need to have available at closing.",
+                     f"${financing['equity_required']/1e6:.2f}M",            "#d4a843"),
+                    ("Annual Debt Service","Total loan payments per year (principal + interest). This is the fixed cost that must be covered by NOI before you see any cash flow.",
+                     f"${financing['annual_debt_service']/1e3:.0f}K",        "#e8dfc4"),
+                    ("DSCR",               "Debt Service Coverage Ratio: NOI ÷ Annual Debt Service. ≥1.25x = lenders are comfortable (green). 1.0–1.25x = marginal (yellow). <1.0x = property can't cover its debt (red).",
+                     f"{financing['dscr']:.2f}x",                            _dscr_c),
                 ]
             ):
                 _fc.markdown(
-                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                    f'<div class="metric-card"><div class="label">{_tt(_lbl, _tip)}</div>'
                     f'<div class="value" style="color:{_clr};">{_val}</div></div>',
                     unsafe_allow_html=True,
                 )
             st.markdown("<br style='margin:4px 0'>", unsafe_allow_html=True)
             _fn6, _fn7, _fn8, _fn9 = st.columns(4)
-            for _fc, (_lbl, _val, _clr) in zip(
+            for _fc, (_lbl, _tip, _val, _clr) in zip(
                 [_fn6, _fn7, _fn8, _fn9],
                 [
-                    ("Loan Rate",          f"{financing['loan_rate_pct']:.2f}% / {financing['amort_years']}yr", "#e8dfc4"),
-                    ("Cash Flow After DS", f"${financing['cash_flow_after_ds']/1e3:.0f}K/yr",                  _coc_c),
-                    ("Cash-on-Cash",       f"{financing['cash_on_cash_pct']:.1f}%",                            _coc_c),
-                    ("Leveraged IRR",      f"{financing['leveraged_irr_pct']:.1f}%",                           _irrl_c),
+                    ("Loan Rate",          "Interest rate on the construction/permanent loan and amortization period. A 30yr amortization spreads payments over 30 years, reducing annual debt service.",
+                     f"{financing['loan_rate_pct']:.2f}% / {financing['amort_years']}yr", "#e8dfc4"),
+                    ("Cash Flow After DS", "Annual cash profit after paying all operating expenses AND loan payments. This is the actual money available to distribute to investors each year.",
+                     f"${financing['cash_flow_after_ds']/1e3:.0f}K/yr",                  _coc_c),
+                    ("Cash-on-Cash",       "Cash-on-Cash return: Annual Cash Flow ÷ Equity Invested × 100. Measures the annual cash yield on your equity. Target: 6%+ is generally considered good.",
+                     f"{financing['cash_on_cash_pct']:.1f}%",                            _coc_c),
+                    ("Leveraged IRR",      "IRR including the effect of debt — since you only put in equity (not the full cost), returns are amplified by leverage. Target: 15%+ for development deals.",
+                     f"{financing['leveraged_irr_pct']:.1f}%",                           _irrl_c),
                 ]
             ):
                 _fc.markdown(
-                    f'<div class="metric-card"><div class="label">{_lbl}</div>'
+                    f'<div class="metric-card"><div class="label">{_tt(_lbl, _tip)}</div>'
                     f'<div class="value" style="color:{_clr};">{_val}</div></div>',
                     unsafe_allow_html=True,
                 )
