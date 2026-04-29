@@ -4465,6 +4465,2803 @@ with main_tab_advisor:
 # ═══════════════════════════════════════════════════════════════════════════════
 #  MAIN TAB — ABOUT
 # ═══════════════════════════════════════════════════════════════════════════════
+with main_tab_about:
+    tab_about_team, tab_about_monitor = st.tabs(["Meet the Team", "System Monitor"])
+
+    # ── Meet the Team ─────────────────────────────────────────────────────────
+    with tab_about_team:
+        import base64 as _b64
+
+        # ── Team config — drop a photo file in app/assets/team/ named exactly
+        #    as the "photo" field below (e.g. aayman.jpg) and it auto-appears.
+        #    Supported formats: jpg, jpeg, png, webp
+        _TEAM = [
+            {
+                "name":     "Aayman Afzal",
+                "role":     "MSF Candidate",
+                "linkedin": "https://www.linkedin.com/in/aayman-afzal",
+                "photo":    "aayman.jpg",
+            },
+            {
+                "name":     "Ajinkya Kodnikar",
+                "role":     "MSF Candidate",
+                "linkedin": "https://www.linkedin.com/in/ajinkyakodnikar",
+                "photo":    "ajinkya.jpg",
+            },
+            {
+                "name":     "Oyu Amar",
+                "role":     "MSF Candidate",
+                "linkedin": "https://www.linkedin.com/in/oyu-amar/",
+                "photo":    "oyu.jpg",
+            },
+            {
+                "name":     "Ricardo Ruiz",
+                "role":     "MSF Candidate",
+                "linkedin": "https://www.linkedin.com/in/ricardo-ruiz1",
+                "photo":    "ricardo.jpg",
+            },
+        ]
+
+        from pathlib import Path as _Path
+        _ASSETS_DIR = _Path(__file__).parent / "assets" / "team"
+
+        def _photo_html(filename: str) -> str:
+            """Return an <img> tag if the photo file exists, else a fallback avatar."""
+            for ext in [filename, filename.replace(".jpg", ".jpeg"),
+                        filename.replace(".jpg", ".png"), filename.replace(".jpg", ".webp")]:
+                p = _ASSETS_DIR / ext
+                if p.exists():
+                    mime = "image/jpeg" if ext.endswith((".jpg", ".jpeg")) else (
+                           "image/png" if ext.endswith(".png") else "image/webp")
+                    data = _b64.b64encode(p.read_bytes()).decode()
+                    return (
+                        f'<img src="data:{mime};base64,{data}" '
+                        f'style="width:96px;height:96px;border-radius:50%;'
+                        f'object-fit:cover;border:2px solid #a07830;margin-bottom:10px;" />'
+                    )
+            return '<div style="font-size:3rem;margin-bottom:10px;">&#128100;</div>'
+
+        st.markdown("""
+<div style="background:linear-gradient(135deg,#1a1208 0%,#2a1e08 100%);
+            border:1px solid #a07830; border-top:3px solid #d4a843;
+            border-radius:10px; padding:28px 36px; margin-bottom:28px;">
+  <div style="color:#d4a843;font-size:1.45rem;font-weight:700;letter-spacing:1px;">
+    CRE Intelligence Platform
+  </div>
+  <div style="color:#a09880;font-size:0.92rem;margin-top:6px;max-width:720px;">
+    Built by the Purdue Daniels School of Business MSF cohort for MGMT 690: AI Leadership.
+    A real-time commercial real estate intelligence system powered by 20 background agents,
+    live market data, and AI-driven investment analysis.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        st.markdown("""
+<div style="text-align:center; margin-bottom:20px;">
+  <span style="color:#d4a843; font-size:1.3rem; font-weight:700; letter-spacing:2px;
+               text-transform:uppercase;">Meet the Team</span>
+  <div style="color:#a09880; font-size:0.85rem; margin-top:6px;">
+    MGMT 690: AI Leadership &nbsp;&middot;&nbsp; Purdue Daniels School of Business &nbsp;&middot;&nbsp; MSF Program
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        # Render each card in its own column so HTML is isolated per st.markdown call
+        _tm_cols = st.columns(len(_TEAM), gap="medium")
+        for _col, _tm in zip(_tm_cols, _TEAM):
+            _photo = _photo_html(_tm["photo"])
+            _col.markdown(
+                f'<div style="background:#1e1a0a;border:1px solid #a07830;border-radius:8px;'
+                f'padding:24px 16px;text-align:center;">'
+                f'{_photo}'
+                f'<div style="color:#e8dfc4;font-weight:700;font-size:0.95rem;margin-bottom:4px;">{_tm["name"]}</div>'
+                f'<div style="color:#6a5228;font-size:0.75rem;margin-bottom:10px;">{_tm["role"]}</div>'
+                f'<a href="{_tm["linkedin"]}" target="_blank" '
+                f'style="color:#d4a843;font-size:0.8rem;text-decoration:none;">&#128279; LinkedIn</a>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Platform Overview")
+        _ov_cols = st.columns(3)
+        _ov_cols[0].markdown(metric_card("Background Agents", "20", "Auto-updating data sources"), unsafe_allow_html=True)
+        _ov_cols[1].markdown(metric_card("Data Sources", "30+", "APIs, RSS feeds, government data"), unsafe_allow_html=True)
+        _ov_cols[2].markdown(metric_card("Update Frequency", "30 min", "Fastest agent refresh cycle"), unsafe_allow_html=True)
+
+        st.markdown("""
+<div style="background:#16140a;border:1px solid #2a2208;border-radius:8px;
+            padding:20px 24px;margin-top:16px;color:#a09880;font-size:0.9rem;line-height:1.8;">
+  <div style="color:#d4a843;font-weight:600;margin-bottom:10px;">What This Platform Does</div>
+  The CRE Intelligence Platform continuously monitors 20+ commercial real estate market signals —
+  population migration, REIT pricing, interest rates, labor markets, inflation, GDP, credit conditions,
+  cap rates, rent growth, vacancy, climate risk, and more — and synthesizes them into actionable
+  investment intelligence. The AI Investment Advisor combines all live data to score every US metro
+  market and generate personalized investment briefs in plain English.
+</div>
+""", unsafe_allow_html=True)
+
+    # ── System Monitor ────────────────────────────────────────────────────────
+    with tab_about_monitor:
+        st.markdown("#### Background Agent Monitor")
+        st.markdown(
+            "20 agents run continuously in background threads, writing to JSON cache files. "
+            "Data survives Streamlit reruns. Agents restart automatically if the app restarts."
+        )
+
+        section(" Agent Status")
+        _about_status = get_status()
+
+        _about_agent_labels = {
+            "migration":       ("Agent 1",  "Population & Migration",    "Every 6h"),
+            "pricing":         ("Agent 2",  "REIT Pricing",              "Every 1h"),
+            "predictions":     ("Agent 3",  "Company Predictions",       "Every 24h"),
+            "debugger":        ("Agent 4",  "Debugger / Monitor",        "Every 30min"),
+            "news":            ("Agent 5",  "Industry Announcements",    "Every 4h"),
+            "rates":           ("Agent 6",  "Interest Rate & Debt",      "Every 1h"),
+            "energy":          ("Agent 7",  "Energy & Construction",     "Every 6h"),
+            "sustainability":  ("Agent 8",  "Sustainability & ESG",      "Every 6h"),
+            "labor_market":    ("Agent 9",  "Labor Market & Demand",     "Every 6h"),
+            "gdp":             ("Agent 10", "GDP & Economic Growth",     "Every 6h"),
+            "inflation":       ("Agent 11", "Inflation Monitor",         "Every 6h"),
+            "credit":          ("Agent 12", "Credit & Capital Markets",  "Every 6h"),
+            "vacancy":         ("Agent 13", "Vacancy Monitor",           "Every 12h"),
+            "climate_risk":    ("Agent 14", "Climate Risk",              "Every 24h"),
+            "cap_rate":        ("Agent 15", "Cap Rate Monitor",          "Every 6h"),
+            "rent_growth":     ("Agent 16", "Rent Growth",               "Every 6h"),
+            "land_market":     ("Agent 17", "Land & Development",        "Every 12h"),
+            "opportunity_zone":("Agent 18", "Opportunity Zones",         "Every 24h"),
+            "distressed":      ("Agent 19", "CMBS & Distressed",         "Every 6h"),
+            "market_score":    ("Agent 20", "Market Score Composite",    "Every 6h"),
+            "rentcast":        ("Agent 21", "RentCast Property DB",      "Every 24h"),
+            "forecast":        ("Agent 22", "Economic Forecast (FRED)",  "Every 6h"),
+            "manager":         ("Manager",  "System Health Supervisor",  "Every 15min"),
+        }
+
+        _cache_key_map = {
+            "credit": "credit_data", "energy": "energy_data",
+            "gdp": "gdp_data", "inflation": "inflation_data",
+            "sustainability": "sustainability_data",
+            "manager": "manager_report",
+        }
+
+        _about_rows = []
+        for _ak, (_anum, _aname, _afreq) in _about_agent_labels.items():
+            _as  = _about_status.get(_ak, {})
+            _mem_status = _as.get("status", "")   # in-memory (resets on restart)
+            _ar  = _as.get("runs", 0)
+            _ae  = _as.get("last_error") or ""
+            _ck  = _cache_key_map.get(_ak, _ak)
+            _cache_age = cache_age_label(_ck)
+            _cc  = read_cache(_ck)
+            _has_data = _cc.get("data") is not None
+            _is_stale = _cc.get("stale", False)
+
+            # Derive status: cache truth takes precedence over stale in-memory flags
+            if _mem_status == "running":
+                _ast = "RUNNING"                    # always trust live running signal
+            elif _has_data and not _is_stale:
+                _ast = "OK"                         # fresh cache = healthy regardless of past errors
+            elif _mem_status == "error" and (_is_stale or not _has_data):
+                _ast = "ERROR"                      # error + bad cache = real problem
+            elif _has_data and _is_stale:
+                _ast = "STALE"
+            else:
+                _ast = "MISSING"
+
+            _about_rows.append({
+                "key":      _ak,
+                "label":    _aname,
+                "num":      _anum,
+                "name":     _aname,
+                "schedule": _afreq,
+                "status":   _ast,
+                "runs":     _ar,
+                "cache_age":_cache_age,
+                "has_data": _has_data,
+                "error":    _ae[:60] if _ae else "",
+            })
+
+        # ── KPI summary strip ──────────────────────────────────────────────────
+        _n_total   = len(_about_rows)
+        _n_ok      = sum(1 for r in _about_rows if r["status"] in ("OK", "RUNNING"))
+        _n_error   = sum(1 for r in _about_rows if r["status"] == "ERROR")
+        _n_cached  = sum(1 for r in _about_rows if r["has_data"])
+        _health_pct = round(_n_cached / _n_total * 100)
+
+        _kpi_cols = st.columns(4)
+        for _kc, (_kl, _kv, _kc2) in zip(_kpi_cols, [
+            ("Total Agents",    str(_n_total),              "#c8a040"),
+            ("Active / OK",     str(_n_ok),                 "#4caf50"),
+            ("Errors",          str(_n_error),              "#f44336" if _n_error else "#4caf50"),
+            ("Cache Health",    f"{_health_pct}%",          "#4caf50" if _health_pct >= 80 else "#ff9800"),
+        ]):
+            _kc.markdown(
+                f'<div class="metric-card"><div class="label">{_kl}</div>'
+                f'<div class="value" style="color:{_kc2};font-size:1.6rem;font-weight:700;">{_kv}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Chart row: runs bar + status donut ────────────────────────────────
+        _ch_left, _ch_right = st.columns([2, 1], gap="large")
+
+        with _ch_left:
+            _status_color_map = {
+                "OK":      "#4caf50",
+                "RUNNING": "#ff9800",
+                "ERROR":   "#f44336",
+                "STALE":   "#d4a843",
+                "MISSING": "#f44336",
+                "IDLE":    "#555544",
+            }
+            _bar_labels  = [r["label"] for r in _about_rows]
+            _bar_runs    = [max(r["runs"], 1) for r in _about_rows]   # min 1 so bar is visible
+            _bar_colors  = [_status_color_map.get(r["status"], "#555544") for r in _about_rows]
+            _bar_hover   = [
+                f"<b>{r['label']}</b><br>Runs: {r['runs']}<br>Status: {r['status']}<br>Schedule: {r['schedule']}<br>Cache: {r['cache_age']}<extra></extra>"
+                for r in _about_rows
+            ]
+
+            _fig_runs = go.Figure(go.Bar(
+                y=_bar_labels,
+                x=_bar_runs,
+                orientation="h",
+                marker=dict(color=_bar_colors, opacity=0.88),
+                text=[str(r["runs"]) for r in _about_rows],
+                textposition="outside",
+                textfont=dict(color="#c8b890", size=10),
+                hovertemplate=_bar_hover,
+            ))
+            _fig_runs.update_layout(
+                title=dict(text="Agent Run Count", font=dict(color="#c8a040", size=13), x=0),
+                plot_bgcolor="#0d0b04", paper_bgcolor="#13110a",
+                margin=dict(t=36, b=20, l=200, r=60),
+                height=560,
+                xaxis=dict(
+                    title="Total Runs Since Last Restart",
+                    title_font=dict(color="#7a7050", size=11),
+                    tickfont=dict(color="#c8b890", size=10),
+                    gridcolor="#1e1c0e",
+                ),
+                yaxis=dict(tickfont=dict(color="#c8b890", size=10), autorange="reversed"),
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(_fig_runs, use_container_width=True, config={"displayModeBar": False})
+
+        with _ch_right:
+            _status_counts = {"OK": 0, "RUNNING": 0, "STALE": 0, "ERROR": 0, "MISSING": 0}
+            for r in _about_rows:
+                _s = r["status"] if r["status"] in _status_counts else "OK"
+                _status_counts[_s] += 1
+            # Drop zero-count entries so donut isn't cluttered
+            _status_counts = {k: v for k, v in _status_counts.items() if v > 0}
+
+            _donut_labels = list(_status_counts.keys())
+            _donut_vals   = list(_status_counts.values())
+            _donut_colors = [_status_color_map[s] for s in _donut_labels]
+
+            _fig_donut = go.Figure(go.Pie(
+                labels=_donut_labels,
+                values=_donut_vals,
+                hole=0.62,
+                marker=dict(colors=_donut_colors, line=dict(color="#0d0b04", width=2)),
+                textfont=dict(color="#c8b890", size=12),
+                hovertemplate="<b>%{label}</b><br>%{value} agents<br>%{percent}<extra></extra>",
+            ))
+            _fig_donut.add_annotation(
+                text=f"<b>{_health_pct}%</b><br><span style='font-size:10px'>Healthy</span>",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(color="#c8a040", size=16),
+            )
+            _fig_donut.update_layout(
+                title=dict(text="Status Breakdown", font=dict(color="#c8a040", size=13), x=0),
+                plot_bgcolor="#0d0b04", paper_bgcolor="#13110a",
+                margin=dict(t=36, b=20, l=10, r=10),
+                height=300,
+                legend=dict(font=dict(color="#c8b890", size=11), bgcolor="rgba(0,0,0,0)",
+                            orientation="h", y=-0.08),
+                font=dict(family="Source Sans Pro"),
+            )
+            st.plotly_chart(_fig_donut, use_container_width=True, config={"displayModeBar": False})
+
+            # ── Cache data presence bar ────────────────────────────────────────
+            _cache_labels  = [r["num"] for r in _about_rows]
+            _cache_present = [1 if r["has_data"] else 0 for r in _about_rows]
+            _cache_colors  = ["#4caf50" if v else "#f44336" for v in _cache_present]
+
+            _fig_cache = go.Figure(go.Bar(
+                x=_cache_labels,
+                y=_cache_present,
+                marker=dict(color=_cache_colors, opacity=0.85),
+                hovertemplate=[
+                    f"<b>{r['label']}</b><br>Cache: {'OK' if r['has_data'] else 'MISSING'}<br>{r['cache_age']}<extra></extra>"
+                    for r in _about_rows
+                ],
+            ))
+            _fig_cache.update_layout(
+                title=dict(text="Cache Data Present", font=dict(color="#c8a040", size=13), x=0),
+                plot_bgcolor="#0d0b04", paper_bgcolor="#13110a",
+                margin=dict(t=36, b=40, l=10, r=10),
+                height=220,
+                xaxis=dict(tickfont=dict(color="#c8b890", size=9), tickangle=-45),
+                yaxis=dict(visible=False),
+                font=dict(family="Source Sans Pro"),
+                showlegend=False,
+            )
+            st.plotly_chart(_fig_cache, use_container_width=True, config={"displayModeBar": False})
+
+        # ── Agent Leadership Tree (all 21 agents, 6 tiers) ───────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Agent Leadership Tree")
+
+        _td = {r["key"]: r for r in _about_rows}
+
+        def _get_nd(k):
+            r = _td.get(k, {})
+            return {
+                "name":   r.get("name", k.title()),
+                "sched":  r.get("schedule", "\u2014"),
+                "runs":   r.get("runs", 0),
+                "status": r.get("status", "MISSING"),
+                "age":    r.get("cache_age", "\u2014"),
+            }
+
+        def _svg_node(x, y, w, h, fill, stroke, title, sub1, status, age, ts=11, rr=10):
+            sc = {"OK": "#4caf50", "RUNNING": "#ff9800", "ERROR": "#f44336",
+                  "STALE": "#d4a843", "MISSING": "#888"}.get(status, "#888")
+            cx = x + w // 2
+            # Split long titles onto 2 lines at nearest word boundary to middle
+            if len(title) > 16 and " " in title:
+                mid = len(title) // 2
+                sl = title.rfind(" ", 0, mid)
+                sr = title.find(" ", mid)
+                if sl == -1:   split = sr
+                elif sr == -1: split = sl
+                else:          split = sl if (mid - sl) <= (sr - mid) else sr
+                l1, l2 = title[:split], title[split + 1:]
+                ttl_svg = (
+                    f'<text x="{cx}" y="{y + int(h * 0.28)}" text-anchor="middle" fill="{stroke}" '
+                    f'font-size="{ts}" font-weight="700" font-family="sans-serif">{l1}</text>'
+                    f'<text x="{cx}" y="{y + int(h * 0.46)}" text-anchor="middle" fill="{stroke}" '
+                    f'font-size="{ts}" font-weight="700" font-family="sans-serif">{l2}</text>'
+                )
+                sub_y, st_y = y + int(h * 0.66), y + int(h * 0.84)
+            else:
+                ttl_svg = (
+                    f'<text x="{cx}" y="{y + int(h * 0.38)}" text-anchor="middle" fill="{stroke}" '
+                    f'font-size="{ts}" font-weight="700" font-family="sans-serif">{title}</text>'
+                )
+                sub_y, st_y = y + int(h * 0.60), y + int(h * 0.80)
+            return (
+                f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rr}" ry="{rr}" '
+                f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
+                + ttl_svg +
+                f'<text x="{cx}" y="{sub_y}" text-anchor="middle" fill="#6a6050" '
+                f'font-size="9" font-family="sans-serif">{sub1}</text>'
+                f'<text x="{cx}" y="{st_y}" text-anchor="middle" fill="{sc}" '
+                f'font-size="9" font-family="sans-serif">\u25cf {status} \u00b7 {age}</text>'
+            )
+
+        def _bus(upper_cx, lower_cx, y_top, y_bot, lc):
+            """Vertical stubs + horizontal bus between two tiers."""
+            yb = (y_top + y_bot) // 2
+            all_x = sorted(set(upper_cx) | set(lower_cx))
+            segs = [f'<line x1="{min(all_x)}" y1="{yb}" x2="{max(all_x)}" y2="{yb}" '
+                    f'stroke="{lc}" stroke-width="1.5"/>']
+            for x in upper_cx:
+                segs.append(f'<line x1="{x}" y1="{y_top}" x2="{x}" y2="{yb}" '
+                             f'stroke="{lc}" stroke-width="1.5"/>')
+            for x in lower_cx:
+                segs.append(f'<line x1="{x}" y1="{yb}" x2="{x}" y2="{y_bot}" '
+                             f'stroke="{lc}" stroke-width="1.5"/>')
+            return "".join(segs)
+
+        # ── Layout constants ──────────────────────────────────────────────────
+        _NW, _NH = 138, 65          # node width / height
+        # 5-node tier: margin=61, step=150 → centers 130,280,430,580,730
+        _CX5 = [130, 280, 430, 580, 730]
+        _NX5 = [61,  211, 361, 511, 661]
+        # 2-node tier aligned with T3 positions 1 and 3
+        _CX2 = [280, 580]
+        _NX2 = [211, 511]
+        # Tier Y-tops (T1..T6) with 45px gaps
+        _LY  = [10, 120, 230, 340, 450, 560]
+        _TB  = [y + _NH for y in _LY]   # tier bottoms
+        _lc  = "#5a4818"
+
+        # ── Tier color pairs (fill, stroke) ───────────────────────────────────
+        _CA = ("#3a1a00", "#b87020")   # amber     — T1 Infrastructure
+        _CT = ("#051e1e", "#1a7870")   # teal      — T2 Real-time
+        _CG = ("#161610", "#404038")   # gray      — T3 Periodic
+        _CB = ("#080c18", "#283060")   # dark blue — T4 Macro
+        _CO = ("#101808", "#405020")   # olive     — T5 CRE Metrics
+        _CP = ("#140820", "#483890")   # purple    — T6 Synthesis
+
+        # ── Fetch live data for all 21 agents ─────────────────────────────────
+        _nds = {k: _get_nd(k) for k in [
+            "manager", "debugger",
+            "pricing", "rates",
+            "news", "migration", "energy", "sustainability", "labor_market",
+            "gdp", "inflation", "credit", "vacancy", "climate_risk",
+            "cap_rate", "rent_growth", "land_market", "opportunity_zone", "distressed",
+            "market_score", "predictions",
+        ]}
+
+        def _n(key, x, y, fill, stroke, ts=11):
+            nd = _nds[key]
+            return _svg_node(x, y, _NW, _NH, fill, stroke,
+                             nd["name"],
+                             f"{nd['sched']} \u00b7 {nd['runs']} runs",
+                             nd["status"], nd["age"], ts=ts)
+
+        # ── Build all 21 node SVGs ─────────────────────────────────────────────
+        _svg_nodes = (
+            # T1 — Infrastructure (amber, 2 nodes)
+            _n("manager",          _NX2[0], _LY[0], *_CA, ts=12) +
+            _n("debugger",         _NX2[1], _LY[0], *_CA, ts=12) +
+            # T2 — Real-time (teal, 2 nodes)
+            _n("pricing",          _NX2[0], _LY[1], *_CT) +
+            _n("rates",            _NX2[1], _LY[1], *_CT) +
+            # T3 — Periodic/Contextual (gray, 5 nodes)
+            _n("news",             _NX5[0], _LY[2], *_CG) +
+            _n("migration",        _NX5[1], _LY[2], *_CG) +
+            _n("energy",           _NX5[2], _LY[2], *_CG) +
+            _n("sustainability",   _NX5[3], _LY[2], *_CG) +
+            _n("labor_market",     _NX5[4], _LY[2], *_CG) +
+            # T4 — Macro (dark blue, 5 nodes)
+            _n("gdp",              _NX5[0], _LY[3], *_CB) +
+            _n("inflation",        _NX5[1], _LY[3], *_CB) +
+            _n("credit",           _NX5[2], _LY[3], *_CB) +
+            _n("vacancy",          _NX5[3], _LY[3], *_CB) +
+            _n("climate_risk",     _NX5[4], _LY[3], *_CB) +
+            # T5 — CRE Metrics (olive, 5 nodes)
+            _n("cap_rate",         _NX5[0], _LY[4], *_CO) +
+            _n("rent_growth",      _NX5[1], _LY[4], *_CO) +
+            _n("land_market",      _NX5[2], _LY[4], *_CO) +
+            _n("opportunity_zone", _NX5[3], _LY[4], *_CO) +
+            _n("distressed",       _NX5[4], _LY[4], *_CO) +
+            # T6 — Synthesis (purple, 2 nodes)
+            _n("market_score",     _NX2[0], _LY[5], *_CP, ts=12) +
+            _n("predictions",      _NX2[1], _LY[5], *_CP, ts=12)
+        )
+
+        # ── Build connector lines (bus-style between each tier) ───────────────
+        _svg_lines = (
+            _bus(_CX2, _CX2, _TB[0], _LY[1], _lc) +   # T1 → T2  (same 2 centers)
+            _bus(_CX2, _CX5, _TB[1], _LY[2], _lc) +   # T2 → T3  (fan out)
+            _bus(_CX5, _CX5, _TB[2], _LY[3], _lc) +   # T3 → T4
+            _bus(_CX5, _CX5, _TB[3], _LY[4], _lc) +   # T4 → T5
+            _bus(_CX5, _CX2, _TB[4], _LY[5], _lc)     # T5 → T6  (fan in)
+        )
+
+        # ── Legend ────────────────────────────────────────────────────────────
+        _leg_items = [
+            (_CA, "Infrastructure"), (_CT, "Real-time"),  (_CG, "Periodic"),
+            (_CB, "Macro"),          (_CO, "CRE Metrics"), (_CP, "Synthesis"),
+        ]
+        _leg_svg = ""
+        _lx = 100
+        for (_lf, _ls), _ll in _leg_items:
+            _leg_svg += (
+                f'<rect x="{_lx}" y="640" width="11" height="11" rx="2" '
+                f'fill="{_lf}" stroke="{_ls}" stroke-width="1"/>'
+                f'<text x="{_lx + 15}" y="650" fill="#6a6050" font-size="10" '
+                f'font-family="sans-serif">{_ll}</text>'
+            )
+            _lx += 15 + int(len(_ll) * 6.5) + 18
+
+        _tree_svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 665" width="100%"'
+            ' style="display:block;margin:0 auto;">'
+            + _svg_lines + _svg_nodes + _leg_svg +
+            '</svg>'
+        )
+        st.markdown(
+            f'<div style="background:#13110a;border-radius:10px;padding:20px 24px;'
+            f'margin-bottom:12px;overflow-x:auto;">'
+            f'{_tree_svg}</div>',
+            unsafe_allow_html=True,
+        )
+
+        # ── Styled agent status table ──────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Agent Detail")
+
+        _st_hcells = "".join(
+            f'<th style="padding:10px 12px 13px;color:#c8a040;font-size:0.76rem;font-weight:700;'
+            f'letter-spacing:0.09em;text-align:{al};border-bottom:1px solid #2a2410;">{h}</th>'
+            for h, al in [("AGENT","left"),("SCHEDULE","center"),("STATUS","center"),
+                          ("RUNS","right"),("CACHE AGE","right"),("LAST ERROR","left")]
+        )
+        _st_rows_html = ""
+        for _r in _about_rows:
+            _sc   = _status_color_map.get(_r["status"], "#888")
+            _sep  = "border-bottom:1px solid #1e1c0e;"
+            _dot  = f'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{_sc};margin-right:6px;vertical-align:middle;"></span>'
+            _st_rows_html += (
+                f'<tr>'
+                f'<td style="padding:10px 12px;{_sep}color:#c8b890;font-size:0.88rem;white-space:nowrap;">{_r["label"]}</td>'
+                f'<td style="padding:10px 12px;{_sep}text-align:center;color:#7a7050;font-size:0.82rem;">{_r["schedule"]}</td>'
+                f'<td style="padding:10px 12px;{_sep}text-align:center;">'
+                f'{_dot}<span style="color:{_sc};font-size:0.82rem;font-weight:700;">{_r["status"]}</span></td>'
+                f'<td style="padding:10px 12px;{_sep}text-align:right;color:#c8a040;font-size:0.88rem;">{_r["runs"]}</td>'
+                f'<td style="padding:10px 12px;{_sep}text-align:right;color:#a09070;font-size:0.82rem;white-space:nowrap;">{_r["cache_age"]}</td>'
+                f'<td style="padding:10px 12px;{_sep}color:#ef5350;font-size:0.8rem;">{_r["error"]}</td>'
+                f'</tr>'
+            )
+
+        _sm_html = f"""
+<div style="background:#13110a;border-radius:10px;padding:24px 28px 16px;margin-bottom:8px;">
+  <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
+      <thead><tr>{_st_hcells}</tr></thead>
+      <tbody>{_st_rows_html}</tbody>
+    </table>
+  </div>
+</div>
+"""
+        st.markdown(_sm_html, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Cache Health")
+        _cache_check_keys = [
+            ("migration",           "Every 6h"),
+            ("pricing",             "Every 1h"),
+            ("rates",               "Every 1h"),
+            ("energy_data",         "Every 6h"),
+            ("credit_data",         "Every 6h"),
+            ("gdp_data",            "Every 6h"),
+            ("inflation_data",      "Every 6h"),
+            ("labor_market",        "Every 6h"),
+            ("cap_rate",            "Every 6h"),
+            ("rent_growth",         "Every 6h"),
+            ("vacancy",             "Every 12h"),
+            ("climate_risk",        "Every 24h"),
+            ("market_score",        "Every 6h"),
+            ("opportunity_zone",    "Every 24h"),
+            ("forecast",            "Every 6h"),
+            ("news",                "Every 4h"),
+        ]
+        _cc_cols = st.columns(5)
+        for _ci, (_ck, _cf) in enumerate(_cache_check_keys):
+            _cc = read_cache(_ck)
+            _has = _cc["data"] is not None
+            _stale = _cc.get("stale", True)
+            _label = "OK" if _has and not _stale else ("STALE" if _has else "MISSING")
+            _clr   = "#4caf50" if _label == "OK" else ("#ff9800" if _label == "STALE" else "#f44336")
+            _cc_cols[_ci % 5].markdown(
+                f'<div class="metric-card">'
+                f'<div class="label" style="font-size:0.72rem;">{_ck.replace("_", " ").title()}</div>'
+                f'<div class="value" style="color:{_clr};font-size:1rem;">{_label}</div>'
+                f'<div class="sub">{cache_age_label(_ck)}</div>'
+                f'<div style="font-size:0.68rem;color:#555;margin-top:2px;">{_cf}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.caption(
+            "All agents run in APScheduler background threads. Caches are JSON files in cache/. "
+            "Status reflects the in-memory agent_status dict — resets on app restart."
+        )
+
+        # ── Manager Agent Report ───────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" System Health Supervisor — Last Report")
+
+        _mgr_col, _mgr_btn_col = st.columns([5, 1])
+        with _mgr_btn_col:
+            if st.button("Run Now", key="run_manager_now"):
+                from src.cre_agents import force_run as _force_run
+                _force_run("manager")
+                st.toast("Manager agent triggered — refresh in ~10 seconds", icon="✅")
+
+        _mgr_cache = read_cache("manager_report")
+        _mgr_data  = _mgr_cache.get("data") or {}
+
+        if not _mgr_data:
+            with _mgr_col:
+                st.info("No manager report yet — click 'Run Now' or wait up to 15 minutes for the first scheduled run.")
+        else:
+            with _mgr_col:
+                _mgr_age = cache_age_label("manager_report")
+                _mgr_pct = _mgr_data.get("health_pct", 0)
+                _mgr_ok  = _mgr_data.get("ok", 0)
+                _mgr_tot = _mgr_data.get("total_agents", 0)
+                _mgr_heal= _mgr_data.get("healed", 0)
+                _mgr_iss = _mgr_data.get("issues", 0)
+                _mgr_keys= _mgr_data.get("key_issues", 0)
+
+                _pct_clr = "#4caf50" if _mgr_pct >= 80 else ("#ff9800" if _mgr_pct >= 50 else "#f44336")
+                st.markdown(f"""
+<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:18px 24px;margin-bottom:12px;">
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
+    <div style="font-size:2.2rem;font-weight:700;color:{_pct_clr};font-family:monospace;">{_mgr_pct}%</div>
+    <div>
+      <div style="color:#c8b890;font-size:0.95rem;font-weight:600;">System Health</div>
+      <div style="color:#5a4820;font-size:0.78rem;">Last checked: {_mgr_age} · {_mgr_ok}/{_mgr_tot} agents OK</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;">
+      <div style="text-align:center;"><div style="color:#4caf50;font-size:1.3rem;font-weight:700;">{_mgr_heal}</div><div style="color:#5a4820;font-size:0.72rem;">Auto-healed</div></div>
+      <div style="text-align:center;"><div style="color:{"#f44336" if _mgr_iss else "#4caf50"};font-size:1.3rem;font-weight:700;">{_mgr_iss}</div><div style="color:#5a4820;font-size:0.72rem;">Unresolved</div></div>
+      <div style="text-align:center;"><div style="color:{"#f44336" if _mgr_keys else "#4caf50"};font-size:1.3rem;font-weight:700;">{_mgr_keys}</div><div style="color:#5a4820;font-size:0.72rem;">Missing API keys</div></div>
+    </div>
+  </div>
+""", unsafe_allow_html=True)
+
+                # API key status
+                _api_keys = _mgr_data.get("api_keys", [])
+                if _api_keys:
+                    _key_rows = "".join([
+                        f'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e1a08;">'
+                        f'<span style="width:8px;height:8px;border-radius:50%;background:{"#4caf50" if k["status"]=="OK" else "#f44336"};display:inline-block;flex-shrink:0;"></span>'
+                        f'<span style="color:#c8b890;font-size:0.82rem;font-family:monospace;">{k["key"]}</span>'
+                        f'<span style="color:#5a4820;font-size:0.78rem;margin-left:4px;">{k["description"]}</span>'
+                        f'<span style="margin-left:auto;color:{"#4caf50" if k["status"]=="OK" else "#f44336"};font-size:0.78rem;font-weight:600;">{k["status"]}</span>'
+                        f'</div>'
+                        for k in _api_keys
+                    ])
+                    st.markdown(f'<div style="margin-top:8px;"><div style="color:#6a5228;font-size:0.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">API Keys</div>{_key_rows}</div></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                # Healed / issue agents
+                _healed_agents = _mgr_data.get("healed_agents", [])
+                _unresolved    = _mgr_data.get("unresolved", [])
+                if _healed_agents:
+                    st.markdown(
+                        f'<div style="background:#0d2a12;border:1px solid #1a5020;border-radius:8px;padding:10px 14px;margin-top:8px;">'
+                        f'<span style="color:#4caf50;font-size:0.78rem;font-weight:600;">Auto-healed: </span>'
+                        f'<span style="color:#c8b890;font-size:0.82rem;">{", ".join(_healed_agents)}</span></div>',
+                        unsafe_allow_html=True,
+                    )
+                if _unresolved:
+                    st.markdown(
+                        f'<div style="background:#2a0d0d;border:1px solid #5a1010;border-radius:8px;padding:10px 14px;margin-top:6px;">'
+                        f'<span style="color:#f44336;font-size:0.78rem;font-weight:600;">Unresolved: </span>'
+                        f'<span style="color:#c8b890;font-size:0.82rem;">{", ".join(_unresolved)}</span></div>',
+                        unsafe_allow_html=True,
+                    )
+
+                # Backed-off agents
+                _backed_off_agents = _mgr_data.get("backed_off_agents", [])
+                if _backed_off_agents:
+                    st.markdown(
+                        f'<div style="background:#2a1a00;border:1px solid #7a4000;border-radius:8px;padding:10px 14px;margin-top:6px;">'
+                        f'<span style="color:#ff9800;font-size:0.78rem;font-weight:600;">Needs manual fix (failed 3x): </span>'
+                        f'<span style="color:#c8b890;font-size:0.82rem;">{", ".join(_backed_off_agents)}</span>'
+                        f'<div style="color:#7a5820;font-size:0.74rem;margin-top:4px;">Check your API keys in .env or verify network access, then click Run Now.</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                # Restart verification results
+                _verif = _mgr_data.get("verification", {})
+                if _verif:
+                    _conf  = [k for k, v in _verif.items() if v == "CONFIRMED"]
+                    _unconf = [k for k, v in _verif.items() if v != "CONFIRMED"]
+                    if _conf:
+                        st.markdown(
+                            f'<div style="background:#0d2a12;border:1px solid #1a5020;border-radius:8px;padding:8px 14px;margin-top:6px;">'
+                            f'<span style="color:#4caf50;font-size:0.76rem;font-weight:600;">Restart verified: </span>'
+                            f'<span style="color:#a09880;font-size:0.78rem;">{", ".join(_conf)}</span></div>',
+                            unsafe_allow_html=True,
+                        )
+                    if _unconf:
+                        st.markdown(
+                            f'<div style="background:#1a1400;border:1px solid #3a3000;border-radius:8px;padding:8px 14px;margin-top:4px;">'
+                            f'<span style="color:#ffb74d;font-size:0.76rem;font-weight:600;">Restart unconfirmed: </span>'
+                            f'<span style="color:#a09880;font-size:0.78rem;">{", ".join(_unconf)} — may still be running</span></div>',
+                            unsafe_allow_html=True,
+                        )
+
+                # Investment Advisor dependency chain
+                _adv_dep_checks = _mgr_data.get("advisor_dependencies", [])
+                _adv_ok_count   = _mgr_data.get("advisor_ok", 0)
+                if _adv_dep_checks:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div style="color:#6a5228;font-size:0.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">'
+                        f'Investment Advisor Data Sources ({_adv_ok_count}/{len(_adv_dep_checks)} healthy)</div>',
+                        unsafe_allow_html=True,
+                    )
+                    _dep_rows = ""
+                    for _dep in _adv_dep_checks:
+                        _dh  = _dep.get("health", "?")
+                        _dot_c = "#4caf50" if _dh == "OK" else ("#ff9800" if _dh in ("STALE", "RUNNING") else "#f44336")
+                        _hint  = _dep.get("hint", "")
+                        _dep_rows += (
+                            f'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e1a08;">'
+                            f'<span style="width:8px;height:8px;border-radius:50%;background:{_dot_c};display:inline-block;flex-shrink:0;"></span>'
+                            f'<span style="color:#c8b890;font-size:0.82rem;">{_dep["agent"].replace("_"," ").title()}</span>'
+                            f'<span style="margin-left:auto;color:{_dot_c};font-size:0.76rem;font-weight:600;">{_dh}</span>'
+                            + (f'<span style="color:#7a5820;font-size:0.72rem;margin-left:8px;">{_hint}</span>' if _hint else '')
+                            + '</div>'
+                        )
+                    st.markdown(
+                        f'<div style="background:#13110a;border:1px solid #2a2208;border-radius:8px;padding:12px 16px;">'
+                        f'{_dep_rows}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                # Per-agent detail: show any with hints or consecutive failures
+                _problem_agents = [a for a in _mgr_data.get("agents", [])
+                                   if a.get("consecutive_failures", 0) > 0 or a.get("missing_fields") or a.get("hint")]
+                if _problem_agents:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown(
+                        '<div style="color:#6a5228;font-size:0.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Agent Diagnostics</div>',
+                        unsafe_allow_html=True,
+                    )
+                    for _pa in _problem_agents:
+                        _pa_c = "#ff9800" if _pa.get("consecutive_failures", 0) < 3 else "#f44336"
+                        _mf   = ", ".join(_pa.get("missing_fields", []))
+                        _hint = _pa.get("hint", "")
+                        _cf   = _pa.get("consecutive_failures", 0)
+                        _detail = []
+                        if _cf:   _detail.append(f"{_cf} consecutive failure{'s' if _cf>1 else ''}")
+                        if _mf:   _detail.append(f"missing fields: {_mf}")
+                        if _hint: _detail.append(_hint)
+                        st.markdown(
+                            f'<div style="background:#1a1208;border-left:3px solid {_pa_c};border-radius:4px;'
+                            f'padding:7px 12px;margin-bottom:4px;font-size:0.8rem;">'
+                            f'<span style="color:{_pa_c};font-weight:600;">{_pa["agent"].replace("_"," ").title()}</span>'
+                            f'<span style="color:#7a6040;margin-left:10px;">{" · ".join(_detail)}</span>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+with main_tab_energy:
+    tab_energy, tab_esg = st.tabs([
+        "Energy & Construction Costs",
+        "Sustainability",
+    ])
+
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — ENERGY & CONSTRUCTION COSTS
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_energy:
+        st.markdown("#### How are energy and material costs affecting CRE construction?")
+        st.markdown(
+            "Agent 6 tracks **oil, natural gas, copper, and steel** prices to derive a "
+            "**Construction Cost Signal** that indicates whether building costs are rising or easing. Updates every 6 hours."
+        )
+        agent_last_updated("energy")
+
+        cache_e = read_cache("energy_data")
+        if cache_e["data"] is None:
+            st.warning(" Energy agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+            st.stop()
+        age_e = cache_age_label("energy_data")
+        st.caption(f" Last updated: {age_e} · Auto-refreshes in background")
+
+        edata = cache_e["data"]
+        commodities = edata.get("commodities", [])
+        cost_signal = edata.get("construction_cost_signal", "UNKNOWN")
+        avg_momentum = edata.get("avg_momentum_pct", 0)
+
+        # ── KPI strip ──────────────────────────────────────────────────────────
+        signal_color = {"HIGH": "HIGH", "MODERATE": "MOD", "LOW": "LOW"}.get(cost_signal, "?")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.markdown(metric_card("Construction Cost Signal", f"{signal_color} {cost_signal}",
+                                 "Based on commodity momentum"), unsafe_allow_html=True)
+        c2.markdown(metric_card("Avg Momentum", f"{avg_momentum:+.1f}%",
+                                 "vs 60-day SMA"), unsafe_allow_html=True)
+        c3.markdown(metric_card("Commodities Tracked", str(len(commodities)),
+                                 "Oil, Gas, Copper, Steel, Energy"), unsafe_allow_html=True)
+        c4.markdown(metric_card("Trading Days", str(edata.get("trading_days_analysed", 0)),
+                                 "6-month lookback"), unsafe_allow_html=True)
+
+        # ── Commodity Price Table ──────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Commodity Prices vs 60-Day Moving Average")
+
+        if commodities:
+            comm_df = pd.DataFrame(commodities)
+
+            # Bar chart — % above/below SMA
+            colors_comm = [GOLD if p >= 0 else "#c62828" for p in comm_df["pct_above_sma"]]
+            fig_comm = go.Figure(go.Bar(
+                x=comm_df["label"], y=comm_df["pct_above_sma"],
+                marker_color=colors_comm,
+                text=comm_df["pct_above_sma"].apply(lambda x: f"{x:+.1f}%"),
+                textposition="outside",
+                customdata=comm_df[["latest_price", "sma_60"]].values,
+                hovertemplate=(
+                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
+                    "SMA-60: $%{customdata[1]:.2f}<br>"
+                    "vs SMA: %{y:+.1f}%<extra></extra>"
+                ),
+            ))
+            fig_comm.update_layout(
+                plot_bgcolor="#1e1a0a", paper_bgcolor="#1a1208",
+                yaxis_title="% Above/Below SMA-60",
+                yaxis=dict(gridcolor="#2a2208", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                xaxis=dict(tickfont=dict(color="#c8b890")),
+                margin=dict(t=30, b=30), height=320,
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(fig_comm, use_container_width=True)
+            st.caption(
+                "Each bar shows the commodity's latest price versus its 60-day moving average. "
+                "Bars above the baseline indicate costs are elevated — signaling higher construction costs for developers. "
+                "Copper and steel are the most direct inputs for building; oil and natural gas drive operating expenses and transport."
+            )
+
+            # Detail table
+            section(" Commodity Detail")
+            disp_comm = comm_df[["label", "latest_price", "sma_60", "pct_above_sma"]].copy()
+            disp_comm.columns = ["Commodity", "Latest Price", "SMA-60", "% vs SMA"]
+            disp_comm["Latest Price"] = disp_comm["Latest Price"].apply(lambda x: f"${x:.2f}")
+            disp_comm["SMA-60"] = disp_comm["SMA-60"].apply(lambda x: f"${x:.2f}")
+            disp_comm["% vs SMA"] = disp_comm["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
+            st.markdown(_render_generic_table(
+                disp_comm,
+                title="Commodity Detail",
+                count_label=f"{len(disp_comm)} commodities",
+                hints={
+                    "Commodity":    {"type": "name",    "flex": 1.5},
+                    "Latest Price": {"type": "price",   "flex": 1},
+                    "SMA-60":       {"type": "price",   "flex": 1},
+                    "% vs SMA":     {"type": "colored", "flex": 1},
+                },
+            ), unsafe_allow_html=True)
+
+        st.caption(
+            "Data sourced from Yahoo Finance (USO, UNG, XLE, CPER, SLX). "
+            "Construction Cost Signal: HIGH (>+5%), MODERATE (±5%), LOW (<−5%) based on avg momentum vs 60-day SMA."
+        )
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Construction Cost Signal** = Average % deviation of key commodities from their 60-day Simple Moving Average (SMA).
+
+- **HIGH** = Average deviation > +10% above SMA (commodity prices surging — expect higher construction bids)
+- **MODERATE** = Average deviation within +/-10% of SMA (costs stable)
+- **LOW** = Average deviation > 10% below SMA (commodity prices falling — favorable for new development)
+
+**Commodities Tracked:**
+- **Crude Oil (USO):** Drives transportation and equipment fuel costs
+- **Natural Gas (UNG):** Heating/cooling during construction, operating cost baseline
+- **Copper (CPER):** Wiring, plumbing, HVAC — direct construction input
+- **Steel (SLX):** Structural framing, rebar — largest material cost component
+
+**PnL Impact:** A 20% rise in steel and copper prices can add 5-8% to total hard construction costs on a typical CRE project.
+
+**Data Source:** Yahoo Finance commodity ETFs, updated every 6 hours via Agent 7.
+""")
+
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    #  TAB — SUSTAINABILITY & ESG
+    # ═══════════════════════════════════════════════════════════════════════════════
+    with tab_esg:
+        st.markdown("#### Is green capital flowing into real estate?")
+        st.markdown(
+            "Agent 7 monitors **clean-energy ETFs** and **green REITs** to gauge ESG momentum "
+            "relative to the broad market (SPY). Updates every 6 hours."
+        )
+        agent_last_updated("sustainability")
+
+        cache_s = read_cache("sustainability_data")
+        if cache_s["data"] is None:
+            st.warning(" Sustainability agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+            st.stop()
+        age_s = cache_age_label("sustainability_data")
+        st.caption(f" Last updated: {age_s} · Auto-refreshes in background")
+
+        sdata = cache_s["data"]
+        clean_energy = sdata.get("clean_energy", [])
+        green_reits = sdata.get("green_reits", [])
+        esg_signal = sdata.get("esg_momentum_signal", "UNKNOWN")
+        bench_ret = sdata.get("benchmark_return_pct") or 0
+        avg_clean_ret = sdata.get("avg_clean_energy_return_pct") or 0
+
+        # ── KPI strip ──────────────────────────────────────────────────────────
+        esg_icon = ""
+        c1, c2, c3, c4 = st.columns(4)
+        c1.markdown(metric_card("ESG Momentum Signal", f"{esg_icon} {esg_signal}",
+                                 "Clean energy vs SPY"), unsafe_allow_html=True)
+        c2.markdown(metric_card("Clean Energy Avg Return", f"{avg_clean_ret:+.1f}%",
+                                 "6-month trailing"), unsafe_allow_html=True)
+        c3.markdown(metric_card("SPY Benchmark Return", f"{bench_ret:+.1f}%",
+                                 "6-month trailing"), unsafe_allow_html=True)
+        spread = (avg_clean_ret or 0) - (bench_ret or 0)
+        c4.markdown(metric_card("Spread vs Market", f"{spread:+.1f} pp",
+                                 "Positive = outperforming"), unsafe_allow_html=True)
+
+        # ── Clean Energy ETFs ──────────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Clean Energy ETF Performance (ICLN, TAN, QCLN)")
+
+        if clean_energy:
+            ce_df = pd.DataFrame(clean_energy)
+            fig_ce = go.Figure()
+            colors_ce = [GOLD if r >= 0 else "#c62828" for r in ce_df["period_return_pct"]]
+            fig_ce.add_trace(go.Bar(
+                x=ce_df["label"], y=ce_df["period_return_pct"],
+                marker_color=colors_ce,
+                text=ce_df["period_return_pct"].apply(lambda x: f"{x:+.1f}%"),
+                textposition="outside",
+                name="6mo Return",
+                customdata=ce_df[["latest_price", "sma_60", "pct_above_sma"]].values,
+                hovertemplate=(
+                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
+                    "6mo Return: %{y:+.1f}%<br>"
+                    "vs SMA-60: %{customdata[2]:+.1f}%<extra></extra>"
+                ),
+            ))
+            # Add SPY benchmark line
+            fig_ce.add_hline(y=bench_ret, line_dash="dash", line_color=BLACK,
+                             annotation_text=f"SPY: {bench_ret:+.1f}%",
+                             annotation_position="top right")
+            fig_ce.update_layout(
+                plot_bgcolor="#1e1a0a", paper_bgcolor="#1a1208",
+                yaxis_title="6-Month Return (%)",
+                yaxis=dict(gridcolor="#2a2208", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                xaxis=dict(tickfont=dict(color="#c8b890")),
+                margin=dict(t=30, b=30), height=320,
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(fig_ce, use_container_width=True)
+            st.caption(
+                "Tracks ICLN (global clean energy), TAN (solar), and QCLN (clean tech) ETFs. "
+                "Sustained outperformance signals growing institutional capital flows into green energy — "
+                "a leading indicator of demand for solar-ready industrial space, EV charging infrastructure, and LEED-certified buildings."
+            )
+
+        # ── Green REITs ────────────────────────────────────────────────────────
+        section(" Green REIT Performance (PLD, EQIX, ARE)")
+
+        if green_reits:
+            gr_df = pd.DataFrame(green_reits)
+            colors_gr = [GOLD if r >= 0 else "#c62828" for r in gr_df["period_return_pct"]]
+            fig_gr = go.Figure(go.Bar(
+                x=gr_df["label"], y=gr_df["period_return_pct"],
+                marker_color=colors_gr,
+                text=gr_df["period_return_pct"].apply(lambda x: f"{x:+.1f}%"),
+                textposition="outside",
+                customdata=gr_df[["latest_price", "sma_60", "pct_above_sma"]].values,
+                hovertemplate=(
+                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
+                    "6mo Return: %{y:+.1f}%<br>"
+                    "vs SMA-60: %{customdata[2]:+.1f}%<extra></extra>"
+                ),
+            ))
+            fig_gr.add_hline(y=bench_ret, line_dash="dash", line_color=BLACK,
+                             annotation_text=f"SPY: {bench_ret:+.1f}%",
+                             annotation_position="top right")
+            fig_gr.update_layout(
+                plot_bgcolor="#1e1a0a", paper_bgcolor="#1a1208",
+                yaxis_title="6-Month Return (%)",
+                yaxis=dict(gridcolor="#2a2208", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                xaxis=dict(tickfont=dict(color="#c8b890")),
+                margin=dict(t=30, b=30), height=320,
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(fig_gr, use_container_width=True)
+            st.caption(
+                "Prologis (PLD) is the world's largest industrial REIT with a strong LEED portfolio. "
+                "Equinix (EQIX) powers its data centers with 90%+ renewable energy. "
+                "Alexandria (ARE) focuses on carbon-neutral life science campuses. "
+                "Outperformance vs. SPY indicates ESG-focused capital allocators are actively rotating into these names."
+            )
+
+        # ── Combined Detail Table ──────────────────────────────────────────────
+        section(" Full Detail — Clean Energy & Green REITs")
+        all_esg = clean_energy + green_reits
+        if all_esg:
+            esg_df = pd.DataFrame(all_esg)
+            disp_esg = esg_df[["label", "latest_price", "period_return_pct", "sma_60", "pct_above_sma"]].copy()
+            disp_esg.columns = ["Security", "Price", "6mo Return", "SMA-60", "% vs SMA"]
+            disp_esg["Price"] = disp_esg["Price"].apply(lambda x: f"${x:.2f}")
+            disp_esg["6mo Return"] = disp_esg["6mo Return"].apply(lambda x: f"{x:+.1f}%")
+            disp_esg["SMA-60"] = disp_esg["SMA-60"].apply(lambda x: f"${x:.2f}")
+            disp_esg["% vs SMA"] = disp_esg["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
+            st.markdown(_render_generic_table(
+                disp_esg,
+                title="Full Detail — Clean Energy & Green REITs",
+                count_label=f"{len(disp_esg)} securities",
+                hints={
+                    "Security":  {"type": "name",    "flex": 1.5},
+                    "Price":     {"type": "price",   "flex": 0.8},
+                    "6mo Return":{"type": "pct_bar", "flex": 1.2},
+                    "SMA-60":    {"type": "price",   "flex": 0.8},
+                    "% vs SMA":  {"type": "colored", "flex": 0.8},
+                },
+            ), unsafe_allow_html=True)
+
+        st.caption(
+            "Data sourced from Yahoo Finance. ESG Momentum Signal: STRONG (clean energy outperforms SPY by >2pp), "
+            "NEUTRAL (±2pp), WEAK (underperforms by >2pp). Green REITs: Prologis (LEED), Equinix (renewables), Alexandria (carbon-neutral)."
+        )
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**ESG Momentum Signal** = Relative performance of clean energy ETFs vs. S&P 500 (SPY) over 6 months.
+
+- **STRONG** = Clean energy basket outperforms SPY by > 2 percentage points
+- **NEUTRAL** = Performance within +/- 2 percentage points of SPY
+- **WEAK** = Clean energy basket underperforms SPY by > 2 percentage points
+
+**Clean Energy Basket:** ICLN (global clean energy), TAN (solar), QCLN (clean tech) — equal-weighted average return.
+
+**Green REITs:**
+- **Prologis (PLD):** World's largest industrial REIT, extensive LEED-certified portfolio
+- **Equinix (EQIX):** Data center REIT, 90%+ renewable energy usage
+- **Alexandria (ARE):** Life science REIT, carbon-neutral campus commitments
+
+**Why It Matters:** Sustained ESG outperformance signals institutional capital rotation into green assets — a leading indicator for demand in solar-ready industrial, EV infrastructure, and LEED-certified buildings.
+
+**Data Source:** Yahoo Finance, updated every 6 hours via Agent 8.
+""")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MAIN TAB — MACRO ENVIRONMENT
+# ═══════════════════════════════════════════════════════════════════════════════
+with main_tab_macro:
+    tab_rates, tab_labor, tab_gdp, tab_inflation, tab_credit, tab_distressed = st.tabs([
+        "Rate Environment",
+        "Labor Market & Tenant Demand",
+        "GDP & Economic Growth",
+        "Inflation",
+        "Credit & Capital Markets",
+        "CMBS & Distressed",
+    ])
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — RATE ENVIRONMENT
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_rates:
+        _show_tab_header(
+            "rates",
+            "Agent 6 pulls **live rate data from FRED**, classifies the rate environment, "
+            "computes dynamic cap rate adjustments by property type, and scores REIT refinancing risk. "
+            "Updates every hour. Requires `FRED_API_KEY` in `.env`.",
+            "rates",
+        )
+
+        cache_r = read_cache("rates")
+        rdata   = cache_r.get("data") or {}
+
+        if not rdata or rdata.get("error"):
+            err = rdata.get("error") if rdata else None
+            if err:
+                st.warning(f" {err}")
+            else:
+                st.info("Rate data is fetched every hour. Check that `FRED_API_KEY` is set in `.env`.")
+            st.stop()
+
+        rates       = rdata.get("rates", {})
+        env         = rdata.get("environment", {})
+        cap_adj     = rdata.get("cap_rate_adjustments", [])
+        debt_risk   = rdata.get("reit_debt_risk", [])
+        yc          = rdata.get("yield_curve", {})
+        current_10y = rdata.get("current_10y") or 0.0
+        baseline    = rdata.get("baseline_10y") or 4.0
+        cached_at   = rdata.get("cached_at", "")
+
+        # ── Signal Banner ───────────────────────────────────────────────────────
+        signal    = env.get("signal", "CAUTIOUS")
+        _re_score = env.get("score", 50)
+        _re_sum   = env.get("summary", "")
+        _re_conf  = env.get("confidence", "High")
+        st.markdown(gauge_card(
+            title       = "RATE ENVIRONMENT",
+            label       = signal,
+            score       = _re_score,
+            summary     = _re_sum,
+            agent_num   = "A6  Agent 6",
+            age_label   = cache_age_label("rates"),
+            confidence  = _re_conf,
+            low_good    = True,
+            scale_labels= ("BEARISH", "25", "CAUTIOUS", "75", "BULLISH"),
+        ), unsafe_allow_html=True)
+        with st.expander("How to read this indicator"):
+            st.markdown("""
+**What it measures:** The overall interest rate climate for CRE borrowing and valuation — combining the 10-year Treasury yield, Fed Funds rate, yield curve shape, and mortgage spreads.
+
+| Signal | Score | What it means for CRE |
+|--------|-------|----------------------|
+| **BULLISH** | 75–100 | Low/falling rates → lower cap rate requirements, rising valuations, cheap debt. Best time to acquire or refinance. |
+| **CAUTIOUS** | 25–74 | Rates are elevated or uncertain. Underwrite conservatively; favor shorter loan terms. |
+| **BEARISH** | 0–24 | High rates compress valuations, choke deal flow, and increase refinancing risk. Defensive positioning recommended. |
+
+**Key inputs:** 10Y Treasury (DGS10), Fed Funds Rate, 2Y Treasury, yield curve spread, IG corporate spread — all pulled live from FRED.
+            """)
+
+        # ── Key Rate Cards ──────────────────────────────────────────────────────
+        section(" Current Rates")
+        display_rates = [
+            "10Y Treasury", "2Y Treasury", "Fed Funds Rate",
+            "SOFR", "30Y Mortgage", "Prime Rate", "IG Corp Spread",
+        ]
+        card_cols = st.columns(len(display_rates))
+        for col, name in zip(card_cols, display_rates):
+            r = rates.get(name)
+            if not r:
+                col.markdown(metric_card(name, "N/A", "No data"), unsafe_allow_html=True)
+                continue
+            curr  = r["current"]
+            d1w   = r.get("delta_1w")
+            unit  = r["unit"]
+            val_s = f"{curr:.2f}{unit}" if unit == "%" else f"{curr:.0f}{unit}"
+            delta_s = ""
+            if d1w is not None:
+                arrow = "▲" if d1w > 0 else ("▼" if d1w < 0 else "→")
+                color = "#b71c1c" if d1w > 0 else ("#1b5e20" if d1w < 0 else "#555")
+                delta_s = f"<span style='color:{color};font-size:0.78rem;'>{arrow} {abs(d1w):.2f}{unit} 1W</span>"
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{name}</div>
+              <div class="value">{val_s}</div>
+              <div class="sub">{delta_s}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Yield Curve + Rate Comparison Table ─────────────────────────────────
+        col_yc, col_tbl = st.columns([3, 2])
+        with col_yc:
+            section(" Yield Curve (Current Shape)")
+            if yc:
+                tenor_order = ["3M", "2Y", "5Y", "10Y", "30Y"]
+                tenors  = [t for t in tenor_order if t in yc]
+                values  = [yc[t] for t in tenors]
+                inverted = yc.get("2Y", 0) > yc.get("10Y", 0)
+                line_clr = "#b71c1c" if inverted else "#1b5e20"
+                fig_yc = go.Figure()
+                fig_yc.add_trace(go.Scatter(
+                    x=tenors, y=values,
+                    mode="lines+markers+text",
+                    line=dict(color=line_clr, width=3),
+                    marker=dict(size=10, color=line_clr),
+                    text=[f"{v:.2f}%" for v in values],
+                    textposition="top center",
+                    textfont=dict(size=11, color="#c8b890"),
+                    hovertemplate="%{x}: %{y:.3f}%<extra></extra>",
+                ))
+                fig_yc.add_hline(y=values[0] if values else 0, line_dash="dot",
+                                  line_color="#aaa", line_width=1)
+                fig_yc.update_layout(
+                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                    yaxis=dict(title="Yield (%)", ticksuffix="%",
+                               gridcolor="#2a2208", tickfont=dict(color="#c8b890"),
+                               title_font=dict(color="#c8b890")),
+                    xaxis=dict(tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                    margin=dict(t=30, b=30, l=60, r=20), height=300,
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                    annotations=[dict(
+                        text=" INVERTED" if inverted else "Normal slope",
+                        x=0.5, y=1.08, xref="paper", yref="paper",
+                        showarrow=False, font=dict(size=12,
+                        color="#b71c1c" if inverted else "#1b5e20", family="Source Sans Pro"),
+                    )],
+                )
+                st.plotly_chart(fig_yc, use_container_width=True)
+                st.caption(
+                    "A normal (upward-sloping) yield curve signals healthy economic expectations. "
+                    "An inverted curve — where short-term rates exceed long-term — historically precedes recessions "
+                    "and tightens CRE lending conditions as banks compress their net interest margins."
+                )
+            else:
+                st.info("Yield curve data unavailable.")
+
+        with col_tbl:
+            section(" Rate Change Summary")
+            tbl_rows = []
+            for name in display_rates:
+                r = rates.get(name)
+                if not r:
+                    continue
+                unit = r["unit"]
+                def _fmt_rate(v):
+                    if v is None: return "—"
+                    return f"{v:+.2f}{unit}" if unit == "%" else f"{v:+.0f}{unit}"
+                tbl_rows.append({
+                    "Rate":   name,
+                    "Now":    f"{r['current']:.2f}{unit}" if unit == "%" else f"{r['current']:.0f}{unit}",
+                    "1W Δ":   _fmt_rate(r.get("delta_1w")),
+                    "1M Δ":   _fmt_rate(r.get("delta_1m")),
+                    "1Y Δ":   _fmt_rate(r.get("delta_1y")),
+                })
+            if tbl_rows:
+                tbl_df = pd.DataFrame(tbl_rows)
+                st.markdown(_render_generic_table(
+                    tbl_df,
+                    title="Interest Rate Monitor",
+                    count_label=f"{len(tbl_df)} rates tracked",
+                    hints={
+                        "Rate": {"type": "name",    "flex": 2},
+                        "Now":  {"type": "price",   "flex": 0.8},
+                        "1W Δ": {"type": "colored", "flex": 0.8},
+                        "1M Δ": {"type": "colored", "flex": 0.8},
+                        "1Y Δ": {"type": "colored", "flex": 0.8},
+                    },
+                ), unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Rate Trends (12 months) ──────────────────────────────────────────────
+        section(" Rate Trends — Past 12 Months")
+        trend_series = ["10Y Treasury", "2Y Treasury", "Fed Funds Rate", "SOFR"]
+        trend_colors = ["#1565c0", "#e65100", "#1b5e20", "#6a1b9a"]
+        fig_tr = go.Figure()
+        for sname, clr in zip(trend_series, trend_colors):
+            r = rates.get(sname)
+            if not r or not r.get("series"):
+                continue
+            series_pts = r["series"]
+            cutoff = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+            pts = [o for o in series_pts if o["date"] >= cutoff]
+            if not pts:
+                continue
+            dates  = [o["date"] for o in pts]
+            values = [o["value"] for o in pts]
+            fig_tr.add_trace(go.Scatter(
+                x=dates, y=values, name=sname,
+                mode="lines", line=dict(color=clr, width=2),
+                hovertemplate=f"{sname}: %{{y:.3f}}%<br>%{{x}}<extra></extra>",
+            ))
+        t10_s = rates.get("10Y Treasury", {}).get("series", [])
+        t2_s  = rates.get("2Y Treasury",  {}).get("series", [])
+        if t10_s and t2_s:
+            t10_d = {o["date"]: o["value"] for o in t10_s}
+            t2_d  = {o["date"]: o["value"] for o in t2_s}
+            cutoff = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+            inv_dates = sorted(d for d in t10_d if d >= cutoff and d in t2_d and t2_d[d] > t10_d[d])
+            if inv_dates:
+                fig_tr.add_vrect(
+                    x0=inv_dates[0], x1=inv_dates[-1],
+                    fillcolor="rgba(183,28,28,0.07)", line_width=0,
+                    annotation_text="Inverted", annotation_position="top left",
+                    annotation_font=dict(color="#b71c1c", size=10),
+                )
+        fig_tr.update_layout(
+            paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+            yaxis=dict(title="Rate (%)", ticksuffix="%", gridcolor="#2a2208",
+                       tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+            xaxis=dict(tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+            legend=dict(orientation="h", y=1.08, font=dict(color="#c8b890", size=11)),
+            margin=dict(t=40, b=40), height=380,
+            font=dict(family="Source Sans Pro", color="#c8b890"),
+        )
+        st.plotly_chart(fig_tr, use_container_width=True)
+        st.caption(
+            "Tracks the 10-year Treasury, 2-year Treasury, and Fed Funds rate over the past 12 months. "
+            "The spread between the 10Y and 2Y (the yield curve slope) is a key leading indicator — "
+            "a narrowing or inverted spread signals reduced appetite for long-duration CRE debt."
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Cap Rate Adjustment Impact ───────────────────────────────────────────
+        section(f" Cap Rate Adjustment — Current 10Y ({current_10y:.2f}%) vs. {baseline:.1f}% Baseline")
+        if cap_adj:
+            adj_df = pd.DataFrame(cap_adj)
+            col_bars, col_impact = st.columns([3, 2])
+            with col_bars:
+                pt_labels = [p.split("/")[0].strip() for p in adj_df["Property Type"]]
+                base_caps = adj_df["Baseline Cap Rate"].tolist()
+                adj_caps  = adj_df["Adjusted Cap Rate"].tolist()
+                adj_bps   = adj_df["Rate Adjustment bps"].tolist()
+                bar_colors = ["#b71c1c" if v > 0 else "#1b5e20" for v in adj_bps]
+
+                fig_cap = go.Figure()
+                fig_cap.add_trace(go.Bar(
+                    name="Baseline Cap Rate",
+                    x=pt_labels, y=base_caps,
+                    marker_color="#d4a843",
+                    text=[f"{v:.2f}%" for v in base_caps],
+                    textposition="inside", textfont=dict(color="#c8b890", size=10),
+                ))
+                fig_cap.add_trace(go.Bar(
+                    name="Rate-Adjusted Cap Rate",
+                    x=pt_labels, y=adj_caps,
+                    marker_color=bar_colors,
+                    opacity=0.85,
+                    text=[f"{v:.2f}%\n({'+' if d>0 else ''}{d:.0f}bps)" for v, d in zip(adj_caps, adj_bps)],
+                    textposition="outside", textfont=dict(color="#c8b890", size=9),
+                ))
+                fig_cap.update_layout(
+                    barmode="group",
+                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#2a2208",
+                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                    xaxis=dict(tickangle=-20, tickfont=dict(color="#c8b890", size=9)),
+                    legend=dict(orientation="h", y=1.1, font=dict(color="#c8b890")),
+                    margin=dict(t=40, b=60), height=360,
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                )
+                st.plotly_chart(fig_cap, use_container_width=True)
+                st.caption(
+                    f"Adjustment = (10Y Treasury − {baseline:.1f}% baseline) × property-type interest rate beta. "
+                    "Red bars mean cap rates have expanded from the baseline — asset values have declined for the same NOI. "
+                    "Green bars mean cap rate compression — favorable for existing owners but tougher for new buyers on yield."
+                )
+
+            with col_impact:
+                st.markdown("**Profit Margin Impact by Property Type**")
+                disp_adj = adj_df[["Property Type", "Baseline Cap Rate", "Adjusted Cap Rate",
+                                    "Rate Adjustment bps", "Static Margin %", "Adj Margin %", "Margin Delta bps"]].copy()
+                disp_adj["Property Type"] = disp_adj["Property Type"].str.split("/").str[0].str.strip()
+
+                def _colour_delta(val):
+                    try:
+                        v = float(val)
+                        if v < 0: return "color: #b71c1c"
+                        if v > 0: return "color: #1b5e20"
+                    except: pass
+                    return ""
+
+                # Highlight user's focus property type row
+                _user_pt_rate = st.session_state.user_intent.get("property_type")
+                def _highlight_focus_row(row):
+                    if _user_pt_rate and _intent_matches_property_type(_user_pt_rate, row["Property Type"]):
+                        return ["background-color: #f5f0e6; font-weight: 700"] * len(row)
+                    return [""] * len(row)
+
+                st.markdown(_render_generic_table(
+                    disp_adj,
+                    title="Profit Margin Impact by Property Type",
+                    count_label=f"{len(disp_adj)} property types",
+                    hints={
+                        "Property Type":      {"type": "name",    "flex": 1.5},
+                        "Baseline Cap Rate":  {"type": "text",    "flex": 1},
+                        "Adjusted Cap Rate":  {"type": "text",    "flex": 1},
+                        "Rate Adjustment bps":{"type": "colored", "flex": 1},
+                        "Static Margin %":    {"type": "text",    "flex": 1},
+                        "Adj Margin %":       {"type": "text",    "flex": 1},
+                        "Margin Delta bps":   {"type": "colored", "flex": 1},
+                    },
+                ), unsafe_allow_html=True)
+                delta_10y = (current_10y or 0) - baseline
+                direction = "above" if delta_10y > 0 else "below"
+                st.caption(
+                    f"10Y is {abs(delta_10y):.2f}% {direction} the {baseline:.1f}% baseline. "
+                    "Higher cap rates → lower property multiples → compressed effective margins."
+                )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── REIT Refinancing Risk ────────────────────────────────────────────────
+        section(" REIT Near-Term Refinancing Risk")
+        if debt_risk:
+            debt_df = pd.DataFrame(debt_risk)
+            risk_colors = {"High": "#b71c1c", "Medium": "#e65100", "Low": "#1b5e20"}
+
+            col_chart, col_tbl2 = st.columns([2, 3])
+            with col_chart:
+                sorted_df = debt_df.sort_values("Risk %", ascending=True).tail(20)
+                bar_clrs  = [risk_colors.get(r, "#888") for r in sorted_df["Risk Level"]]
+                fig_debt  = go.Figure(go.Bar(
+                    x=sorted_df["Risk %"],
+                    y=sorted_df["Ticker"],
+                    orientation="h",
+                    marker_color=bar_clrs,
+                    text=sorted_df["Risk %"].apply(lambda v: f"{v:.1f}%"),
+                    textposition="outside",
+                    customdata=sorted_df[["Name", "Near-Term Debt $B", "Total Debt $B"]].values,
+                    hovertemplate=(
+                        "<b>%{y} — %{customdata[0]}</b><br>"
+                        "Near-term: $%{customdata[1]:.2f}B<br>"
+                        "Total debt: $%{customdata[2]:.2f}B<br>"
+                        "Risk: %{x:.1f}%<extra></extra>"
+                    ),
+                ))
+                fig_debt.update_layout(
+                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                    xaxis=dict(title="Near-Term Debt / Total Debt (%)", ticksuffix="%",
+                               gridcolor="#2a2208", tickfont=dict(color="#c8b890"),
+                               title_font=dict(color="#c8b890")),
+                    yaxis=dict(tickfont=dict(color="#c8b890", size=9)),
+                    margin=dict(t=20, b=40, l=60, r=60), height=460,
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                )
+                fig_debt.add_vline(x=25, line_dash="dash", line_color="#b71c1c",
+                                    annotation_text="High risk threshold",
+                                    annotation_font=dict(color="#b71c1c", size=9))
+                fig_debt.add_vline(x=10, line_dash="dot", line_color="#e65100",
+                                    annotation_text="Med threshold",
+                                    annotation_font=dict(color="#e65100", size=9))
+                st.plotly_chart(fig_debt, use_container_width=True)
+                st.caption(
+                    "Estimates the share of each REIT's debt maturing within 12 months relative to its market cap. "
+                    "REITs above the medium threshold face refinancing pressure — in a high-rate environment, "
+                    "rolling debt at elevated rates compresses FFO and can force asset sales or equity dilution."
+                )
+
+            with col_tbl2:
+                st.markdown(_render_generic_table(
+                    debt_df,
+                    title="REIT Refinancing Risk",
+                    count_label=f"{len(debt_df)} REITs",
+                    scrollable=True, max_height=440,
+                    hints={
+                        "Ticker":           {"type": "name",    "flex": 0.7},
+                        "Name":             {"type": "text",    "flex": 2},
+                        "Risk %":           {"type": "pct_bar", "flex": 1},
+                        "Near-Term Debt $B":{"type": "price",   "flex": 1},
+                        "Total Debt $B":    {"type": "price",   "flex": 1},
+                        "Risk Level":       {"type": "badge",   "flex": 0.8, "badge_map": {
+                            "High":   "background:#2a0d0d;color:#ef5350",
+                            "Medium": "background:#2a1500;color:#ffa726",
+                            "Low":    "background:#0d2a12;color:#4a9e58",
+                        }},
+                    },
+                ), unsafe_allow_html=True)
+
+            high_risk = debt_df[debt_df["Risk Level"] == "High"]
+            if not high_risk.empty:
+                names = ", ".join(high_risk["Ticker"].tolist())
+                st.warning(
+                    f" **High refinancing risk:** {names} — these REITs have ≥25% of debt maturing "
+                    f"within 12 months. Elevated 10Y rates ({current_10y:.2f}%) increase rollover costs."
+                )
+            else:
+                st.success(" No REITs with high near-term refinancing risk detected.")
+
+            st.caption(
+                "Near-term debt = current portion of long-term debt from latest quarterly balance sheet (yfinance). "
+                "Risk % = near-term / total debt. High ≥ 25%, Medium 10–25%, Low < 10%."
+            )
+        else:
+            st.info("REIT debt data not yet available. The agent will populate this on its next run.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if cap_adj and current_10y:
+            delta = current_10y - baseline
+            direction_word = "above" if delta > 0 else "below"
+            impact_word    = "expanding cap rates" if delta > 0 else "compressing cap rates"
+            st.info(
+                f" **Impact on Pricing & Profit tab:** With 10Y at **{current_10y:.2f}%** "
+                f"({abs(delta):.2f}% {direction_word} the {baseline:.1f}% static benchmark), "
+                f"rates are currently **{impact_word}** across all property types. "
+                f"The adjustments above are applied in the rate-adjusted view on the Pricing & Profit tab."
+            )
+
+        st.caption(
+            "Data: Federal Reserve Bank of St. Louis (FRED). "
+            "Cap rate adjustment model: adjusted = benchmark + (10Y − baseline) × sector beta. "
+            "This is research, not financial advice."
+        )
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Cap Rate Adjustment Model:**
+
+Cap Rate (adjusted) = Benchmark Cap Rate + (Current 10Y Treasury - 3.5% historical average) x Sector Beta
+
+- **Sector Beta** reflects each property type's sensitivity to rate changes: Office (1.0x) and Retail (0.9x) are most sensitive; Industrial (0.6x) and Multifamily (0.7x) are more resilient.
+- A **100bp rate increase** typically expands cap rates **50-75bp** across most property types.
+- **PnL Impact:** On a $10M property, a 50bp cap rate expansion = ~$800K loss in implied asset value.
+
+**Yield Curve Shape:**
+- **Normal (10Y > 2Y):** Healthy economy, favorable for long-term CRE financing
+- **Inverted (2Y > 10Y):** Recession signal, short-term borrowing costs exceed long-term — stress on floating-rate CRE debt
+- **Flat:** Transition period, uncertainty in rate direction
+
+**REIT Refinancing Risk:** Scored 0-100 based on debt maturity profile, floating-rate debt exposure, and current spread vs. origination spread.
+
+**Data Source:** Federal Reserve Bank of St. Louis (FRED) — 40+ series including DFF, DGS2, DGS10, DGS30, T10Y2Y, T10Y3M. Updated every hour via Agent 6.
+""")
+
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — LABOR MARKET & TENANT DEMAND
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_labor:
+        st.markdown("#### Where is job growth strongest — and which property types benefit?")
+        st.markdown(
+            "Agent 9 pulls **BLS payroll data**, **FRED labor series** (unemployment, job openings, quits), "
+            "and **sector ETF momentum** to map employment trends to CRE tenant demand by property type. "
+            "Updates every 6 hours."
+        )
+        agent_last_updated("labor_market")
+
+        cache_lm = read_cache("labor_market")
+        ldata    = cache_lm.get("data") or {}
+
+        if not ldata:
+            st.info(" Labor market agent is fetching data for the first time — please wait ~30 seconds and refresh.")
+            st.stop()
+
+        fred_labor   = ldata.get("fred_labor", {})
+        bls_sectors  = ldata.get("bls_sectors", [])
+        sector_etfs  = ldata.get("sector_etfs", [])
+        metro_unemp  = ldata.get("metro_unemployment", [])
+        demand_sig   = ldata.get("demand_signal", {})
+
+        # ── Demand Signal Banner ────────────────────────────────────────────────
+        sig_label = demand_sig.get("label", "UNKNOWN")
+        sig_score = demand_sig.get("score", 50)
+        _td_sum   = "Synthesized from nonfarm payrolls, job openings, unemployment trend, and sector ETF momentum. STRONG >= 65 · MODERATE 41-64 · SOFT <= 40"
+        st.markdown(gauge_card(
+            title       = "TENANT DEMAND",
+            label       = sig_label,
+            score       = sig_score,
+            summary     = _td_sum,
+            agent_num   = "A9  Agent 9",
+            age_label   = cache_age_label("labor_market"),
+            scale_labels= ("SOFT", "25", "MODERATE", "75", "STRONG"),
+        ), unsafe_allow_html=True)
+        with st.expander("How to read this indicator"):
+            st.markdown("""
+**What it measures:** The strength of employment-driven demand for commercial space — the primary driver of office, industrial, and retail lease-up.
+
+| Signal | Score | What it means for CRE |
+|--------|-------|----------------------|
+| **STRONG** | 65–100 | Low unemployment, rising payrolls, high job openings → businesses expanding → tenants leasing more space. Landlords hold pricing power. |
+| **MODERATE** | 41–64 | Mixed signals. Demand is present but softening. Selective acquisitions in supply-constrained markets remain viable. |
+| **SOFT** | 0–40 | Rising unemployment or falling payrolls → tenants downsizing, sublease supply rising, lease concessions increasing. |
+
+**Key inputs:** Nonfarm Payrolls, Unemployment Rate (U-3), JOLTS Job Openings, Quits Rate, Labor Force Participation, Avg Hourly Earnings — all from FRED.
+            """)
+
+        # ── KPI Strip — National Labor ──────────────────────────────────────────
+        section(" National Labor Market Snapshot")
+        _KPI_TIP = {
+            "Unemployment Rate":        "Share of the labor force actively looking for work. Below 4% = tight market → strong CRE demand. Above 6% = slack → weaker tenant absorption.",
+            "Nonfarm Payrolls":         "Total US jobs excluding farm workers. Monthly gains >150K = strong economy. Rising payrolls directly drive office, industrial and retail leasing.",
+            "Job Openings (JOLTS)":     "Job Openings and Labor Turnover Survey — number of unfilled positions. High openings (>8M) = companies expanding → more space needed.",
+            "Quits Rate":               "Percentage of workers voluntarily leaving jobs. High quits = confident workers, tight labor market, wage pressure. Good for multifamily (wage growth → rent growth).",
+            "Labor Force Participation":"Share of working-age population employed or seeking work. Rising = more potential tenants and consumers. Declining = structural demand headwinds.",
+            "Avg Hourly Earnings":      "Average pay per hour in the private sector. Rising wages → stronger household balance sheets → supports multifamily rent growth and retail spending.",
+        }
+        kpi_keys = [
+            ("Unemployment Rate",         "%",  "Civilian U-3"),
+            ("Nonfarm Payrolls",           "K",  "Total employed"),
+            ("Job Openings (JOLTS)",       "K",  "Open positions"),
+            ("Quits Rate",                 "%",  "Voluntary separations"),
+            ("Labor Force Participation",  "%",  "Ages 16+"),
+            ("Avg Hourly Earnings",        "$",  "Private sector"),
+        ]
+        kpi_cols = st.columns(len(kpi_keys))
+        for col, (key, unit, sub) in zip(kpi_cols, kpi_keys):
+            r = fred_labor.get(key, {})
+            cur = r.get("current")
+            d1m = r.get("delta_1m")
+            if cur is None:
+                col.markdown(metric_card(key, "N/A", sub), unsafe_allow_html=True)
+                continue
+            if unit == "K":
+                val_s = f"{cur/1000:.1f}M" if cur >= 1000 else f"{cur:.0f}K"
+            elif unit == "$":
+                val_s = f"${cur:.2f}"
+            else:
+                val_s = f"{cur:.1f}%"
+            delta_html = ""
+            if d1m is not None:
+                arrow = "▲" if d1m > 0 else ("▼" if d1m < 0 else "→")
+                # For unemployment, down is good; for everything else, up is good
+                good_up = key != "Unemployment Rate"
+                good    = (d1m > 0) == good_up
+                clr     = "#1b5e20" if good else "#b71c1c"
+                if unit == "K":
+                    d_s = f"{d1m/1000:+.1f}M" if abs(d1m) >= 1000 else f"{d1m:+.0f}K"
+                elif unit == "$":
+                    d_s = f"{d1m:+.2f}"
+                else:
+                    d_s = f"{d1m:+.2f}%"
+                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {d_s} 1M</span>"
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{_tt(key, _KPI_TIP.get(key, key))}</div>
+              <div class="value">{val_s}</div>
+              <div class="sub">{delta_html or sub}</div>
+            </div>""", unsafe_allow_html=True)
+
+        # ── Job Postings Index (leading indicator) ──────────────────────────────
+        _jpi = demand_sig.get("job_postings_index")
+        if _jpi is not None:
+            _jpi_color = ("#4caf50" if _jpi >= 65 else ("#ef5350" if _jpi <= 40 else "#d4a843"))
+            _jpi_label = "STRONG" if _jpi >= 65 else ("SOFT" if _jpi <= 40 else "MODERATE")
+            _jpi_tip = ("Composite leading indicator derived from employer hiring signals. "
+                        "Leads official BLS payroll data by approximately 4–6 weeks. "
+                        "Score 0–100: ≥65 = Strong hiring intent · 41–64 = Moderate · ≤40 = Soft.")
+            st.markdown(
+                f'<div class="metric-card" style="max-width:280px;border-left:3px solid {_jpi_color};">'
+                f'<div class="label">{_tt("Job Postings Index", _jpi_tip)}</div>'
+                f'<div class="value" style="color:{_jpi_color};">{_jpi:.0f}</div>'
+                f'<div class="sub" style="color:{_jpi_color};">{_jpi_label} · Leads payroll ~4–6 weeks</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── BLS Sector Payrolls ─────────────────────────────────────────────────
+        section(" Employment by Sector — CRE Demand Drivers")
+        if bls_sectors:
+            sec_df = pd.DataFrame(bls_sectors)
+            # Filter out "Total Private" for the chart (keep it in table)
+            chart_df = sec_df[sec_df["label"] != "Total Private"].copy()
+            bar_clrs = [GOLD if v > 0 else "#c62828" for v in chart_df["mom_pct"]]
+
+            fig_sec = go.Figure(go.Bar(
+                x=chart_df["mom_pct"],
+                y=chart_df["label"],
+                orientation="h",
+                marker_color=bar_clrs,
+                text=chart_df["mom_pct"].apply(lambda v: f"{v:+.2f}%"),
+                textposition="outside",
+                customdata=chart_df[["employment_k", "property_type", "period"]].values,
+                hovertemplate=(
+                    "<b>%{y}</b><br>"
+                    "Employment: %{customdata[0]:,.0f}K<br>"
+                    "MoM Change: %{x:+.2f}%<br>"
+                    "CRE Type: %{customdata[1]}<br>"
+                    "Period: %{customdata[2]}<extra></extra>"
+                ),
+            ))
+            fig_sec.add_vline(x=0, line_color="#333", line_width=1)
+            fig_sec.update_layout(
+                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                xaxis=dict(title="Month-over-Month Change (%)", ticksuffix="%",
+                           gridcolor="#2a2208", tickfont=dict(color="#c8b890"),
+                           title_font=dict(color="#c8b890")),
+                yaxis=dict(tickfont=dict(color="#c8b890", size=10)),
+                margin=dict(t=20, b=40, l=220, r=80), height=400,
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(fig_sec, use_container_width=True)
+
+            # Detail table
+            disp_sec = sec_df[["label", "employment_k", "mom_pct", "property_type", "period"]].copy()
+            disp_sec.columns = ["Sector", "Employment (K)", "MoM %", "CRE Demand Driver", "Period"]
+            disp_sec["Employment (K)"] = disp_sec["Employment (K)"].apply(lambda x: f"{x:,.0f}K")
+            disp_sec["MoM %"] = disp_sec["MoM %"].apply(lambda x: f"{x:+.2f}%")
+            st.markdown(_render_generic_table(
+                disp_sec,
+                title="Employment by Sector",
+                count_label=f"{len(disp_sec)} sectors",
+                hints={
+                    "Sector":             {"type": "name",    "flex": 2},
+                    "Employment (K)":     {"type": "price",   "flex": 1},
+                    "MoM %":              {"type": "pct_bar", "flex": 1.2},
+                    "CRE Demand Driver":  {"type": "tag",     "flex": 1.5},
+                    "Period":             {"type": "text",    "flex": 0.8},
+                },
+            ), unsafe_allow_html=True)
+            st.caption(
+                "BLS Supersector payrolls (monthly). Positive MoM = expanding employment = rising tenant demand. "
+                "Professional & Business Services and Financial Activities drive Office demand; "
+                "Manufacturing and Trade/Transport drive Industrial demand."
+            )
+        else:
+            st.info("BLS sector data not yet available.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Sector ETF Tenant Demand Signals ────────────────────────────────────
+        section(" Sector ETF Momentum → Tenant Demand by Property Type")
+        if sector_etfs:
+            etf_df = pd.DataFrame(sector_etfs)
+            sig_colors = {"EXPANDING": "#1b5e20", "FLAT": "#e65100", "CONTRACTING": "#b71c1c"}
+            bar_clrs_etf = [sig_colors.get(s, "#888") for s in etf_df["signal"]]
+
+            fig_etf = go.Figure(go.Bar(
+                x=etf_df["label"],
+                y=etf_df["return_6mo"],
+                marker_color=bar_clrs_etf,
+                text=etf_df["return_6mo"].apply(lambda v: f"{v:+.1f}%"),
+                textposition="outside",
+                customdata=etf_df[["property_type", "latest_price", "pct_vs_sma", "signal"]].values,
+                hovertemplate=(
+                    "<b>%{x}</b><br>"
+                    "6mo Return: %{y:+.1f}%<br>"
+                    "Price: $%{customdata[1]:.2f}<br>"
+                    "vs SMA-60: %{customdata[2]:+.1f}%<br>"
+                    "Signal: %{customdata[3]}<br>"
+                    "CRE Type: %{customdata[0]}<extra></extra>"
+                ),
+            ))
+            fig_etf.add_hline(y=0, line_color="#333", line_width=1)
+            fig_etf.update_layout(
+                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                yaxis=dict(title="6-Month Return (%)", ticksuffix="%",
+                           gridcolor="#2a2208", zeroline=True, zerolinecolor="#ccc",
+                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                xaxis=dict(tickangle=-20, tickfont=dict(color="#c8b890", size=9)),
+                margin=dict(t=30, b=80), height=360,
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(fig_etf, use_container_width=True)
+
+            # Property type signal summary
+            pt_summary = {}
+            for row in sector_etfs:
+                pt = row["property_type"]
+                if pt not in pt_summary:
+                    pt_summary[pt] = []
+                pt_summary[pt].append(row["return_6mo"])
+            pt_rows = [(pt, f"{sum(v)/len(v):+.1f}%",
+                        "EXPANDING" if sum(v)/len(v) > 2 else ("CONTRACTING" if sum(v)/len(v) < -2 else "FLAT"))
+                       for pt, v in sorted(pt_summary.items(), key=lambda x: sum(x[1])/len(x[1]), reverse=True)]
+            _etf_rows_html = "".join([
+                f'<tr><td style="padding:7px 12px;color:#c8b890;font-size:12px;">{pt}</td>'
+                f'<td style="padding:7px 12px;font-family:monospace;font-size:12px;color:{("#4caf50" if "+" in ret else "#ef5350")};">{ret}</td>'
+                f'<td style="padding:7px 12px;">{_sig_pill(sig)}</td></tr>'
+                for pt, ret, sig in pt_rows
+            ])
+            st.markdown(f"""
+<table style="width:100%;border-collapse:collapse;background:#171309;border-radius:8px;overflow:hidden;border:1px solid #2a2208;">
+  <thead><tr style="border-bottom:1px solid #2a2208;">
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">CRE Property Type</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Avg Sector Return","6-month total return of sector ETFs linked to this property type. Rising ETFs signal expanding corporate employment and leasing demand.")}</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Demand Signal","EXPANDING = avg return >+2% · FLAT = ±2% · CONTRACTING = <-2%. Hover a pill for plain-English meaning.")}</th>
+  </tr></thead>
+  <tbody>{_etf_rows_html}</tbody>
+</table>""", unsafe_allow_html=True)
+            st.caption("Data: Yahoo Finance (6-month trailing). Hover column headers or signal pills for definitions.")
+        else:
+            st.info("Sector ETF data temporarily unavailable (Yahoo Finance rate limit). Will populate on next scheduled run.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Metro Market Unemployment ────────────────────────────────────────────
+        section(" State Unemployment — Top CRE Destination Markets")
+        if metro_unemp:
+            mu_df = pd.DataFrame(metro_unemp)
+            tight_clr  = "#1b5e20"
+            bal_clr    = GOLD
+            loose_clr  = "#b71c1c"
+            bar_clrs_mu = [
+                tight_clr if r == "TIGHT" else (loose_clr if r == "LOOSE" else bal_clr)
+                for r in mu_df["signal"]
+            ]
+
+            fig_mu = go.Figure(go.Bar(
+                x=mu_df["unemp_rate"],
+                y=mu_df["market"],
+                orientation="h",
+                marker_color=bar_clrs_mu,
+                text=mu_df["unemp_rate"].apply(lambda v: f"{v:.1f}%"),
+                textposition="outside",
+                customdata=mu_df[["delta_1m", "signal", "period"]].values,
+                hovertemplate=(
+                    "<b>%{y}</b><br>"
+                    "Unemployment: %{x:.1f}%<br>"
+                    "MoM Δ: %{customdata[0]:+.1f}pp<br>"
+                    "Labor Market: %{customdata[1]}<br>"
+                    "Period: %{customdata[2]}<extra></extra>"
+                ),
+            ))
+            fig_mu.add_vline(x=4.0, line_dash="dash", line_color=tight_clr,
+                              annotation_text="Tight (<4%)",
+                              annotation_font=dict(color=tight_clr, size=9))
+            fig_mu.add_vline(x=6.0, line_dash="dash", line_color=loose_clr,
+                              annotation_text="Loose (>6%)",
+                              annotation_font=dict(color=loose_clr, size=9))
+            fig_mu.update_layout(
+                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                xaxis=dict(title="Unemployment Rate (%)", ticksuffix="%",
+                           gridcolor="#2a2208", tickfont=dict(color="#c8b890"),
+                           title_font=dict(color="#c8b890")),
+                yaxis=dict(tickfont=dict(color="#c8b890", size=9)),
+                margin=dict(t=20, b=40, l=260, r=80), height=360,
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(fig_mu, use_container_width=True)
+
+            # Table with signal pills
+            _mu_rows_html = "".join([
+                f'<tr style="border-bottom:1px solid #1e1a08;">'
+                f'<td style="padding:7px 12px;color:#c8b890;font-size:12px;">{row["market"]}</td>'
+                f'<td style="padding:7px 12px;font-family:monospace;font-size:12px;color:#d4a843;">{row["unemp_rate"]:.1f}%</td>'
+                f'<td style="padding:7px 12px;font-family:monospace;font-size:12px;color:{"#ef5350" if row["delta_1m"]>0 else "#4caf50"};">{row["delta_1m"]:+.1f}pp</td>'
+                f'<td style="padding:7px 12px;">{_sig_pill(row["signal"])}</td>'
+                f'<td style="padding:7px 12px;color:#5a4820;font-size:11px;">{row["period"]}</td>'
+                f'</tr>'
+                for row in metro_unemp
+            ])
+            st.markdown(f"""
+<table style="width:100%;border-collapse:collapse;background:#171309;border-radius:8px;overflow:hidden;border:1px solid #2a2208;">
+  <thead><tr style="border-bottom:1px solid #2a2208;">
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">State / Key Metros</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Unemployment %","Share of the labor force actively seeking work but unemployed. Below 4% = tight market, above 6% = loose.")}</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("MoM Δ","Month-over-month change in unemployment rate, in percentage points. Green = falling (improving), red = rising.")}</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Labor Market","Hover the signal pill for a plain-English explanation of what this means for CRE demand.")}</th>
+    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Period</th>
+  </tr></thead>
+  <tbody>{_mu_rows_html}</tbody>
+</table>""", unsafe_allow_html=True)
+            st.caption("Data: FRED state unemployment rates (BLS LAUS). Updated monthly. Hover column headers or signal pills for definitions.")
+        else:
+            st.info("Metro unemployment data not yet available.")
+
+        st.caption(
+            "Data: Bureau of Labor Statistics (BLS), Federal Reserve (FRED), Yahoo Finance. "
+            "Tenant Demand Signal score: 0–100 based on payroll growth, job openings, unemployment trend, and sector momentum. "
+            "This is research, not investment advice."
+        )
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Tenant Demand Signal (0-100):**
+
+Composite score based on four equally weighted components:
+1. **Nonfarm Payroll Growth (25%):** Monthly job additions — strong payroll growth = more tenants needing space
+2. **JOLTS Job Openings (25%):** Forward-looking indicator of hiring intent — high openings signal future lease demand
+3. **Unemployment Trend (25%):** Direction matters more than level — declining unemployment = tightening labor market
+4. **Sector ETF Momentum (25%):** 6-month return of sector ETFs (XLI, XLK, XLF, etc.) mapped to property types
+
+**Property Type Mapping:**
+- Manufacturing/Logistics payrolls -> Industrial demand
+- Professional/Business services -> Office demand
+- Leisure/Hospitality -> Retail/Hospitality demand
+- Education/Healthcare -> Medical office demand
+
+**Labor Market Classification:**
+- **TIGHT** (< 4% unemployment): Strong occupier demand, rent growth potential
+- **BALANCED** (4-6%): Stable absorption
+- **LOOSE** (> 6%): Weaker absorption, potential vacancy risk
+
+**Data Source:** BLS Public API (supersector payrolls), FRED (UNRATE, JTSJOL, PAYEMS), Yahoo Finance (sector ETFs). Updated every 6 hours via Agent 9.
+""")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — GDP & ECONOMIC GROWTH
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_gdp:
+        st.markdown("#### What economic cycle phase are we in — and what does it mean for CRE?")
+        st.markdown(
+            "Agent 10 tracks **real GDP growth, industrial production, retail sales, consumer sentiment, "
+            "and the leading economic index** to classify the economic cycle and map it to CRE property type outlook. "
+            "Updates every 6 hours."
+        )
+        agent_last_updated("gdp_data")
+
+        cache_gdp = read_cache("gdp_data")
+        gdata = cache_gdp.get("data") or {}
+        if not gdata:
+            st.info(" GDP agent is fetching data — please refresh in ~30 seconds.")
+            st.stop()
+
+        g_series = gdata.get("series", {})
+        g_cycle  = gdata.get("cycle", {})
+
+        # ── Cycle Signal Banner ─────────────────────────────────────────────────
+        cycle_label = g_cycle.get("label", "UNKNOWN")
+        cycle_score = g_cycle.get("score", 50)
+        _ec_sum     = g_cycle.get("cre_implication", "") or g_cycle.get("summary", "")
+        st.markdown(gauge_card(
+            title       = "ECONOMIC CYCLE",
+            label       = cycle_label,
+            score       = cycle_score,
+            summary     = _ec_sum,
+            agent_num   = "A10  Agent 10",
+            age_label   = cache_age_label("gdp_data"),
+            scale_labels= ("CONTRACTION", "25", "SLOWDOWN", "75", "EXPANSION"),
+        ), unsafe_allow_html=True)
+        with st.expander("How to read this indicator"):
+            st.markdown("""
+**What it measures:** Where the US economy sits in its business cycle — which directly drives CRE occupancy, rent growth, and transaction volume.
+
+| Signal | Score | What it means for CRE |
+|--------|-------|----------------------|
+| **EXPANSION** | 65–100 | GDP growing, consumer spending up, businesses investing → rising occupancy across all property types, rent growth likely. Peak valuations possible. |
+| **SLOWDOWN** | 25–74 | Growth decelerating. Industrial and logistics hold up; office and retail face headwinds. Reduce leverage exposure. |
+| **CONTRACTION** | 0–24 | Negative GDP, rising layoffs → vacancy climbing, cap rates rising, values declining. Distressed opportunities may emerge. |
+
+**Key inputs:** Real GDP Growth Rate, Industrial Production Index, Chicago Fed National Activity Index (CFNAI), Retail Sales, Real PCE, Consumer Sentiment — from FRED.
+            """)
+
+        # ── KPI Strip ──────────────────────────────────────────────────────────
+        section(" Key Economic Indicators")
+        kpi_defs = [
+            ("Real GDP Growth Rate",        "%",   "Annualized",          False),
+            ("Industrial Production Index", "idx", "Level",               False),
+            ("Retail Sales",                "$M",  "Monthly",             False),
+            ("Consumer Sentiment",          "idx", "U of Michigan",       False),
+            ("Chicago Fed Activity Index",  "idx", "Chicago Fed (CFNAI)", False),
+            ("Real PCE",                    "$B",  "Personal consumption", False),
+        ]
+        kpi_cols = st.columns(len(kpi_defs))
+        for col, (key, unit, sub, _) in zip(kpi_cols, kpi_defs):
+            r = g_series.get(key, {})
+            cur = r.get("current")
+            d1y = r.get("delta_1y")
+            if cur is None:
+                col.markdown(metric_card(key.split(" (")[0], "N/A", sub), unsafe_allow_html=True)
+                continue
+            if unit == "$M":
+                val_s = f"${cur/1000:.1f}B"
+            elif unit == "$B":
+                val_s = f"${cur:,.0f}B"
+            elif unit == "%":
+                val_s = f"{cur:.1f}%"
+            else:
+                val_s = f"{cur:.1f}"
+            delta_html = ""
+            if d1y is not None:
+                arrow = "▲" if d1y > 0 else "▼"
+                good  = d1y > 0
+                clr   = "#1b5e20" if good else "#b71c1c"
+                if unit == "$M":
+                    d_s = f"{d1y/1000:+.1f}B"
+                elif unit == "$B":
+                    d_s = f"{d1y:+,.0f}B"
+                elif unit == "%":
+                    d_s = f"{d1y:+.1f}pp"
+                else:
+                    d_s = f"{d1y:+.1f}"
+                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {d_s} 1Y</span>"
+            short_key = key.split(" (")[0].replace(" Index", "").replace(" Rate", "")
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{short_key}</div>
+              <div class="value">{val_s}</div>
+              <div class="sub">{delta_html or sub}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── GDP Growth + IPI Trend ──────────────────────────────────────────────
+        col_gdp, col_ipi = st.columns(2)
+
+        with col_gdp:
+            section(" Real GDP Growth Rate (Quarterly)")
+            gdp_s = g_series.get("Real GDP Growth Rate", {}).get("series", [])
+            if gdp_s:
+                dates  = [o["date"] for o in gdp_s]
+                values = [o["value"] for o in gdp_s]
+                bar_clrs = [GOLD if v >= 0 else "#c62828" for v in values]
+                fig_gdp = go.Figure(go.Bar(
+                    x=dates, y=values, marker_color=bar_clrs,
+                    text=[f"{v:+.1f}%" for v in values], textposition="outside",
+                    hovertemplate="Q: %{x}<br>Growth: %{y:+.2f}%<extra></extra>",
+                ))
+                fig_gdp.add_hline(y=0, line_color="#333", line_width=1)
+                fig_gdp.add_hline(y=2, line_dash="dot", line_color="#1b5e20",
+                                   annotation_text="2% trend", annotation_position="top right",
+                                   annotation_font=dict(color="#1b5e20", size=9))
+                fig_gdp.update_layout(
+                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                    yaxis=dict(title="Annualized %", ticksuffix="%", gridcolor="#2a2208",
+                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                    xaxis=dict(tickfont=dict(color="#c8b890")),
+                    margin=dict(t=30, b=40), height=320,
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                )
+                st.plotly_chart(fig_gdp, use_container_width=True)
+                st.caption("Quarterly real GDP growth (annualized). Consecutive negative quarters = recession definition.")
+            else:
+                st.info("GDP growth series not yet available.")
+
+        with col_ipi:
+            section(" Industrial Production Index")
+            ipi_s = g_series.get("Industrial Production Index", {}).get("series", [])
+            if ipi_s:
+                dates  = [o["date"] for o in ipi_s]
+                values = [o["value"] for o in ipi_s]
+                fig_ipi = go.Figure(go.Scatter(
+                    x=dates, y=values, mode="lines",
+                    line=dict(color=GOLD, width=2.5),
+                    fill="tozeroy", fillcolor="rgba(207,185,145,0.15)",
+                    hovertemplate="Date: %{x}<br>IPI: %{y:.1f}<extra></extra>",
+                ))
+                fig_ipi.update_layout(
+                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                    yaxis=dict(title="Index (2017=100)", gridcolor="#2a2208",
+                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                    xaxis=dict(tickfont=dict(color="#c8b890")),
+                    margin=dict(t=30, b=40), height=320,
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                )
+                st.plotly_chart(fig_ipi, use_container_width=True)
+                st.caption("Industrial Production Index (2017=100). Drives demand for industrial/logistics CRE.")
+            else:
+                st.info("Industrial production series not yet available.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Consumer Sentiment + Leading Index ─────────────────────────────────
+        col_cs, col_lei = st.columns(2)
+
+        with col_cs:
+            section(" Consumer Sentiment")
+            cs_s = g_series.get("Consumer Sentiment", {}).get("series", [])
+            if cs_s:
+                dates  = [o["date"] for o in cs_s]
+                values = [o["value"] for o in cs_s]
+                fig_cs = go.Figure(go.Scatter(
+                    x=dates, y=values, mode="lines+markers",
+                    line=dict(color="#1565c0", width=2),
+                    marker=dict(size=4, color="#1565c0"),
+                    hovertemplate="Date: %{x}<br>Sentiment: %{y:.1f}<extra></extra>",
+                ))
+                fig_cs.add_hrect(y0=80, y1=max(values) + 5, fillcolor="rgba(27,94,32,0.05)",
+                                  line_width=0, annotation_text="Strong",
+                                  annotation_font=dict(color="#1b5e20", size=9))
+                fig_cs.add_hrect(y0=0, y1=65, fillcolor="rgba(183,28,28,0.05)",
+                                  line_width=0, annotation_text="Weak",
+                                  annotation_font=dict(color="#b71c1c", size=9))
+                fig_cs.update_layout(
+                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                    yaxis=dict(title="Index", gridcolor="#2a2208",
+                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                    xaxis=dict(tickfont=dict(color="#c8b890")),
+                    margin=dict(t=30, b=40), height=300,
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                )
+                st.plotly_chart(fig_cs, use_container_width=True)
+                st.caption("U of Michigan Consumer Sentiment. High sentiment → retail & hospitality CRE demand.")
+            else:
+                st.info("Consumer sentiment series not yet available.")
+
+        with col_lei:
+            section(" Chicago Fed National Activity Index (3-Month MA)")
+            lei_s = g_series.get("Chicago Fed Activity Index", {}).get("series", [])
+            if lei_s:
+                dates  = [o["date"] for o in lei_s]
+                values = [o["value"] for o in lei_s]
+                bar_clrs_cfnai = [GOLD if v >= 0 else "#c62828" for v in values]
+                fig_lei = go.Figure(go.Bar(
+                    x=dates, y=values, marker_color=bar_clrs_cfnai,
+                    hovertemplate="Date: %{x}<br>CFNAI-MA3: %{y:.2f}<extra></extra>",
+                ))
+                fig_lei.add_hline(y=0, line_color="#333", line_width=1.5)
+                fig_lei.add_hline(y=-0.7, line_dash="dash", line_color="#b71c1c",
+                                   annotation_text="Recession signal (<−0.7)",
+                                   annotation_font=dict(color="#b71c1c", size=9))
+                fig_lei.update_layout(
+                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                    yaxis=dict(title="Index (0 = trend growth)", gridcolor="#2a2208",
+                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                    xaxis=dict(tickfont=dict(color="#c8b890")),
+                    margin=dict(t=30, b=40), height=300,
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                )
+                st.plotly_chart(fig_lei, use_container_width=True)
+                st.caption("Chicago Fed National Activity Index (3-month MA). 0 = trend growth. Below −0.7 historically signals recession onset.")
+            else:
+                st.info("Chicago Fed Activity Index not yet available.")
+
+        # ── CRE Cycle Implications Table ───────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" CRE Property Type Outlook by Cycle Phase")
+        outlook_data = {
+            "Property Type":     ["Office", "Industrial / Logistics", "Multifamily", "Retail", "Healthcare / Life Sci", "Data Centers"],
+            "Expansion":         ["", "", "", "", "", ""],
+            "Slowdown":          ["", "", "", "", "", ""],
+            "Contraction":       ["", "", "", "", "", ""],
+            "Current Outlook":   [
+                "" if cycle_label == "EXPANSION" else ("" if cycle_label == "SLOWDOWN" else ""),
+                "" if cycle_label in ("EXPANSION", "SLOWDOWN") else "",
+                "",
+                "" if cycle_label == "EXPANSION" else ("" if cycle_label == "SLOWDOWN" else ""),
+                "",
+                "" if cycle_label in ("EXPANSION", "SLOWDOWN") else "",
+            ],
+        }
+        outlook_df = pd.DataFrame(outlook_data)
+        st.markdown(_render_generic_table(
+            outlook_df,
+            title="CRE Property Type Outlook by Cycle Phase",
+            count_label=f"{len(outlook_df)} property types",
+            hints={
+                "Property Type":  {"type": "name", "flex": 1.8},
+                "Expansion":      {"type": "text", "flex": 1},
+                "Slowdown":       {"type": "text", "flex": 1},
+                "Contraction":    {"type": "text", "flex": 1},
+                "Current Outlook":{"type": "text", "flex": 1},
+            },
+        ), unsafe_allow_html=True)
+        st.caption(
+            " Favorable · Neutral · Cautious. Based on current economic cycle classification. "
+            "Industrial and Healthcare tend to be more defensive; Office and Retail more cyclical."
+        )
+        st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Economic Cycle Classification:**
+
+The cycle phase is determined by combining multiple indicators:
+- **Real GDP Growth (GDPC1):** Quarter-over-quarter annualized rate
+- **Industrial Production (INDPRO):** Monthly index of factory, mining, and utility output
+- **Consumer Sentiment (UMCSENT):** University of Michigan survey — leading indicator of consumer spending
+- **Chicago Fed National Activity Index (CFNAI):** 85-indicator composite of national economic activity
+
+**Cycle Phases:**
+- **EXPANSION:** GDP > 2%, Industrial Production rising, Sentiment > 80, CFNAI > 0
+- **SLOWDOWN:** GDP 0-2%, mixed signals, Sentiment declining
+- **CONTRACTION:** GDP < 0%, Industrial Production falling, Sentiment < 60, CFNAI < -0.7
+
+**CRE Impact by Cycle Phase:**
+- *Expansion:* All property types benefit — strongest for Office and Retail
+- *Slowdown:* Industrial and Healthcare more defensive; Office and Retail vulnerable
+- *Contraction:* Multifamily most resilient (people always need housing); Office and Retail face rising vacancies
+
+**Data Source:** FRED (GDPC1, INDPRO, UMCSENT, CFNAI, RSXFS). Updated every 6 hours via Agent 10.
+""")
+
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — INFLATION
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_inflation:
+        st.markdown("#### How is inflation affecting CRE valuations, rents, and construction costs?")
+        st.markdown(
+            "Agent 11 tracks **CPI, core inflation, shelter & rent inflation, PPI, and market-implied "
+            "breakeven inflation** to assess real return erosion, rent growth, and replacement cost trends. "
+            "Updates every 6 hours."
+        )
+        agent_last_updated("inflation_data")
+
+        cache_inf = read_cache("inflation_data")
+        idata = cache_inf.get("data") or {}
+        if not idata:
+            st.info(" Inflation agent is fetching data — please refresh in ~30 seconds.")
+            st.stop()
+
+        inf_series = idata.get("series", {})
+        inf_signal = idata.get("signal", {})
+
+        # ── Signal Banner — Segmented Gauge Card ────────────────────────────────
+        inf_label    = inf_signal.get("label", "UNKNOWN")
+        inf_score    = inf_signal.get("score", 50)
+        inf_confidence = inf_signal.get("confidence", "High")
+        _age_inf     = cache_age_label("inflation_data")
+
+        st.markdown(gauge_card(
+            title="INFLATION REGIME",
+            label=inf_label,
+            score=inf_score,
+            summary=inf_signal.get("summary", ""),
+            agent_num=11,
+            age_label=_age_inf,
+            confidence=inf_confidence,
+            low_good=True,
+            scale_labels=("COOLING", "25", "MODERATE", "75", "HOT"),
+        ), unsafe_allow_html=True)
+        with st.expander("How to read this indicator"):
+            st.markdown("""
+**What it measures:** The current inflation environment and its impact on CRE construction costs, cap rates, and real returns.
+
+| Signal | Score | What it means for CRE |
+|--------|-------|----------------------|
+| **COOLING** | 0–35 | CPI falling toward 2% target. Fed likely cutting rates → cap rate compression, rising valuations, easier financing. |
+| **MODERATE** | 36–74 | Inflation in the 2–4% range. Mixed — some replacement cost support for values, but rate uncertainty limits cap rate compression. |
+| **HOT** | 75–100 | CPI well above target. Fed holds rates high → higher cap rates, value pressure on stabilized assets. Construction cost inflation eats development margins. |
+
+**Key inputs:** CPI All Items, Core CPI (ex food & energy), CPI Shelter, CPI Rent, 5-Year Breakeven Inflation, 1-Year Inflation Expectations (U of Michigan) — from FRED.
+            """)
+
+        # ── KPI Strip ──────────────────────────────────────────────────────────
+        section(" Inflation Dashboard")
+        inf_kpis = [
+            ("CPI All Items",           "YoY %", "Headline"),
+            ("Core CPI",                "YoY %", "Ex food & energy"),
+            ("CPI Shelter",             "YoY %", "Housing costs"),
+            ("CPI Rent",                "YoY %", "Primary residence"),
+            ("5Y Breakeven Inflation",  "%",      "Market expectation"),
+            ("1Y Inflation Expectations","%",     "U of Michigan"),
+        ]
+        inf_cols = st.columns(len(inf_kpis))
+        for col, (key, unit_label, sub) in zip(inf_cols, inf_kpis):
+            r = inf_series.get(key, {})
+            # Use YoY for CPI/PPI index series, current for breakeven/expectations
+            val = r.get("yoy_pct") if r.get("yoy_pct") is not None else r.get("current")
+            d1m = r.get("delta_1m")
+            if val is None:
+                col.markdown(metric_card(key.replace(" All Items", "").replace(" Inflation", ""), "N/A", sub), unsafe_allow_html=True)
+                continue
+            val_s = f"{val:.1f}%"
+            delta_html = ""
+            if d1m is not None:
+                arrow = "▲" if d1m > 0 else "▼"
+                # For inflation, up = bad (hot), down = good (cooling)
+                clr = "#b71c1c" if d1m > 0 else "#1b5e20"
+                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {abs(d1m):.3f} 1M</span>"
+            short = key.replace(" All Items", "").replace(" Inflation", "").replace(" Expectations", " Exp.")
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{short}</div>
+              <div class="value">{val_s}</div>
+              <div class="sub">{delta_html or sub}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── CPI Components Chart ────────────────────────────────────────────────
+        col_cpi, col_ppi = st.columns(2)
+
+        with col_cpi:
+            section(" CPI Trends — Headline vs Core vs Shelter")
+            cpi_keys   = ["CPI All Items", "Core CPI", "CPI Shelter", "CPI Rent"]
+            cpi_colors = ["#1565c0", "#e65100", GOLD, "#6a1b9a"]
+            fig_cpi = go.Figure()
+            for ckey, clr in zip(cpi_keys, cpi_colors):
+                s = inf_series.get(ckey, {}).get("series", [])
+                if not s:
+                    continue
+                # Compute rolling YoY from index series
+                if len(s) >= 13:
+                    yoy_pts = [{"date": s[i]["date"],
+                                "value": round((s[i]["value"] - s[i-12]["value"]) / s[i-12]["value"] * 100, 2)}
+                               for i in range(12, len(s))]
+                else:
+                    yoy_pts = s
+                dates  = [o["date"] for o in yoy_pts]
+                values = [o["value"] for o in yoy_pts]
+                fig_cpi.add_trace(go.Scatter(
+                    x=dates, y=values, name=ckey,
+                    mode="lines", line=dict(color=clr, width=2),
+                    hovertemplate=f"{ckey}: %{{y:.2f}}% YoY<br>%{{x}}<extra></extra>",
+                ))
+            fig_cpi.add_hline(y=2, line_dash="dot", line_color="#1b5e20",
+                               annotation_text="Fed 2% target",
+                               annotation_font=dict(color="#1b5e20", size=9))
+            fig_cpi.update_layout(
+                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                yaxis=dict(title="YoY %", ticksuffix="%", gridcolor="#2a2208",
+                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                xaxis=dict(tickfont=dict(color="#c8b890")),
+                legend=dict(orientation="h", y=1.1, font=dict(color="#c8b890", size=10)),
+                margin=dict(t=40, b=40), height=340,
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(fig_cpi, use_container_width=True)
+            st.caption(
+                "CPI Shelter and CPI Rent measure housing cost inflation — directly relevant to multifamily NOI growth. "
+                "Core CPI (ex food & energy) is the Fed's primary policy target."
+            )
+
+        with col_ppi:
+            section(" PPI — Producer & Construction Input Costs")
+            ppi_keys   = ["PPI All Commodities", "PPI Manufacturing"]
+            ppi_colors = ["#c62828", "#e65100"]
+            fig_ppi = go.Figure()
+            for pkey, clr in zip(ppi_keys, ppi_colors):
+                s = inf_series.get(pkey, {}).get("series", [])
+                if not s or len(s) < 13:
+                    continue
+                yoy_pts = [{"date": s[i]["date"],
+                            "value": round((s[i]["value"] - s[i-12]["value"]) / s[i-12]["value"] * 100, 2)}
+                           for i in range(12, len(s))]
+                dates  = [o["date"] for o in yoy_pts]
+                values = [o["value"] for o in yoy_pts]
+                fig_ppi.add_trace(go.Scatter(
+                    x=dates, y=values, name=pkey,
+                    mode="lines", line=dict(color=clr, width=2),
+                    hovertemplate=f"{pkey}: %{{y:.2f}}% YoY<br>%{{x}}<extra></extra>",
+                ))
+            fig_ppi.add_hline(y=0, line_color="#333", line_width=1)
+            fig_ppi.update_layout(
+                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                yaxis=dict(title="YoY %", ticksuffix="%", gridcolor="#2a2208",
+                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                xaxis=dict(tickfont=dict(color="#c8b890")),
+                legend=dict(orientation="h", y=1.1, font=dict(color="#c8b890", size=10)),
+                margin=dict(t=40, b=40), height=340,
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(fig_ppi, use_container_width=True)
+            st.caption(
+                "Rising PPI increases replacement cost of new CRE — supporting values of existing assets. "
+                "Elevated construction input costs also deter new supply, tightening vacancy."
+            )
+
+        # ── Breakeven Inflation Chart ───────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Market-Implied Inflation Expectations (Breakeven Rates)")
+        be_keys   = ["5Y Breakeven Inflation", "10Y Breakeven Inflation"]
+        be_colors = ["#1565c0", "#6a1b9a"]
+        fig_be = go.Figure()
+        for bkey, clr in zip(be_keys, be_colors):
+            s = inf_series.get(bkey, {}).get("series", [])
+            if not s:
+                continue
+            dates  = [o["date"] for o in s]
+            values = [o["value"] for o in s]
+            fig_be.add_trace(go.Scatter(
+                x=dates, y=values, name=bkey,
+                mode="lines", line=dict(color=clr, width=2),
+                hovertemplate=f"{bkey}: %{{y:.2f}}%<br>%{{x}}<extra></extra>",
+            ))
+        fig_be.add_hline(y=2.0, line_dash="dot", line_color="#1b5e20",
+                          annotation_text="Fed 2% target",
+                          annotation_font=dict(color="#1b5e20", size=9))
+        fig_be.add_hline(y=2.5, line_dash="dash", line_color="#b71c1c",
+                          annotation_text="Concern threshold",
+                          annotation_font=dict(color="#b71c1c", size=9))
+        fig_be.update_layout(
+            paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+            yaxis=dict(title="Implied Inflation (%)", ticksuffix="%", gridcolor="#2a2208",
+                       tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+            xaxis=dict(tickfont=dict(color="#c8b890")),
+            legend=dict(orientation="h", y=1.08, font=dict(color="#c8b890", size=11)),
+            margin=dict(t=40, b=40), height=320,
+            font=dict(family="Source Sans Pro", color="#c8b890"),
+        )
+        st.plotly_chart(fig_be, use_container_width=True)
+        st.caption(
+            "Breakeven inflation = nominal Treasury yield minus TIPS yield — the market's consensus inflation forecast. "
+            "Elevated breakevens signal that the Fed is unlikely to cut rates soon, keeping cap rates elevated "
+            "and compressing CRE asset values."
+        )
+        st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Inflation Regime Classification:**
+
+- **HOT:** Headline CPI > 4% YoY or Core CPI > 3.5% YoY — erosion of real returns, Fed likely tightening
+- **MODERATE:** Headline CPI 2-4% YoY — manageable inflation, favorable for CRE with rent escalators
+- **COOLING:** Headline CPI < 2% YoY — disinflation, potential rate cuts ahead (positive for asset values)
+
+**Key Series Tracked:**
+- **CPI Headline (CPIAUCSL):** All items, urban consumers — broadest inflation measure
+- **CPI Core (CPILFESL):** Excludes food & energy — underlying inflation trend
+- **CPI Shelter (CUSR0000SAH1):** Largest CPI component (~35% weight) — directly reflects rent/housing costs
+- **CPI Rent (CUSR0000SEHA):** Rent of primary residence — most direct CRE inflation indicator
+- **PPI Construction (WPUIP2311001):** Producer prices for construction inputs — signals replacement cost pressure
+- **5Y & 10Y Breakeven Inflation (T5YIE, T10YIE):** Market-implied inflation expectations from TIPS spreads
+
+**Why It Matters for CRE:**
+- Rising shelter/rent CPI validates rent growth assumptions in underwriting
+- Elevated PPI signals higher replacement costs — supporting existing asset values
+- Breakeven inflation above 2.5% suggests the Fed won't cut rates soon — keeping cap rates elevated
+
+**Data Source:** FRED (BLS CPI/PPI series, Treasury breakevens). Updated every 6 hours via Agent 11.
+""")
+
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — CREDIT & CAPITAL MARKETS
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_credit:
+        st.markdown("#### Is capital available for CRE — and at what cost?")
+        st.markdown(
+            "Agent 12 monitors **corporate credit spreads, bank lending standards, VIX volatility, "
+            "and the BAA–AAA spread** to gauge whether debt capital is flowing into or out of CRE. "
+            "Updates every 6 hours."
+        )
+        agent_last_updated("credit_data")
+
+        cache_cr = read_cache("credit_data")
+        crdata = cache_cr.get("data") or {}
+        if not crdata:
+            st.info(" Credit agent is fetching data — please refresh in ~30 seconds.")
+            st.stop()
+
+        cr_series = crdata.get("series", {})
+        cr_signal = crdata.get("signal", {})
+
+        # ── Signal Banner — Segmented Gauge Card ────────────────────────────────
+        cr_label      = cr_signal.get("label", "UNKNOWN")
+        cr_score      = cr_signal.get("score", 50)
+        cr_confidence = cr_signal.get("confidence", "High")
+        _age_cr       = cache_age_label("credit_data")
+
+        st.markdown(gauge_card(
+            title="CREDIT CONDITIONS",
+            label=cr_label,
+            score=cr_score,
+            summary=cr_signal.get("summary", ""),
+            agent_num=12,
+            age_label=_age_cr,
+            confidence=cr_confidence,
+            low_good=False,
+            scale_labels=("TIGHT", "25", "NEUTRAL", "75", "LOOSE"),
+        ), unsafe_allow_html=True)
+        with st.expander("How to read this indicator"):
+            st.markdown("""
+**What it measures:** Whether debt capital is flowing freely into CRE or being restricted — tracking corporate credit spreads, bank lending standards, and market volatility.
+
+| Signal | Score | What it means for CRE |
+|--------|-------|----------------------|
+| **LOOSE** | 65–100 | Spreads narrow, banks easing standards, VIX low → debt is cheap and available. Strong deal volume, high leverage possible. |
+| **NEUTRAL** | 25–74 | Normal credit access. Standard underwriting prevails. Selective lenders; moderate leverage recommended. |
+| **TIGHT** | 0–24 | Spreads wide, banks tightening, VIX elevated → lenders pulling back. Higher equity requirements, fewer loans closing. Distressed deals may emerge. |
+
+**Key inputs:** IG & HY Corporate Spreads, BBB Spread (CRE proxy), BAA–AAA Quality Spread, VIX Volatility Index, Fed Senior Loan Officer Survey (CRE tightening %) — from FRED.
+            """)
+
+        # ── KPI Strip ──────────────────────────────────────────────────────────
+        section(" Credit Market Snapshot")
+        cr_kpis = [
+            ("IG Corporate Spread",  "bps", "Investment grade"),
+            ("HY Corporate Spread",  "bps", "High yield"),
+            ("BBB Corporate Spread", "bps", "BBB-rated (CRE proxy)"),
+            ("BAA-AAA Spread",       "%",   "Credit quality gap"),
+            ("VIX",                  "pts", "Market fear gauge"),
+            ("CRE Loan Tightening",  "%",   "Net % banks tightening"),
+        ]
+        cr_cols = st.columns(len(cr_kpis))
+        for col, (key, unit, sub) in zip(cr_cols, cr_kpis):
+            r = cr_series.get(key, {})
+            cur = r.get("current")
+            d1m = r.get("delta_1m")
+            if cur is None:
+                col.markdown(metric_card(key, "N/A", sub), unsafe_allow_html=True)
+                continue
+            val_s = f"{cur:.0f}{unit}" if unit == "bps" else (f"{cur:.1f}" if unit == "pts" else f"{cur:.2f}%")
+            delta_html = ""
+            if d1m is not None:
+                arrow = "▲" if d1m > 0 else "▼"
+                # Wide spreads / high VIX = bad; tightening lending = bad
+                clr = "#b71c1c" if d1m > 0 else "#1b5e20"
+                d_s = f"{d1m:+.0f}{unit}" if unit == "bps" else f"{d1m:+.2f}"
+                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {d_s} 1M</span>"
+            short = key.replace(" Corporate", "").replace(" Spread", " Sprd")
+            col.markdown(f"""
+            <div class="metric-card">
+              <div class="label">{short}</div>
+              <div class="value">{val_s}</div>
+              <div class="sub">{delta_html or sub}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Spread History Charts ───────────────────────────────────────────────
+        col_spreads, col_vix = st.columns([3, 2])
+
+        with col_spreads:
+            section(" Credit Spread History — IG, HY & BBB")
+            fig_sp = go.Figure()
+            spread_keys   = ["IG Corporate Spread", "HY Corporate Spread", "BBB Corporate Spread"]
+            spread_colors = ["#1565c0", "#c62828", GOLD]
+            spread_axis   = [1, 2, 1]  # HY on secondary axis
+            for skey, clr, ax in zip(spread_keys, spread_colors, spread_axis):
+                s = cr_series.get(skey, {}).get("series", [])
+                if not s:
+                    continue
+                dates  = [o["date"] for o in s]
+                values = [o["value"] for o in s]
+                fig_sp.add_trace(go.Scatter(
+                    x=dates, y=values, name=skey,
+                    mode="lines", line=dict(color=clr, width=2),
+                    yaxis=f"y{ax}" if ax == 2 else "y",
+                    hovertemplate=f"{skey}: %{{y:.0f}}bps<br>%{{x}}<extra></extra>",
+                ))
+            fig_sp.update_layout(
+                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                yaxis=dict(title="IG / BBB Spread (bps)", gridcolor="#2a2208",
+                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                yaxis2=dict(title="HY Spread (bps)", overlaying="y", side="right",
+                            tickfont=dict(color="#c62828"), title_font=dict(color="#c62828")),
+                xaxis=dict(tickfont=dict(color="#c8b890")),
+                legend=dict(orientation="h", y=1.1, font=dict(color="#c8b890", size=10)),
+                margin=dict(t=40, b=40), height=360,
+                font=dict(family="Source Sans Pro", color="#c8b890"),
+            )
+            st.plotly_chart(fig_sp, use_container_width=True)
+            st.caption(
+                "IG (Investment Grade) and BBB spreads track the cost of the debt that finances most CRE. "
+                "HY spreads (right axis) are a leading risk-sentiment indicator — sharp spikes precede transaction freezes."
+            )
+
+        with col_vix:
+            section(" VIX — Market Volatility")
+            vix_s = cr_series.get("VIX", {}).get("series", [])
+            if vix_s:
+                dates  = [o["date"] for o in vix_s]
+                values = [o["value"] for o in vix_s]
+                bar_clrs_vix = ["#b71c1c" if v > 30 else (GOLD if v > 20 else "#1b5e20") for v in values]
+                fig_vix = go.Figure(go.Bar(
+                    x=dates, y=values, marker_color=bar_clrs_vix,
+                    hovertemplate="Date: %{x}<br>VIX: %{y:.1f}<extra></extra>",
+                ))
+                fig_vix.add_hline(y=20, line_dash="dot", line_color=GOLD,
+                                   annotation_text="Elevated (>20)",
+                                   annotation_font=dict(color=GOLD_DARK, size=9))
+                fig_vix.add_hline(y=30, line_dash="dash", line_color="#b71c1c",
+                                   annotation_text="Stress (>30)",
+                                   annotation_font=dict(color="#b71c1c", size=9))
+                fig_vix.update_layout(
+                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+                    yaxis=dict(title="VIX Level", gridcolor="#2a2208",
+                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+                    xaxis=dict(tickfont=dict(color="#c8b890")),
+                    margin=dict(t=30, b=40), height=360,
+                    font=dict(family="Source Sans Pro", color="#c8b890"),
+                )
+                st.plotly_chart(fig_vix, use_container_width=True)
+                st.caption("VIX > 20 = elevated uncertainty. VIX > 30 = stress — CRE deal pipelines freeze as buyers demand higher risk premiums.")
+            else:
+                st.info("VIX series not yet available.")
+
+        # ── Lending Standards Chart ─────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        section(" Bank Lending Standards — C&I and CRE Loans (Net % Tightening)")
+        fig_ls = go.Figure()
+        ls_keys   = ["C&I Loan Tightening", "CRE Loan Tightening"]
+        ls_colors = ["#1565c0", GOLD]
+        for lkey, clr in zip(ls_keys, ls_colors):
+            s = cr_series.get(lkey, {}).get("series", [])
+            if not s:
+                continue
+            dates  = [o["date"] for o in s]
+            values = [o["value"] for o in s]
+            fig_ls.add_trace(go.Scatter(
+                x=dates, y=values, name=lkey,
+                mode="lines+markers", line=dict(color=clr, width=2),
+                marker=dict(size=5),
+                hovertemplate=f"{lkey}: %{{y:.1f}}%<br>%{{x}}<extra></extra>",
+            ))
+        fig_ls.add_hline(y=0, line_color="#333", line_width=1.5)
+        fig_ls.add_hrect(y0=20, y1=100, fillcolor="rgba(183,28,28,0.05)",
+                          line_width=0, annotation_text="Tightening territory",
+                          annotation_font=dict(color="#b71c1c", size=9))
+        fig_ls.add_hrect(y0=-100, y1=-10, fillcolor="rgba(27,94,32,0.05)",
+                          line_width=0, annotation_text="Easing territory",
+                          annotation_font=dict(color="#1b5e20", size=9))
+        fig_ls.update_layout(
+            paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
+            yaxis=dict(title="Net % Tightening", ticksuffix="%", gridcolor="#2a2208",
+                       zeroline=True, zerolinecolor="#ccc",
+                       tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
+            xaxis=dict(tickfont=dict(color="#c8b890")),
+            legend=dict(orientation="h", y=1.08, font=dict(color="#c8b890", size=11)),
+            margin=dict(t=40, b=40), height=340,
+            font=dict(family="Source Sans Pro", color="#c8b890"),
+        )
+        st.plotly_chart(fig_ls, use_container_width=True)
+        st.caption(
+            "Fed Senior Loan Officer Survey (quarterly). Positive = banks tightening loan standards (less credit supply). "
+            "Negative = easing (more credit supply). CRE loan tightening directly restricts acquisition and development financing."
+        )
+        st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  TAB — CMBS & DISTRESSED ASSET MONITOR
+    # ═══════════════════════════════════════════════════════════════════════════
+    with tab_distressed:
+        st.markdown("#### Where is CRE distress concentrated — and where are the opportunities?")
+        st.markdown(
+            "Agent 17 tracks CMBS delinquency rates by property type, the known distressed "
+            "asset pipeline, national distress signals, and live CRE loan conditions from FRED. "
+            "Powered by Groq AI analysis when API key is configured. Updates every 6 hours."
+        )
+        agent_last_updated("distressed")
+
+        _dst_cache = read_cache("distressed")
+        _dst_data  = _dst_cache.get("data") or {}
+
+        if not _dst_data:
+            st.info(" Distressed Asset agent is fetching data — refresh in ~30 seconds.")
+        else:
+            _dst_dlq    = _dst_data.get("cmbs_delinquency", {})
+            _dst_pipe   = _dst_data.get("distressed_pipeline", [])
+            _dst_sigs   = _dst_data.get("distress_signals", {})
+            _dst_intel  = _dst_data.get("market_intelligence", {})
+            _dst_fred   = _dst_data.get("fred_cre_delinquency", [])
+            _dst_bbb    = _dst_data.get("fred_bbb_spread", [])
+
+            _dst_ta = {"rising": "↑", "falling": "↓", "stable": "→"}
+            _dst_tc = {"rising": "#ef5350", "falling": "#66bb6a", "stable": "#d4a843"}
+            _dst_status_c = {
+                "REO":               "#ef5350",
+                "Maturity Default":  "#ef5350",
+                "Special Servicing": "#d4a843",
+                "Watchlist":         "#42a5f5",
+                "Modified":          "#66bb6a",
+            }
+
+            # ── AI Brief ──────────────────────────────────────────────────────
+            if _dst_intel.get("summary"):
+                section(" Agent 17 — CMBS & Distressed Intelligence")
+                _dst_groq_lbl = "Groq AI" if _dst_intel.get("groq_used") else "Static Brief"
+                st.markdown(f"""
+                <div class="agent-card">
+                  <div class="agent-label">Agent 17 &nbsp;·&nbsp; CMBS & Distressed Monitor &nbsp;·&nbsp; {_dst_groq_lbl}</div>
+                  <div class="agent-text">{_dst_intel['summary']}</div>
+                  {"<div style='margin-top:12px;padding:8px 12px;background:#1e1a0a;border-radius:6px;border-left:3px solid #66bb6a;'><span style='color:#66bb6a;font-weight:700;'>Best Opportunity:</span> <span style='color:#c8bfa8;'>" + _dst_intel.get('top_opportunity','') + "</span></div>" if _dst_intel.get('top_opportunity') else ""}
+                  {"<div style='margin-top:8px;padding:8px 12px;background:#1e1a0a;border-radius:6px;border-left:3px solid #ef5350;'><span style='color:#ef5350;font-weight:700;'>Key Risk:</span> <span style='color:#c8bfa8;'>" + _dst_intel.get('key_risk','') + "</span></div>" if _dst_intel.get('key_risk') else ""}
+                </div>""", unsafe_allow_html=True)
+
+            # ── Distress explainer ────────────────────────────────────────────
+            with st.expander("How to read CMBS delinquency & distress signals"):
+                st.markdown("""
+**CMBS (Commercial Mortgage-Backed Securities)** are bonds backed by commercial real estate loans. The delinquency rate measures what percentage of those loans are 30+ days past due.
+
+| Rate | Severity | Context |
+|------|----------|---------|
+| < 2% | Low | Normal/healthy — minimal stress |
+| 2–5% | Moderate | Elevated — watch for loan modifications and maturity extensions |
+| 5–10% | High | Significant distress — expect special servicing, discounted sales |
+| > 10% | Crisis | GFC-level stress (office/retail peaked ~10–12% in 2020) |
+
+**Distress statuses:**
+- **REO** (Real Estate Owned) — Lender has taken back the property; available at steep discount
+- **Maturity Default** — Borrower couldn't refinance at loan maturity; often the first step toward REO
+- **Special Servicing** — Loan transferred to a workout specialist; active negotiation underway
+- **Watchlist** — Flagged for potential stress; borrower still current but at risk
+
+**Opportunity:** Distressed assets often trade at 30–60% below peak value, creating entry points for repositioning or conversion plays.
+                """)
+
+            # ── National distress signals ──────────────────────────────────────
+            section(" National Distress Signals")
+            _dst_sig_cols = st.columns(min(len(_dst_sigs), 5))
+            for _dst_sc, (_dst_sk, _dst_sv) in zip(_dst_sig_cols, _dst_sigs.items()):
+                _dst_lbl   = _dst_sk.replace("_", " ").title()
+                _dst_val   = f"${_dst_sv['amount_bn']}B" if "amount_bn" in _dst_sv else f"{_dst_sv.get('rate_pct','—')}%"
+                _dst_trend = _dst_sv.get("trend", "stable")
+                _dst_ta_   = _dst_ta.get(_dst_trend, "")
+                _dst_tc_   = _dst_tc.get(_dst_trend, "#d4a843")
+                _dst_note  = _dst_sv.get("note", "")[:70]
+                _dst_sc.markdown(
+                    f"<div class='metric-card' style='border-top:2px solid {_dst_tc_};'>"
+                    f"<div class='label' style='font-size:0.72rem;'>{_dst_lbl}</div>"
+                    f"<div class='value' style='font-size:1.4rem;color:{_dst_tc_};'>{_dst_val}</div>"
+                    f"<div class='sub' style='color:{_dst_tc_};'>{_dst_ta_} {_dst_trend}</div>"
+                    f"<div style='color:#6a6a5a;font-size:0.71rem;margin-top:4px;'>{_dst_note}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+            # ── CMBS delinquency table & bar chart ────────────────────────────
+            section(" CMBS Delinquency Rates by Property Type")
+            _dst_col_table, _dst_col_chart = st.columns([1, 1])
+            with _dst_col_table:
+                _dst_dlq_rows = []
+                for _dst_pt, _dst_d in _dst_dlq.items():
+                    _dst_dlq_rows.append({
+                        "Property Type": _dst_pt,
+                        "Rate":          f"{_dst_d['rate_pct']}%",
+                        "Prior Year":    f"{_dst_d['prior_year']}%",
+                        "YoY":           f"{_dst_d['rate_pct'] - _dst_d['prior_year']:+.1f}pp",
+                        "Trend":         f"{_dst_ta.get(_dst_d['trend'],'')} {_dst_d['trend']}",
+                    })
+                if _dst_dlq_rows:
+                    st.markdown(_render_generic_table(
+                        pd.DataFrame(_dst_dlq_rows),
+                        title="CMBS Delinquency Rates by Property Type",
+                        count_label=f"{len(_dst_dlq_rows)} property types",
+                        hints={
+                            "Property Type": {"type": "name",    "flex": 1.2},
+                            "Rate":          {"type": "pct_bar", "flex": 1},
+                            "Prior Year":    {"type": "text",    "flex": 0.8},
+                            "YoY":           {"type": "colored", "flex": 0.8},
+                            "Trend":         {"type": "tag",     "flex": 1},
+                        },
+                    ), unsafe_allow_html=True)
+                for _dst_pt, _dst_d in _dst_dlq.items():
+                    _dst_t_c = _dst_tc.get(_dst_d["trend"], "#d4a843")
+                    _dst_t_a = _dst_ta.get(_dst_d["trend"], "")
+                    st.markdown(
+                        f"<div style='background:#171309;border-left:3px solid {_dst_t_c};"
+                        f"padding:6px 14px;border-radius:4px;margin-bottom:6px;font-size:0.8rem;'>"
+                        f"<b style='color:#e8dfc4;'>{_dst_pt}</b> "
+                        f"<span style='color:{_dst_t_c};'>{_dst_t_a} {_dst_d['rate_pct']}%</span>"
+                        f" &nbsp;·&nbsp; <span style='color:#a09880;'>{_dst_d['note']}</span></div>",
+                        unsafe_allow_html=True,
+                    )
+            with _dst_col_chart:
+                if _dst_dlq:
+                    _dst_bar_types  = list(_dst_dlq.keys())
+                    _dst_bar_rates  = [_dst_dlq[t]["rate_pct"] for t in _dst_bar_types]
+                    _dst_bar_colors = ["#ef5350" if r > 6 else ("#d4a843" if r > 3 else "#66bb6a") for r in _dst_bar_rates]
+                    fig_dlq = go.Figure(go.Bar(
+                        x=_dst_bar_types, y=_dst_bar_rates,
+                        marker_color=_dst_bar_colors,
+                        text=[f"{r}%" for r in _dst_bar_rates],
+                        textposition="outside",
+                        hovertemplate="<b>%{x}</b><br>Delinquency: %{y}%<extra></extra>",
+                    ))
+                    fig_dlq.update_layout(
+                        xaxis=dict(color="#8a7040"),
+                        yaxis=dict(title="Delinquency Rate (%)", gridcolor="#2a2208", color="#8a7040", range=[0, 12]),
+                        plot_bgcolor="#0d0b04", paper_bgcolor="#0d0b04",
+                        font=dict(family="Source Sans Pro", color="#c8b890"),
+                        margin=dict(t=20, b=40), height=340,
+                    )
+                    st.plotly_chart(fig_dlq, use_container_width=True)
+
+            # ── Distressed pipeline ───────────────────────────────────────────
+            section(" Known Distressed Asset Pipeline")
+            if _dst_pipe:
+                _dst_pipe_rows = []
+                for _dst_a in _dst_pipe:
+                    _dst_status = _dst_a.get("status", "")
+                    _dst_s_c    = _dst_status_c.get(_dst_status, "#a09880")
+                    _dst_pipe_rows.append({
+                        "Asset":       _dst_a["asset"],
+                        "Type":        _dst_a["type"],
+                        "Loan":        f"${_dst_a['loan_amount'] / 1_000_000:.0f}M",
+                        "Status":      _dst_status,
+                        "Market":      _dst_a["market"],
+                        "Opportunity": _dst_a["opportunity"],
+                    })
+                st.markdown(_render_generic_table(
+                    pd.DataFrame(_dst_pipe_rows),
+                    title="Known Distressed Asset Pipeline",
+                    count_label=f"{len(_dst_pipe_rows)} assets",
+                    scrollable=True, max_height=360,
+                    hints={
+                        "Asset":       {"type": "name",  "flex": 2},
+                        "Type":        {"type": "tag",   "flex": 0.8},
+                        "Loan":        {"type": "price", "flex": 0.8},
+                        "Status":      {"type": "badge", "flex": 1, "badge_map": {
+                            "Matured / Non-Performing": "background:#2a0d0d;color:#ef5350",
+                            "90+ Days Delinquent":      "background:#2a0d0d;color:#ef5350",
+                            "REO":                      "background:#2a0d2a;color:#ce93d8",
+                            "Watchlist":                "background:#2a1500;color:#ffa726",
+                            "Performing":               "background:#0d2a12;color:#4a9e58",
+                        }},
+                        "Market":      {"type": "text",  "flex": 1},
+                        "Opportunity": {"type": "text",  "flex": 2},
+                    },
+                ), unsafe_allow_html=True)
+
+            # ── FRED live credit indicators ───────────────────────────────────
+            if _dst_fred or _dst_bbb:
+                section(" FRED Live Credit Indicators")
+                _dst_fc1, _dst_fc2 = st.columns(2)
+                with _dst_fc1:
+                    if _dst_fred:
+                        fig_fd = go.Figure(go.Scatter(
+                            x=[o["date"] for o in _dst_fred],
+                            y=[o["value"] for o in _dst_fred],
+                            name="CRE Delinquency Rate",
+                            line=dict(color="#ef5350", width=2),
+                            fill="tozeroy", fillcolor="rgba(239,83,80,0.08)",
+                        ))
+                        fig_fd.update_layout(
+                            title="Bank CRE Loan Delinquency Rate (DRCRELEXBS)",
+                            plot_bgcolor="#0d0b04", paper_bgcolor="#0d0b04",
+                            font=dict(family="Source Sans Pro", color="#c8b890", size=11),
+                            xaxis=dict(gridcolor="#2a2208", color="#8a7040"),
+                            yaxis=dict(gridcolor="#2a2208", color="#8a7040", title="Rate %"),
+                            margin=dict(t=40, b=40), height=280,
+                        )
+                        st.plotly_chart(fig_fd, use_container_width=True)
+                with _dst_fc2:
+                    if _dst_bbb:
+                        fig_bbb = go.Figure(go.Scatter(
+                            x=[o["date"] for o in _dst_bbb],
+                            y=[o["value"] for o in _dst_bbb],
+                            name="BBB Corp Spread",
+                            line=dict(color=GOLD, width=2),
+                            fill="tozeroy", fillcolor="rgba(207,185,145,0.08)",
+                        ))
+                        fig_bbb.update_layout(
+                            title="BBB Corporate Spread — CMBS Proxy (BAMLC0A4CBBB)",
+                            plot_bgcolor="#0d0b04", paper_bgcolor="#0d0b04",
+                            font=dict(family="Source Sans Pro", color="#c8b890", size=11),
+                            xaxis=dict(gridcolor="#2a2208", color="#8a7040"),
+                            yaxis=dict(gridcolor="#2a2208", color="#8a7040", title="Spread (bps)"),
+                            margin=dict(t=40, b=40), height=280,
+                        )
+                        st.plotly_chart(fig_bbb, use_container_width=True)
+
+            st.caption(
+                "Source: Trepp, MSCI Real Capital Analytics Q1 2025, FRED (DRCRELEXBS, BAMLC0A4CBBB). "
+                "Not financial advice. Distressed assets listed are representative examples, not a complete universe."
+            )
+
+        with st.expander("How This Is Calculated"):
+            st.markdown("""
+**Credit Conditions Classification:**
+
+- **LOOSE:** IG spreads < 100bp, VIX < 15, bank lending easing — abundant capital, aggressive CRE lending
+- **NEUTRAL:** IG spreads 100-200bp, VIX 15-25 — normal market conditions
+- **TIGHT:** IG spreads > 200bp, VIX > 25, bank lending tightening — restricted capital, higher borrowing costs
+
+**Key Indicators:**
+- **Investment Grade (IG) Spread (BAMLC0A4CBBB):** BBB corporate bond yield minus Treasury — cost of corporate borrowing
+- **High Yield (HY) Spread (BAMLH0A0HYM2):** Junk bond spread — risk appetite measure
+- **VIX (VIXCLS):** CBOE Volatility Index — market uncertainty and risk aversion
+- **Moody's BAA-AAA Spread:** Credit quality premium — widening signals deteriorating credit conditions
+- **Fed Senior Loan Officer Survey:** Quarterly survey on bank lending standards for C&I and CRE loans
+
+**PnL Impact:**
+- A 100bp widening in IG spreads typically adds 75-100bp to CRE mortgage rates
+- On a $10M property with 65% LTV, a 100bp rate increase adds ~$65K/year to debt service
+- Tightening lending standards reduce available acquisition financing, cooling transaction volume and prices
+
+**Data Source:** FRED (corporate spreads, VIX, lending surveys), updated every 6 hours via Agent 12.
+""")
+
 with main_tab_re:
     tab1, tab2, tab3, tab4, tab5, tab_supply, tab_returns, tab_oz, tab_score, tab_climate = st.tabs([
         "Migration Intelligence",
@@ -8706,2800 +11503,3 @@ The Groq AI brief only uses MODERATE+ articles — press releases not confirmed 
             )
 
 
-with main_tab_energy:
-    tab_energy, tab_esg = st.tabs([
-        "Energy & Construction Costs",
-        "Sustainability",
-    ])
-
-
-    # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB — ENERGY & CONSTRUCTION COSTS
-    # ═══════════════════════════════════════════════════════════════════════════════
-    with tab_energy:
-        st.markdown("#### How are energy and material costs affecting CRE construction?")
-        st.markdown(
-            "Agent 6 tracks **oil, natural gas, copper, and steel** prices to derive a "
-            "**Construction Cost Signal** that indicates whether building costs are rising or easing. Updates every 6 hours."
-        )
-        agent_last_updated("energy")
-
-        cache_e = read_cache("energy_data")
-        if cache_e["data"] is None:
-            st.warning(" Energy agent is fetching data for the first time — please wait ~30 seconds and refresh.")
-            st.stop()
-        age_e = cache_age_label("energy_data")
-        st.caption(f" Last updated: {age_e} · Auto-refreshes in background")
-
-        edata = cache_e["data"]
-        commodities = edata.get("commodities", [])
-        cost_signal = edata.get("construction_cost_signal", "UNKNOWN")
-        avg_momentum = edata.get("avg_momentum_pct", 0)
-
-        # ── KPI strip ──────────────────────────────────────────────────────────
-        signal_color = {"HIGH": "HIGH", "MODERATE": "MOD", "LOW": "LOW"}.get(cost_signal, "?")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.markdown(metric_card("Construction Cost Signal", f"{signal_color} {cost_signal}",
-                                 "Based on commodity momentum"), unsafe_allow_html=True)
-        c2.markdown(metric_card("Avg Momentum", f"{avg_momentum:+.1f}%",
-                                 "vs 60-day SMA"), unsafe_allow_html=True)
-        c3.markdown(metric_card("Commodities Tracked", str(len(commodities)),
-                                 "Oil, Gas, Copper, Steel, Energy"), unsafe_allow_html=True)
-        c4.markdown(metric_card("Trading Days", str(edata.get("trading_days_analysed", 0)),
-                                 "6-month lookback"), unsafe_allow_html=True)
-
-        # ── Commodity Price Table ──────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Commodity Prices vs 60-Day Moving Average")
-
-        if commodities:
-            comm_df = pd.DataFrame(commodities)
-
-            # Bar chart — % above/below SMA
-            colors_comm = [GOLD if p >= 0 else "#c62828" for p in comm_df["pct_above_sma"]]
-            fig_comm = go.Figure(go.Bar(
-                x=comm_df["label"], y=comm_df["pct_above_sma"],
-                marker_color=colors_comm,
-                text=comm_df["pct_above_sma"].apply(lambda x: f"{x:+.1f}%"),
-                textposition="outside",
-                customdata=comm_df[["latest_price", "sma_60"]].values,
-                hovertemplate=(
-                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
-                    "SMA-60: $%{customdata[1]:.2f}<br>"
-                    "vs SMA: %{y:+.1f}%<extra></extra>"
-                ),
-            ))
-            fig_comm.update_layout(
-                plot_bgcolor="#1e1a0a", paper_bgcolor="#1a1208",
-                yaxis_title="% Above/Below SMA-60",
-                yaxis=dict(gridcolor="#2a2208", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                xaxis=dict(tickfont=dict(color="#c8b890")),
-                margin=dict(t=30, b=30), height=320,
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-            )
-            st.plotly_chart(fig_comm, use_container_width=True)
-            st.caption(
-                "Each bar shows the commodity's latest price versus its 60-day moving average. "
-                "Bars above the baseline indicate costs are elevated — signaling higher construction costs for developers. "
-                "Copper and steel are the most direct inputs for building; oil and natural gas drive operating expenses and transport."
-            )
-
-            # Detail table
-            section(" Commodity Detail")
-            disp_comm = comm_df[["label", "latest_price", "sma_60", "pct_above_sma"]].copy()
-            disp_comm.columns = ["Commodity", "Latest Price", "SMA-60", "% vs SMA"]
-            disp_comm["Latest Price"] = disp_comm["Latest Price"].apply(lambda x: f"${x:.2f}")
-            disp_comm["SMA-60"] = disp_comm["SMA-60"].apply(lambda x: f"${x:.2f}")
-            disp_comm["% vs SMA"] = disp_comm["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
-            st.markdown(_render_generic_table(
-                disp_comm,
-                title="Commodity Detail",
-                count_label=f"{len(disp_comm)} commodities",
-                hints={
-                    "Commodity":    {"type": "name",    "flex": 1.5},
-                    "Latest Price": {"type": "price",   "flex": 1},
-                    "SMA-60":       {"type": "price",   "flex": 1},
-                    "% vs SMA":     {"type": "colored", "flex": 1},
-                },
-            ), unsafe_allow_html=True)
-
-        st.caption(
-            "Data sourced from Yahoo Finance (USO, UNG, XLE, CPER, SLX). "
-            "Construction Cost Signal: HIGH (>+5%), MODERATE (±5%), LOW (<−5%) based on avg momentum vs 60-day SMA."
-        )
-
-        with st.expander("How This Is Calculated"):
-            st.markdown("""
-**Construction Cost Signal** = Average % deviation of key commodities from their 60-day Simple Moving Average (SMA).
-
-- **HIGH** = Average deviation > +10% above SMA (commodity prices surging — expect higher construction bids)
-- **MODERATE** = Average deviation within +/-10% of SMA (costs stable)
-- **LOW** = Average deviation > 10% below SMA (commodity prices falling — favorable for new development)
-
-**Commodities Tracked:**
-- **Crude Oil (USO):** Drives transportation and equipment fuel costs
-- **Natural Gas (UNG):** Heating/cooling during construction, operating cost baseline
-- **Copper (CPER):** Wiring, plumbing, HVAC — direct construction input
-- **Steel (SLX):** Structural framing, rebar — largest material cost component
-
-**PnL Impact:** A 20% rise in steel and copper prices can add 5-8% to total hard construction costs on a typical CRE project.
-
-**Data Source:** Yahoo Finance commodity ETFs, updated every 6 hours via Agent 7.
-""")
-
-
-    # ═══════════════════════════════════════════════════════════════════════════════
-    #  TAB — SUSTAINABILITY & ESG
-    # ═══════════════════════════════════════════════════════════════════════════════
-    with tab_esg:
-        st.markdown("#### Is green capital flowing into real estate?")
-        st.markdown(
-            "Agent 7 monitors **clean-energy ETFs** and **green REITs** to gauge ESG momentum "
-            "relative to the broad market (SPY). Updates every 6 hours."
-        )
-        agent_last_updated("sustainability")
-
-        cache_s = read_cache("sustainability_data")
-        if cache_s["data"] is None:
-            st.warning(" Sustainability agent is fetching data for the first time — please wait ~30 seconds and refresh.")
-            st.stop()
-        age_s = cache_age_label("sustainability_data")
-        st.caption(f" Last updated: {age_s} · Auto-refreshes in background")
-
-        sdata = cache_s["data"]
-        clean_energy = sdata.get("clean_energy", [])
-        green_reits = sdata.get("green_reits", [])
-        esg_signal = sdata.get("esg_momentum_signal", "UNKNOWN")
-        bench_ret = sdata.get("benchmark_return_pct") or 0
-        avg_clean_ret = sdata.get("avg_clean_energy_return_pct") or 0
-
-        # ── KPI strip ──────────────────────────────────────────────────────────
-        esg_icon = ""
-        c1, c2, c3, c4 = st.columns(4)
-        c1.markdown(metric_card("ESG Momentum Signal", f"{esg_icon} {esg_signal}",
-                                 "Clean energy vs SPY"), unsafe_allow_html=True)
-        c2.markdown(metric_card("Clean Energy Avg Return", f"{avg_clean_ret:+.1f}%",
-                                 "6-month trailing"), unsafe_allow_html=True)
-        c3.markdown(metric_card("SPY Benchmark Return", f"{bench_ret:+.1f}%",
-                                 "6-month trailing"), unsafe_allow_html=True)
-        spread = (avg_clean_ret or 0) - (bench_ret or 0)
-        c4.markdown(metric_card("Spread vs Market", f"{spread:+.1f} pp",
-                                 "Positive = outperforming"), unsafe_allow_html=True)
-
-        # ── Clean Energy ETFs ──────────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Clean Energy ETF Performance (ICLN, TAN, QCLN)")
-
-        if clean_energy:
-            ce_df = pd.DataFrame(clean_energy)
-            fig_ce = go.Figure()
-            colors_ce = [GOLD if r >= 0 else "#c62828" for r in ce_df["period_return_pct"]]
-            fig_ce.add_trace(go.Bar(
-                x=ce_df["label"], y=ce_df["period_return_pct"],
-                marker_color=colors_ce,
-                text=ce_df["period_return_pct"].apply(lambda x: f"{x:+.1f}%"),
-                textposition="outside",
-                name="6mo Return",
-                customdata=ce_df[["latest_price", "sma_60", "pct_above_sma"]].values,
-                hovertemplate=(
-                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
-                    "6mo Return: %{y:+.1f}%<br>"
-                    "vs SMA-60: %{customdata[2]:+.1f}%<extra></extra>"
-                ),
-            ))
-            # Add SPY benchmark line
-            fig_ce.add_hline(y=bench_ret, line_dash="dash", line_color=BLACK,
-                             annotation_text=f"SPY: {bench_ret:+.1f}%",
-                             annotation_position="top right")
-            fig_ce.update_layout(
-                plot_bgcolor="#1e1a0a", paper_bgcolor="#1a1208",
-                yaxis_title="6-Month Return (%)",
-                yaxis=dict(gridcolor="#2a2208", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                xaxis=dict(tickfont=dict(color="#c8b890")),
-                margin=dict(t=30, b=30), height=320,
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-            )
-            st.plotly_chart(fig_ce, use_container_width=True)
-            st.caption(
-                "Tracks ICLN (global clean energy), TAN (solar), and QCLN (clean tech) ETFs. "
-                "Sustained outperformance signals growing institutional capital flows into green energy — "
-                "a leading indicator of demand for solar-ready industrial space, EV charging infrastructure, and LEED-certified buildings."
-            )
-
-        # ── Green REITs ────────────────────────────────────────────────────────
-        section(" Green REIT Performance (PLD, EQIX, ARE)")
-
-        if green_reits:
-            gr_df = pd.DataFrame(green_reits)
-            colors_gr = [GOLD if r >= 0 else "#c62828" for r in gr_df["period_return_pct"]]
-            fig_gr = go.Figure(go.Bar(
-                x=gr_df["label"], y=gr_df["period_return_pct"],
-                marker_color=colors_gr,
-                text=gr_df["period_return_pct"].apply(lambda x: f"{x:+.1f}%"),
-                textposition="outside",
-                customdata=gr_df[["latest_price", "sma_60", "pct_above_sma"]].values,
-                hovertemplate=(
-                    "<b>%{x}</b><br>Price: $%{customdata[0]:.2f}<br>"
-                    "6mo Return: %{y:+.1f}%<br>"
-                    "vs SMA-60: %{customdata[2]:+.1f}%<extra></extra>"
-                ),
-            ))
-            fig_gr.add_hline(y=bench_ret, line_dash="dash", line_color=BLACK,
-                             annotation_text=f"SPY: {bench_ret:+.1f}%",
-                             annotation_position="top right")
-            fig_gr.update_layout(
-                plot_bgcolor="#1e1a0a", paper_bgcolor="#1a1208",
-                yaxis_title="6-Month Return (%)",
-                yaxis=dict(gridcolor="#2a2208", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                xaxis=dict(tickfont=dict(color="#c8b890")),
-                margin=dict(t=30, b=30), height=320,
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-            )
-            st.plotly_chart(fig_gr, use_container_width=True)
-            st.caption(
-                "Prologis (PLD) is the world's largest industrial REIT with a strong LEED portfolio. "
-                "Equinix (EQIX) powers its data centers with 90%+ renewable energy. "
-                "Alexandria (ARE) focuses on carbon-neutral life science campuses. "
-                "Outperformance vs. SPY indicates ESG-focused capital allocators are actively rotating into these names."
-            )
-
-        # ── Combined Detail Table ──────────────────────────────────────────────
-        section(" Full Detail — Clean Energy & Green REITs")
-        all_esg = clean_energy + green_reits
-        if all_esg:
-            esg_df = pd.DataFrame(all_esg)
-            disp_esg = esg_df[["label", "latest_price", "period_return_pct", "sma_60", "pct_above_sma"]].copy()
-            disp_esg.columns = ["Security", "Price", "6mo Return", "SMA-60", "% vs SMA"]
-            disp_esg["Price"] = disp_esg["Price"].apply(lambda x: f"${x:.2f}")
-            disp_esg["6mo Return"] = disp_esg["6mo Return"].apply(lambda x: f"{x:+.1f}%")
-            disp_esg["SMA-60"] = disp_esg["SMA-60"].apply(lambda x: f"${x:.2f}")
-            disp_esg["% vs SMA"] = disp_esg["% vs SMA"].apply(lambda x: f"{x:+.1f}%")
-            st.markdown(_render_generic_table(
-                disp_esg,
-                title="Full Detail — Clean Energy & Green REITs",
-                count_label=f"{len(disp_esg)} securities",
-                hints={
-                    "Security":  {"type": "name",    "flex": 1.5},
-                    "Price":     {"type": "price",   "flex": 0.8},
-                    "6mo Return":{"type": "pct_bar", "flex": 1.2},
-                    "SMA-60":    {"type": "price",   "flex": 0.8},
-                    "% vs SMA":  {"type": "colored", "flex": 0.8},
-                },
-            ), unsafe_allow_html=True)
-
-        st.caption(
-            "Data sourced from Yahoo Finance. ESG Momentum Signal: STRONG (clean energy outperforms SPY by >2pp), "
-            "NEUTRAL (±2pp), WEAK (underperforms by >2pp). Green REITs: Prologis (LEED), Equinix (renewables), Alexandria (carbon-neutral)."
-        )
-
-        with st.expander("How This Is Calculated"):
-            st.markdown("""
-**ESG Momentum Signal** = Relative performance of clean energy ETFs vs. S&P 500 (SPY) over 6 months.
-
-- **STRONG** = Clean energy basket outperforms SPY by > 2 percentage points
-- **NEUTRAL** = Performance within +/- 2 percentage points of SPY
-- **WEAK** = Clean energy basket underperforms SPY by > 2 percentage points
-
-**Clean Energy Basket:** ICLN (global clean energy), TAN (solar), QCLN (clean tech) — equal-weighted average return.
-
-**Green REITs:**
-- **Prologis (PLD):** World's largest industrial REIT, extensive LEED-certified portfolio
-- **Equinix (EQIX):** Data center REIT, 90%+ renewable energy usage
-- **Alexandria (ARE):** Life science REIT, carbon-neutral campus commitments
-
-**Why It Matters:** Sustained ESG outperformance signals institutional capital rotation into green assets — a leading indicator for demand in solar-ready industrial, EV infrastructure, and LEED-certified buildings.
-
-**Data Source:** Yahoo Finance, updated every 6 hours via Agent 8.
-""")
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  MAIN TAB — MACRO ENVIRONMENT
-# ═══════════════════════════════════════════════════════════════════════════════
-with main_tab_macro:
-    tab_rates, tab_labor, tab_gdp, tab_inflation, tab_credit, tab_distressed = st.tabs([
-        "Rate Environment",
-        "Labor Market & Tenant Demand",
-        "GDP & Economic Growth",
-        "Inflation",
-        "Credit & Capital Markets",
-        "CMBS & Distressed",
-    ])
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    #  TAB — RATE ENVIRONMENT
-    # ═══════════════════════════════════════════════════════════════════════════
-    with tab_rates:
-        _show_tab_header(
-            "rates",
-            "Agent 6 pulls **live rate data from FRED**, classifies the rate environment, "
-            "computes dynamic cap rate adjustments by property type, and scores REIT refinancing risk. "
-            "Updates every hour. Requires `FRED_API_KEY` in `.env`.",
-            "rates",
-        )
-
-        cache_r = read_cache("rates")
-        rdata   = cache_r.get("data") or {}
-
-        if not rdata or rdata.get("error"):
-            err = rdata.get("error") if rdata else None
-            if err:
-                st.warning(f" {err}")
-            else:
-                st.info("Rate data is fetched every hour. Check that `FRED_API_KEY` is set in `.env`.")
-            st.stop()
-
-        rates       = rdata.get("rates", {})
-        env         = rdata.get("environment", {})
-        cap_adj     = rdata.get("cap_rate_adjustments", [])
-        debt_risk   = rdata.get("reit_debt_risk", [])
-        yc          = rdata.get("yield_curve", {})
-        current_10y = rdata.get("current_10y") or 0.0
-        baseline    = rdata.get("baseline_10y") or 4.0
-        cached_at   = rdata.get("cached_at", "")
-
-        # ── Signal Banner ───────────────────────────────────────────────────────
-        signal    = env.get("signal", "CAUTIOUS")
-        _re_score = env.get("score", 50)
-        _re_sum   = env.get("summary", "")
-        _re_conf  = env.get("confidence", "High")
-        st.markdown(gauge_card(
-            title       = "RATE ENVIRONMENT",
-            label       = signal,
-            score       = _re_score,
-            summary     = _re_sum,
-            agent_num   = "A6  Agent 6",
-            age_label   = cache_age_label("rates"),
-            confidence  = _re_conf,
-            low_good    = True,
-            scale_labels= ("BEARISH", "25", "CAUTIOUS", "75", "BULLISH"),
-        ), unsafe_allow_html=True)
-        with st.expander("How to read this indicator"):
-            st.markdown("""
-**What it measures:** The overall interest rate climate for CRE borrowing and valuation — combining the 10-year Treasury yield, Fed Funds rate, yield curve shape, and mortgage spreads.
-
-| Signal | Score | What it means for CRE |
-|--------|-------|----------------------|
-| **BULLISH** | 75–100 | Low/falling rates → lower cap rate requirements, rising valuations, cheap debt. Best time to acquire or refinance. |
-| **CAUTIOUS** | 25–74 | Rates are elevated or uncertain. Underwrite conservatively; favor shorter loan terms. |
-| **BEARISH** | 0–24 | High rates compress valuations, choke deal flow, and increase refinancing risk. Defensive positioning recommended. |
-
-**Key inputs:** 10Y Treasury (DGS10), Fed Funds Rate, 2Y Treasury, yield curve spread, IG corporate spread — all pulled live from FRED.
-            """)
-
-        # ── Key Rate Cards ──────────────────────────────────────────────────────
-        section(" Current Rates")
-        display_rates = [
-            "10Y Treasury", "2Y Treasury", "Fed Funds Rate",
-            "SOFR", "30Y Mortgage", "Prime Rate", "IG Corp Spread",
-        ]
-        card_cols = st.columns(len(display_rates))
-        for col, name in zip(card_cols, display_rates):
-            r = rates.get(name)
-            if not r:
-                col.markdown(metric_card(name, "N/A", "No data"), unsafe_allow_html=True)
-                continue
-            curr  = r["current"]
-            d1w   = r.get("delta_1w")
-            unit  = r["unit"]
-            val_s = f"{curr:.2f}{unit}" if unit == "%" else f"{curr:.0f}{unit}"
-            delta_s = ""
-            if d1w is not None:
-                arrow = "▲" if d1w > 0 else ("▼" if d1w < 0 else "→")
-                color = "#b71c1c" if d1w > 0 else ("#1b5e20" if d1w < 0 else "#555")
-                delta_s = f"<span style='color:{color};font-size:0.78rem;'>{arrow} {abs(d1w):.2f}{unit} 1W</span>"
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{name}</div>
-              <div class="value">{val_s}</div>
-              <div class="sub">{delta_s}</div>
-            </div>""", unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Yield Curve + Rate Comparison Table ─────────────────────────────────
-        col_yc, col_tbl = st.columns([3, 2])
-        with col_yc:
-            section(" Yield Curve (Current Shape)")
-            if yc:
-                tenor_order = ["3M", "2Y", "5Y", "10Y", "30Y"]
-                tenors  = [t for t in tenor_order if t in yc]
-                values  = [yc[t] for t in tenors]
-                inverted = yc.get("2Y", 0) > yc.get("10Y", 0)
-                line_clr = "#b71c1c" if inverted else "#1b5e20"
-                fig_yc = go.Figure()
-                fig_yc.add_trace(go.Scatter(
-                    x=tenors, y=values,
-                    mode="lines+markers+text",
-                    line=dict(color=line_clr, width=3),
-                    marker=dict(size=10, color=line_clr),
-                    text=[f"{v:.2f}%" for v in values],
-                    textposition="top center",
-                    textfont=dict(size=11, color="#c8b890"),
-                    hovertemplate="%{x}: %{y:.3f}%<extra></extra>",
-                ))
-                fig_yc.add_hline(y=values[0] if values else 0, line_dash="dot",
-                                  line_color="#aaa", line_width=1)
-                fig_yc.update_layout(
-                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                    yaxis=dict(title="Yield (%)", ticksuffix="%",
-                               gridcolor="#2a2208", tickfont=dict(color="#c8b890"),
-                               title_font=dict(color="#c8b890")),
-                    xaxis=dict(tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                    margin=dict(t=30, b=30, l=60, r=20), height=300,
-                    font=dict(family="Source Sans Pro", color="#c8b890"),
-                    annotations=[dict(
-                        text=" INVERTED" if inverted else "Normal slope",
-                        x=0.5, y=1.08, xref="paper", yref="paper",
-                        showarrow=False, font=dict(size=12,
-                        color="#b71c1c" if inverted else "#1b5e20", family="Source Sans Pro"),
-                    )],
-                )
-                st.plotly_chart(fig_yc, use_container_width=True)
-                st.caption(
-                    "A normal (upward-sloping) yield curve signals healthy economic expectations. "
-                    "An inverted curve — where short-term rates exceed long-term — historically precedes recessions "
-                    "and tightens CRE lending conditions as banks compress their net interest margins."
-                )
-            else:
-                st.info("Yield curve data unavailable.")
-
-        with col_tbl:
-            section(" Rate Change Summary")
-            tbl_rows = []
-            for name in display_rates:
-                r = rates.get(name)
-                if not r:
-                    continue
-                unit = r["unit"]
-                def _fmt_rate(v):
-                    if v is None: return "—"
-                    return f"{v:+.2f}{unit}" if unit == "%" else f"{v:+.0f}{unit}"
-                tbl_rows.append({
-                    "Rate":   name,
-                    "Now":    f"{r['current']:.2f}{unit}" if unit == "%" else f"{r['current']:.0f}{unit}",
-                    "1W Δ":   _fmt_rate(r.get("delta_1w")),
-                    "1M Δ":   _fmt_rate(r.get("delta_1m")),
-                    "1Y Δ":   _fmt_rate(r.get("delta_1y")),
-                })
-            if tbl_rows:
-                tbl_df = pd.DataFrame(tbl_rows)
-                st.markdown(_render_generic_table(
-                    tbl_df,
-                    title="Interest Rate Monitor",
-                    count_label=f"{len(tbl_df)} rates tracked",
-                    hints={
-                        "Rate": {"type": "name",    "flex": 2},
-                        "Now":  {"type": "price",   "flex": 0.8},
-                        "1W Δ": {"type": "colored", "flex": 0.8},
-                        "1M Δ": {"type": "colored", "flex": 0.8},
-                        "1Y Δ": {"type": "colored", "flex": 0.8},
-                    },
-                ), unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Rate Trends (12 months) ──────────────────────────────────────────────
-        section(" Rate Trends — Past 12 Months")
-        trend_series = ["10Y Treasury", "2Y Treasury", "Fed Funds Rate", "SOFR"]
-        trend_colors = ["#1565c0", "#e65100", "#1b5e20", "#6a1b9a"]
-        fig_tr = go.Figure()
-        for sname, clr in zip(trend_series, trend_colors):
-            r = rates.get(sname)
-            if not r or not r.get("series"):
-                continue
-            series_pts = r["series"]
-            cutoff = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
-            pts = [o for o in series_pts if o["date"] >= cutoff]
-            if not pts:
-                continue
-            dates  = [o["date"] for o in pts]
-            values = [o["value"] for o in pts]
-            fig_tr.add_trace(go.Scatter(
-                x=dates, y=values, name=sname,
-                mode="lines", line=dict(color=clr, width=2),
-                hovertemplate=f"{sname}: %{{y:.3f}}%<br>%{{x}}<extra></extra>",
-            ))
-        t10_s = rates.get("10Y Treasury", {}).get("series", [])
-        t2_s  = rates.get("2Y Treasury",  {}).get("series", [])
-        if t10_s and t2_s:
-            t10_d = {o["date"]: o["value"] for o in t10_s}
-            t2_d  = {o["date"]: o["value"] for o in t2_s}
-            cutoff = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
-            inv_dates = sorted(d for d in t10_d if d >= cutoff and d in t2_d and t2_d[d] > t10_d[d])
-            if inv_dates:
-                fig_tr.add_vrect(
-                    x0=inv_dates[0], x1=inv_dates[-1],
-                    fillcolor="rgba(183,28,28,0.07)", line_width=0,
-                    annotation_text="Inverted", annotation_position="top left",
-                    annotation_font=dict(color="#b71c1c", size=10),
-                )
-        fig_tr.update_layout(
-            paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-            yaxis=dict(title="Rate (%)", ticksuffix="%", gridcolor="#2a2208",
-                       tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-            xaxis=dict(tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-            legend=dict(orientation="h", y=1.08, font=dict(color="#c8b890", size=11)),
-            margin=dict(t=40, b=40), height=380,
-            font=dict(family="Source Sans Pro", color="#c8b890"),
-        )
-        st.plotly_chart(fig_tr, use_container_width=True)
-        st.caption(
-            "Tracks the 10-year Treasury, 2-year Treasury, and Fed Funds rate over the past 12 months. "
-            "The spread between the 10Y and 2Y (the yield curve slope) is a key leading indicator — "
-            "a narrowing or inverted spread signals reduced appetite for long-duration CRE debt."
-        )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Cap Rate Adjustment Impact ───────────────────────────────────────────
-        section(f" Cap Rate Adjustment — Current 10Y ({current_10y:.2f}%) vs. {baseline:.1f}% Baseline")
-        if cap_adj:
-            adj_df = pd.DataFrame(cap_adj)
-            col_bars, col_impact = st.columns([3, 2])
-            with col_bars:
-                pt_labels = [p.split("/")[0].strip() for p in adj_df["Property Type"]]
-                base_caps = adj_df["Baseline Cap Rate"].tolist()
-                adj_caps  = adj_df["Adjusted Cap Rate"].tolist()
-                adj_bps   = adj_df["Rate Adjustment bps"].tolist()
-                bar_colors = ["#b71c1c" if v > 0 else "#1b5e20" for v in adj_bps]
-
-                fig_cap = go.Figure()
-                fig_cap.add_trace(go.Bar(
-                    name="Baseline Cap Rate",
-                    x=pt_labels, y=base_caps,
-                    marker_color="#d4a843",
-                    text=[f"{v:.2f}%" for v in base_caps],
-                    textposition="inside", textfont=dict(color="#c8b890", size=10),
-                ))
-                fig_cap.add_trace(go.Bar(
-                    name="Rate-Adjusted Cap Rate",
-                    x=pt_labels, y=adj_caps,
-                    marker_color=bar_colors,
-                    opacity=0.85,
-                    text=[f"{v:.2f}%\n({'+' if d>0 else ''}{d:.0f}bps)" for v, d in zip(adj_caps, adj_bps)],
-                    textposition="outside", textfont=dict(color="#c8b890", size=9),
-                ))
-                fig_cap.update_layout(
-                    barmode="group",
-                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                    yaxis=dict(title="Cap Rate (%)", ticksuffix="%", gridcolor="#2a2208",
-                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                    xaxis=dict(tickangle=-20, tickfont=dict(color="#c8b890", size=9)),
-                    legend=dict(orientation="h", y=1.1, font=dict(color="#c8b890")),
-                    margin=dict(t=40, b=60), height=360,
-                    font=dict(family="Source Sans Pro", color="#c8b890"),
-                )
-                st.plotly_chart(fig_cap, use_container_width=True)
-                st.caption(
-                    f"Adjustment = (10Y Treasury − {baseline:.1f}% baseline) × property-type interest rate beta. "
-                    "Red bars mean cap rates have expanded from the baseline — asset values have declined for the same NOI. "
-                    "Green bars mean cap rate compression — favorable for existing owners but tougher for new buyers on yield."
-                )
-
-            with col_impact:
-                st.markdown("**Profit Margin Impact by Property Type**")
-                disp_adj = adj_df[["Property Type", "Baseline Cap Rate", "Adjusted Cap Rate",
-                                    "Rate Adjustment bps", "Static Margin %", "Adj Margin %", "Margin Delta bps"]].copy()
-                disp_adj["Property Type"] = disp_adj["Property Type"].str.split("/").str[0].str.strip()
-
-                def _colour_delta(val):
-                    try:
-                        v = float(val)
-                        if v < 0: return "color: #b71c1c"
-                        if v > 0: return "color: #1b5e20"
-                    except: pass
-                    return ""
-
-                # Highlight user's focus property type row
-                _user_pt_rate = st.session_state.user_intent.get("property_type")
-                def _highlight_focus_row(row):
-                    if _user_pt_rate and _intent_matches_property_type(_user_pt_rate, row["Property Type"]):
-                        return ["background-color: #f5f0e6; font-weight: 700"] * len(row)
-                    return [""] * len(row)
-
-                st.markdown(_render_generic_table(
-                    disp_adj,
-                    title="Profit Margin Impact by Property Type",
-                    count_label=f"{len(disp_adj)} property types",
-                    hints={
-                        "Property Type":      {"type": "name",    "flex": 1.5},
-                        "Baseline Cap Rate":  {"type": "text",    "flex": 1},
-                        "Adjusted Cap Rate":  {"type": "text",    "flex": 1},
-                        "Rate Adjustment bps":{"type": "colored", "flex": 1},
-                        "Static Margin %":    {"type": "text",    "flex": 1},
-                        "Adj Margin %":       {"type": "text",    "flex": 1},
-                        "Margin Delta bps":   {"type": "colored", "flex": 1},
-                    },
-                ), unsafe_allow_html=True)
-                delta_10y = (current_10y or 0) - baseline
-                direction = "above" if delta_10y > 0 else "below"
-                st.caption(
-                    f"10Y is {abs(delta_10y):.2f}% {direction} the {baseline:.1f}% baseline. "
-                    "Higher cap rates → lower property multiples → compressed effective margins."
-                )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── REIT Refinancing Risk ────────────────────────────────────────────────
-        section(" REIT Near-Term Refinancing Risk")
-        if debt_risk:
-            debt_df = pd.DataFrame(debt_risk)
-            risk_colors = {"High": "#b71c1c", "Medium": "#e65100", "Low": "#1b5e20"}
-
-            col_chart, col_tbl2 = st.columns([2, 3])
-            with col_chart:
-                sorted_df = debt_df.sort_values("Risk %", ascending=True).tail(20)
-                bar_clrs  = [risk_colors.get(r, "#888") for r in sorted_df["Risk Level"]]
-                fig_debt  = go.Figure(go.Bar(
-                    x=sorted_df["Risk %"],
-                    y=sorted_df["Ticker"],
-                    orientation="h",
-                    marker_color=bar_clrs,
-                    text=sorted_df["Risk %"].apply(lambda v: f"{v:.1f}%"),
-                    textposition="outside",
-                    customdata=sorted_df[["Name", "Near-Term Debt $B", "Total Debt $B"]].values,
-                    hovertemplate=(
-                        "<b>%{y} — %{customdata[0]}</b><br>"
-                        "Near-term: $%{customdata[1]:.2f}B<br>"
-                        "Total debt: $%{customdata[2]:.2f}B<br>"
-                        "Risk: %{x:.1f}%<extra></extra>"
-                    ),
-                ))
-                fig_debt.update_layout(
-                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                    xaxis=dict(title="Near-Term Debt / Total Debt (%)", ticksuffix="%",
-                               gridcolor="#2a2208", tickfont=dict(color="#c8b890"),
-                               title_font=dict(color="#c8b890")),
-                    yaxis=dict(tickfont=dict(color="#c8b890", size=9)),
-                    margin=dict(t=20, b=40, l=60, r=60), height=460,
-                    font=dict(family="Source Sans Pro", color="#c8b890"),
-                )
-                fig_debt.add_vline(x=25, line_dash="dash", line_color="#b71c1c",
-                                    annotation_text="High risk threshold",
-                                    annotation_font=dict(color="#b71c1c", size=9))
-                fig_debt.add_vline(x=10, line_dash="dot", line_color="#e65100",
-                                    annotation_text="Med threshold",
-                                    annotation_font=dict(color="#e65100", size=9))
-                st.plotly_chart(fig_debt, use_container_width=True)
-                st.caption(
-                    "Estimates the share of each REIT's debt maturing within 12 months relative to its market cap. "
-                    "REITs above the medium threshold face refinancing pressure — in a high-rate environment, "
-                    "rolling debt at elevated rates compresses FFO and can force asset sales or equity dilution."
-                )
-
-            with col_tbl2:
-                st.markdown(_render_generic_table(
-                    debt_df,
-                    title="REIT Refinancing Risk",
-                    count_label=f"{len(debt_df)} REITs",
-                    scrollable=True, max_height=440,
-                    hints={
-                        "Ticker":           {"type": "name",    "flex": 0.7},
-                        "Name":             {"type": "text",    "flex": 2},
-                        "Risk %":           {"type": "pct_bar", "flex": 1},
-                        "Near-Term Debt $B":{"type": "price",   "flex": 1},
-                        "Total Debt $B":    {"type": "price",   "flex": 1},
-                        "Risk Level":       {"type": "badge",   "flex": 0.8, "badge_map": {
-                            "High":   "background:#2a0d0d;color:#ef5350",
-                            "Medium": "background:#2a1500;color:#ffa726",
-                            "Low":    "background:#0d2a12;color:#4a9e58",
-                        }},
-                    },
-                ), unsafe_allow_html=True)
-
-            high_risk = debt_df[debt_df["Risk Level"] == "High"]
-            if not high_risk.empty:
-                names = ", ".join(high_risk["Ticker"].tolist())
-                st.warning(
-                    f" **High refinancing risk:** {names} — these REITs have ≥25% of debt maturing "
-                    f"within 12 months. Elevated 10Y rates ({current_10y:.2f}%) increase rollover costs."
-                )
-            else:
-                st.success(" No REITs with high near-term refinancing risk detected.")
-
-            st.caption(
-                "Near-term debt = current portion of long-term debt from latest quarterly balance sheet (yfinance). "
-                "Risk % = near-term / total debt. High ≥ 25%, Medium 10–25%, Low < 10%."
-            )
-        else:
-            st.info("REIT debt data not yet available. The agent will populate this on its next run.")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        if cap_adj and current_10y:
-            delta = current_10y - baseline
-            direction_word = "above" if delta > 0 else "below"
-            impact_word    = "expanding cap rates" if delta > 0 else "compressing cap rates"
-            st.info(
-                f" **Impact on Pricing & Profit tab:** With 10Y at **{current_10y:.2f}%** "
-                f"({abs(delta):.2f}% {direction_word} the {baseline:.1f}% static benchmark), "
-                f"rates are currently **{impact_word}** across all property types. "
-                f"The adjustments above are applied in the rate-adjusted view on the Pricing & Profit tab."
-            )
-
-        st.caption(
-            "Data: Federal Reserve Bank of St. Louis (FRED). "
-            "Cap rate adjustment model: adjusted = benchmark + (10Y − baseline) × sector beta. "
-            "This is research, not financial advice."
-        )
-
-        with st.expander("How This Is Calculated"):
-            st.markdown("""
-**Cap Rate Adjustment Model:**
-
-Cap Rate (adjusted) = Benchmark Cap Rate + (Current 10Y Treasury - 3.5% historical average) x Sector Beta
-
-- **Sector Beta** reflects each property type's sensitivity to rate changes: Office (1.0x) and Retail (0.9x) are most sensitive; Industrial (0.6x) and Multifamily (0.7x) are more resilient.
-- A **100bp rate increase** typically expands cap rates **50-75bp** across most property types.
-- **PnL Impact:** On a $10M property, a 50bp cap rate expansion = ~$800K loss in implied asset value.
-
-**Yield Curve Shape:**
-- **Normal (10Y > 2Y):** Healthy economy, favorable for long-term CRE financing
-- **Inverted (2Y > 10Y):** Recession signal, short-term borrowing costs exceed long-term — stress on floating-rate CRE debt
-- **Flat:** Transition period, uncertainty in rate direction
-
-**REIT Refinancing Risk:** Scored 0-100 based on debt maturity profile, floating-rate debt exposure, and current spread vs. origination spread.
-
-**Data Source:** Federal Reserve Bank of St. Louis (FRED) — 40+ series including DFF, DGS2, DGS10, DGS30, T10Y2Y, T10Y3M. Updated every hour via Agent 6.
-""")
-
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    #  TAB — LABOR MARKET & TENANT DEMAND
-    # ═══════════════════════════════════════════════════════════════════════════
-    with tab_labor:
-        st.markdown("#### Where is job growth strongest — and which property types benefit?")
-        st.markdown(
-            "Agent 9 pulls **BLS payroll data**, **FRED labor series** (unemployment, job openings, quits), "
-            "and **sector ETF momentum** to map employment trends to CRE tenant demand by property type. "
-            "Updates every 6 hours."
-        )
-        agent_last_updated("labor_market")
-
-        cache_lm = read_cache("labor_market")
-        ldata    = cache_lm.get("data") or {}
-
-        if not ldata:
-            st.info(" Labor market agent is fetching data for the first time — please wait ~30 seconds and refresh.")
-            st.stop()
-
-        fred_labor   = ldata.get("fred_labor", {})
-        bls_sectors  = ldata.get("bls_sectors", [])
-        sector_etfs  = ldata.get("sector_etfs", [])
-        metro_unemp  = ldata.get("metro_unemployment", [])
-        demand_sig   = ldata.get("demand_signal", {})
-
-        # ── Demand Signal Banner ────────────────────────────────────────────────
-        sig_label = demand_sig.get("label", "UNKNOWN")
-        sig_score = demand_sig.get("score", 50)
-        _td_sum   = "Synthesized from nonfarm payrolls, job openings, unemployment trend, and sector ETF momentum. STRONG >= 65 · MODERATE 41-64 · SOFT <= 40"
-        st.markdown(gauge_card(
-            title       = "TENANT DEMAND",
-            label       = sig_label,
-            score       = sig_score,
-            summary     = _td_sum,
-            agent_num   = "A9  Agent 9",
-            age_label   = cache_age_label("labor_market"),
-            scale_labels= ("SOFT", "25", "MODERATE", "75", "STRONG"),
-        ), unsafe_allow_html=True)
-        with st.expander("How to read this indicator"):
-            st.markdown("""
-**What it measures:** The strength of employment-driven demand for commercial space — the primary driver of office, industrial, and retail lease-up.
-
-| Signal | Score | What it means for CRE |
-|--------|-------|----------------------|
-| **STRONG** | 65–100 | Low unemployment, rising payrolls, high job openings → businesses expanding → tenants leasing more space. Landlords hold pricing power. |
-| **MODERATE** | 41–64 | Mixed signals. Demand is present but softening. Selective acquisitions in supply-constrained markets remain viable. |
-| **SOFT** | 0–40 | Rising unemployment or falling payrolls → tenants downsizing, sublease supply rising, lease concessions increasing. |
-
-**Key inputs:** Nonfarm Payrolls, Unemployment Rate (U-3), JOLTS Job Openings, Quits Rate, Labor Force Participation, Avg Hourly Earnings — all from FRED.
-            """)
-
-        # ── KPI Strip — National Labor ──────────────────────────────────────────
-        section(" National Labor Market Snapshot")
-        _KPI_TIP = {
-            "Unemployment Rate":        "Share of the labor force actively looking for work. Below 4% = tight market → strong CRE demand. Above 6% = slack → weaker tenant absorption.",
-            "Nonfarm Payrolls":         "Total US jobs excluding farm workers. Monthly gains >150K = strong economy. Rising payrolls directly drive office, industrial and retail leasing.",
-            "Job Openings (JOLTS)":     "Job Openings and Labor Turnover Survey — number of unfilled positions. High openings (>8M) = companies expanding → more space needed.",
-            "Quits Rate":               "Percentage of workers voluntarily leaving jobs. High quits = confident workers, tight labor market, wage pressure. Good for multifamily (wage growth → rent growth).",
-            "Labor Force Participation":"Share of working-age population employed or seeking work. Rising = more potential tenants and consumers. Declining = structural demand headwinds.",
-            "Avg Hourly Earnings":      "Average pay per hour in the private sector. Rising wages → stronger household balance sheets → supports multifamily rent growth and retail spending.",
-        }
-        kpi_keys = [
-            ("Unemployment Rate",         "%",  "Civilian U-3"),
-            ("Nonfarm Payrolls",           "K",  "Total employed"),
-            ("Job Openings (JOLTS)",       "K",  "Open positions"),
-            ("Quits Rate",                 "%",  "Voluntary separations"),
-            ("Labor Force Participation",  "%",  "Ages 16+"),
-            ("Avg Hourly Earnings",        "$",  "Private sector"),
-        ]
-        kpi_cols = st.columns(len(kpi_keys))
-        for col, (key, unit, sub) in zip(kpi_cols, kpi_keys):
-            r = fred_labor.get(key, {})
-            cur = r.get("current")
-            d1m = r.get("delta_1m")
-            if cur is None:
-                col.markdown(metric_card(key, "N/A", sub), unsafe_allow_html=True)
-                continue
-            if unit == "K":
-                val_s = f"{cur/1000:.1f}M" if cur >= 1000 else f"{cur:.0f}K"
-            elif unit == "$":
-                val_s = f"${cur:.2f}"
-            else:
-                val_s = f"{cur:.1f}%"
-            delta_html = ""
-            if d1m is not None:
-                arrow = "▲" if d1m > 0 else ("▼" if d1m < 0 else "→")
-                # For unemployment, down is good; for everything else, up is good
-                good_up = key != "Unemployment Rate"
-                good    = (d1m > 0) == good_up
-                clr     = "#1b5e20" if good else "#b71c1c"
-                if unit == "K":
-                    d_s = f"{d1m/1000:+.1f}M" if abs(d1m) >= 1000 else f"{d1m:+.0f}K"
-                elif unit == "$":
-                    d_s = f"{d1m:+.2f}"
-                else:
-                    d_s = f"{d1m:+.2f}%"
-                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {d_s} 1M</span>"
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{_tt(key, _KPI_TIP.get(key, key))}</div>
-              <div class="value">{val_s}</div>
-              <div class="sub">{delta_html or sub}</div>
-            </div>""", unsafe_allow_html=True)
-
-        # ── Job Postings Index (leading indicator) ──────────────────────────────
-        _jpi = demand_sig.get("job_postings_index")
-        if _jpi is not None:
-            _jpi_color = ("#4caf50" if _jpi >= 65 else ("#ef5350" if _jpi <= 40 else "#d4a843"))
-            _jpi_label = "STRONG" if _jpi >= 65 else ("SOFT" if _jpi <= 40 else "MODERATE")
-            _jpi_tip = ("Composite leading indicator derived from employer hiring signals. "
-                        "Leads official BLS payroll data by approximately 4–6 weeks. "
-                        "Score 0–100: ≥65 = Strong hiring intent · 41–64 = Moderate · ≤40 = Soft.")
-            st.markdown(
-                f'<div class="metric-card" style="max-width:280px;border-left:3px solid {_jpi_color};">'
-                f'<div class="label">{_tt("Job Postings Index", _jpi_tip)}</div>'
-                f'<div class="value" style="color:{_jpi_color};">{_jpi:.0f}</div>'
-                f'<div class="sub" style="color:{_jpi_color};">{_jpi_label} · Leads payroll ~4–6 weeks</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── BLS Sector Payrolls ─────────────────────────────────────────────────
-        section(" Employment by Sector — CRE Demand Drivers")
-        if bls_sectors:
-            sec_df = pd.DataFrame(bls_sectors)
-            # Filter out "Total Private" for the chart (keep it in table)
-            chart_df = sec_df[sec_df["label"] != "Total Private"].copy()
-            bar_clrs = [GOLD if v > 0 else "#c62828" for v in chart_df["mom_pct"]]
-
-            fig_sec = go.Figure(go.Bar(
-                x=chart_df["mom_pct"],
-                y=chart_df["label"],
-                orientation="h",
-                marker_color=bar_clrs,
-                text=chart_df["mom_pct"].apply(lambda v: f"{v:+.2f}%"),
-                textposition="outside",
-                customdata=chart_df[["employment_k", "property_type", "period"]].values,
-                hovertemplate=(
-                    "<b>%{y}</b><br>"
-                    "Employment: %{customdata[0]:,.0f}K<br>"
-                    "MoM Change: %{x:+.2f}%<br>"
-                    "CRE Type: %{customdata[1]}<br>"
-                    "Period: %{customdata[2]}<extra></extra>"
-                ),
-            ))
-            fig_sec.add_vline(x=0, line_color="#333", line_width=1)
-            fig_sec.update_layout(
-                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                xaxis=dict(title="Month-over-Month Change (%)", ticksuffix="%",
-                           gridcolor="#2a2208", tickfont=dict(color="#c8b890"),
-                           title_font=dict(color="#c8b890")),
-                yaxis=dict(tickfont=dict(color="#c8b890", size=10)),
-                margin=dict(t=20, b=40, l=220, r=80), height=400,
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-            )
-            st.plotly_chart(fig_sec, use_container_width=True)
-
-            # Detail table
-            disp_sec = sec_df[["label", "employment_k", "mom_pct", "property_type", "period"]].copy()
-            disp_sec.columns = ["Sector", "Employment (K)", "MoM %", "CRE Demand Driver", "Period"]
-            disp_sec["Employment (K)"] = disp_sec["Employment (K)"].apply(lambda x: f"{x:,.0f}K")
-            disp_sec["MoM %"] = disp_sec["MoM %"].apply(lambda x: f"{x:+.2f}%")
-            st.markdown(_render_generic_table(
-                disp_sec,
-                title="Employment by Sector",
-                count_label=f"{len(disp_sec)} sectors",
-                hints={
-                    "Sector":             {"type": "name",    "flex": 2},
-                    "Employment (K)":     {"type": "price",   "flex": 1},
-                    "MoM %":              {"type": "pct_bar", "flex": 1.2},
-                    "CRE Demand Driver":  {"type": "tag",     "flex": 1.5},
-                    "Period":             {"type": "text",    "flex": 0.8},
-                },
-            ), unsafe_allow_html=True)
-            st.caption(
-                "BLS Supersector payrolls (monthly). Positive MoM = expanding employment = rising tenant demand. "
-                "Professional & Business Services and Financial Activities drive Office demand; "
-                "Manufacturing and Trade/Transport drive Industrial demand."
-            )
-        else:
-            st.info("BLS sector data not yet available.")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Sector ETF Tenant Demand Signals ────────────────────────────────────
-        section(" Sector ETF Momentum → Tenant Demand by Property Type")
-        if sector_etfs:
-            etf_df = pd.DataFrame(sector_etfs)
-            sig_colors = {"EXPANDING": "#1b5e20", "FLAT": "#e65100", "CONTRACTING": "#b71c1c"}
-            bar_clrs_etf = [sig_colors.get(s, "#888") for s in etf_df["signal"]]
-
-            fig_etf = go.Figure(go.Bar(
-                x=etf_df["label"],
-                y=etf_df["return_6mo"],
-                marker_color=bar_clrs_etf,
-                text=etf_df["return_6mo"].apply(lambda v: f"{v:+.1f}%"),
-                textposition="outside",
-                customdata=etf_df[["property_type", "latest_price", "pct_vs_sma", "signal"]].values,
-                hovertemplate=(
-                    "<b>%{x}</b><br>"
-                    "6mo Return: %{y:+.1f}%<br>"
-                    "Price: $%{customdata[1]:.2f}<br>"
-                    "vs SMA-60: %{customdata[2]:+.1f}%<br>"
-                    "Signal: %{customdata[3]}<br>"
-                    "CRE Type: %{customdata[0]}<extra></extra>"
-                ),
-            ))
-            fig_etf.add_hline(y=0, line_color="#333", line_width=1)
-            fig_etf.update_layout(
-                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                yaxis=dict(title="6-Month Return (%)", ticksuffix="%",
-                           gridcolor="#2a2208", zeroline=True, zerolinecolor="#ccc",
-                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                xaxis=dict(tickangle=-20, tickfont=dict(color="#c8b890", size=9)),
-                margin=dict(t=30, b=80), height=360,
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-            )
-            st.plotly_chart(fig_etf, use_container_width=True)
-
-            # Property type signal summary
-            pt_summary = {}
-            for row in sector_etfs:
-                pt = row["property_type"]
-                if pt not in pt_summary:
-                    pt_summary[pt] = []
-                pt_summary[pt].append(row["return_6mo"])
-            pt_rows = [(pt, f"{sum(v)/len(v):+.1f}%",
-                        "EXPANDING" if sum(v)/len(v) > 2 else ("CONTRACTING" if sum(v)/len(v) < -2 else "FLAT"))
-                       for pt, v in sorted(pt_summary.items(), key=lambda x: sum(x[1])/len(x[1]), reverse=True)]
-            _etf_rows_html = "".join([
-                f'<tr><td style="padding:7px 12px;color:#c8b890;font-size:12px;">{pt}</td>'
-                f'<td style="padding:7px 12px;font-family:monospace;font-size:12px;color:{("#4caf50" if "+" in ret else "#ef5350")};">{ret}</td>'
-                f'<td style="padding:7px 12px;">{_sig_pill(sig)}</td></tr>'
-                for pt, ret, sig in pt_rows
-            ])
-            st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;background:#171309;border-radius:8px;overflow:hidden;border:1px solid #2a2208;">
-  <thead><tr style="border-bottom:1px solid #2a2208;">
-    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">CRE Property Type</th>
-    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Avg Sector Return","6-month total return of sector ETFs linked to this property type. Rising ETFs signal expanding corporate employment and leasing demand.")}</th>
-    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Demand Signal","EXPANDING = avg return >+2% · FLAT = ±2% · CONTRACTING = <-2%. Hover a pill for plain-English meaning.")}</th>
-  </tr></thead>
-  <tbody>{_etf_rows_html}</tbody>
-</table>""", unsafe_allow_html=True)
-            st.caption("Data: Yahoo Finance (6-month trailing). Hover column headers or signal pills for definitions.")
-        else:
-            st.info("Sector ETF data temporarily unavailable (Yahoo Finance rate limit). Will populate on next scheduled run.")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Metro Market Unemployment ────────────────────────────────────────────
-        section(" State Unemployment — Top CRE Destination Markets")
-        if metro_unemp:
-            mu_df = pd.DataFrame(metro_unemp)
-            tight_clr  = "#1b5e20"
-            bal_clr    = GOLD
-            loose_clr  = "#b71c1c"
-            bar_clrs_mu = [
-                tight_clr if r == "TIGHT" else (loose_clr if r == "LOOSE" else bal_clr)
-                for r in mu_df["signal"]
-            ]
-
-            fig_mu = go.Figure(go.Bar(
-                x=mu_df["unemp_rate"],
-                y=mu_df["market"],
-                orientation="h",
-                marker_color=bar_clrs_mu,
-                text=mu_df["unemp_rate"].apply(lambda v: f"{v:.1f}%"),
-                textposition="outside",
-                customdata=mu_df[["delta_1m", "signal", "period"]].values,
-                hovertemplate=(
-                    "<b>%{y}</b><br>"
-                    "Unemployment: %{x:.1f}%<br>"
-                    "MoM Δ: %{customdata[0]:+.1f}pp<br>"
-                    "Labor Market: %{customdata[1]}<br>"
-                    "Period: %{customdata[2]}<extra></extra>"
-                ),
-            ))
-            fig_mu.add_vline(x=4.0, line_dash="dash", line_color=tight_clr,
-                              annotation_text="Tight (<4%)",
-                              annotation_font=dict(color=tight_clr, size=9))
-            fig_mu.add_vline(x=6.0, line_dash="dash", line_color=loose_clr,
-                              annotation_text="Loose (>6%)",
-                              annotation_font=dict(color=loose_clr, size=9))
-            fig_mu.update_layout(
-                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                xaxis=dict(title="Unemployment Rate (%)", ticksuffix="%",
-                           gridcolor="#2a2208", tickfont=dict(color="#c8b890"),
-                           title_font=dict(color="#c8b890")),
-                yaxis=dict(tickfont=dict(color="#c8b890", size=9)),
-                margin=dict(t=20, b=40, l=260, r=80), height=360,
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-            )
-            st.plotly_chart(fig_mu, use_container_width=True)
-
-            # Table with signal pills
-            _mu_rows_html = "".join([
-                f'<tr style="border-bottom:1px solid #1e1a08;">'
-                f'<td style="padding:7px 12px;color:#c8b890;font-size:12px;">{row["market"]}</td>'
-                f'<td style="padding:7px 12px;font-family:monospace;font-size:12px;color:#d4a843;">{row["unemp_rate"]:.1f}%</td>'
-                f'<td style="padding:7px 12px;font-family:monospace;font-size:12px;color:{"#ef5350" if row["delta_1m"]>0 else "#4caf50"};">{row["delta_1m"]:+.1f}pp</td>'
-                f'<td style="padding:7px 12px;">{_sig_pill(row["signal"])}</td>'
-                f'<td style="padding:7px 12px;color:#5a4820;font-size:11px;">{row["period"]}</td>'
-                f'</tr>'
-                for row in metro_unemp
-            ])
-            st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;background:#171309;border-radius:8px;overflow:hidden;border:1px solid #2a2208;">
-  <thead><tr style="border-bottom:1px solid #2a2208;">
-    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">State / Key Metros</th>
-    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Unemployment %","Share of the labor force actively seeking work but unemployed. Below 4% = tight market, above 6% = loose.")}</th>
-    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("MoM Δ","Month-over-month change in unemployment rate, in percentage points. Green = falling (improving), red = rising.")}</th>
-    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">{_tt("Labor Market","Hover the signal pill for a plain-English explanation of what this means for CRE demand.")}</th>
-    <th style="padding:8px 12px;text-align:left;font-size:10px;color:#d4a843;letter-spacing:.1em;text-transform:uppercase;">Period</th>
-  </tr></thead>
-  <tbody>{_mu_rows_html}</tbody>
-</table>""", unsafe_allow_html=True)
-            st.caption("Data: FRED state unemployment rates (BLS LAUS). Updated monthly. Hover column headers or signal pills for definitions.")
-        else:
-            st.info("Metro unemployment data not yet available.")
-
-        st.caption(
-            "Data: Bureau of Labor Statistics (BLS), Federal Reserve (FRED), Yahoo Finance. "
-            "Tenant Demand Signal score: 0–100 based on payroll growth, job openings, unemployment trend, and sector momentum. "
-            "This is research, not investment advice."
-        )
-
-        with st.expander("How This Is Calculated"):
-            st.markdown("""
-**Tenant Demand Signal (0-100):**
-
-Composite score based on four equally weighted components:
-1. **Nonfarm Payroll Growth (25%):** Monthly job additions — strong payroll growth = more tenants needing space
-2. **JOLTS Job Openings (25%):** Forward-looking indicator of hiring intent — high openings signal future lease demand
-3. **Unemployment Trend (25%):** Direction matters more than level — declining unemployment = tightening labor market
-4. **Sector ETF Momentum (25%):** 6-month return of sector ETFs (XLI, XLK, XLF, etc.) mapped to property types
-
-**Property Type Mapping:**
-- Manufacturing/Logistics payrolls -> Industrial demand
-- Professional/Business services -> Office demand
-- Leisure/Hospitality -> Retail/Hospitality demand
-- Education/Healthcare -> Medical office demand
-
-**Labor Market Classification:**
-- **TIGHT** (< 4% unemployment): Strong occupier demand, rent growth potential
-- **BALANCED** (4-6%): Stable absorption
-- **LOOSE** (> 6%): Weaker absorption, potential vacancy risk
-
-**Data Source:** BLS Public API (supersector payrolls), FRED (UNRATE, JTSJOL, PAYEMS), Yahoo Finance (sector ETFs). Updated every 6 hours via Agent 9.
-""")
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    #  TAB — GDP & ECONOMIC GROWTH
-    # ═══════════════════════════════════════════════════════════════════════════
-    with tab_gdp:
-        st.markdown("#### What economic cycle phase are we in — and what does it mean for CRE?")
-        st.markdown(
-            "Agent 10 tracks **real GDP growth, industrial production, retail sales, consumer sentiment, "
-            "and the leading economic index** to classify the economic cycle and map it to CRE property type outlook. "
-            "Updates every 6 hours."
-        )
-        agent_last_updated("gdp_data")
-
-        cache_gdp = read_cache("gdp_data")
-        gdata = cache_gdp.get("data") or {}
-        if not gdata:
-            st.info(" GDP agent is fetching data — please refresh in ~30 seconds.")
-            st.stop()
-
-        g_series = gdata.get("series", {})
-        g_cycle  = gdata.get("cycle", {})
-
-        # ── Cycle Signal Banner ─────────────────────────────────────────────────
-        cycle_label = g_cycle.get("label", "UNKNOWN")
-        cycle_score = g_cycle.get("score", 50)
-        _ec_sum     = g_cycle.get("cre_implication", "") or g_cycle.get("summary", "")
-        st.markdown(gauge_card(
-            title       = "ECONOMIC CYCLE",
-            label       = cycle_label,
-            score       = cycle_score,
-            summary     = _ec_sum,
-            agent_num   = "A10  Agent 10",
-            age_label   = cache_age_label("gdp_data"),
-            scale_labels= ("CONTRACTION", "25", "SLOWDOWN", "75", "EXPANSION"),
-        ), unsafe_allow_html=True)
-        with st.expander("How to read this indicator"):
-            st.markdown("""
-**What it measures:** Where the US economy sits in its business cycle — which directly drives CRE occupancy, rent growth, and transaction volume.
-
-| Signal | Score | What it means for CRE |
-|--------|-------|----------------------|
-| **EXPANSION** | 65–100 | GDP growing, consumer spending up, businesses investing → rising occupancy across all property types, rent growth likely. Peak valuations possible. |
-| **SLOWDOWN** | 25–74 | Growth decelerating. Industrial and logistics hold up; office and retail face headwinds. Reduce leverage exposure. |
-| **CONTRACTION** | 0–24 | Negative GDP, rising layoffs → vacancy climbing, cap rates rising, values declining. Distressed opportunities may emerge. |
-
-**Key inputs:** Real GDP Growth Rate, Industrial Production Index, Chicago Fed National Activity Index (CFNAI), Retail Sales, Real PCE, Consumer Sentiment — from FRED.
-            """)
-
-        # ── KPI Strip ──────────────────────────────────────────────────────────
-        section(" Key Economic Indicators")
-        kpi_defs = [
-            ("Real GDP Growth Rate",        "%",   "Annualized",          False),
-            ("Industrial Production Index", "idx", "Level",               False),
-            ("Retail Sales",                "$M",  "Monthly",             False),
-            ("Consumer Sentiment",          "idx", "U of Michigan",       False),
-            ("Chicago Fed Activity Index",  "idx", "Chicago Fed (CFNAI)", False),
-            ("Real PCE",                    "$B",  "Personal consumption", False),
-        ]
-        kpi_cols = st.columns(len(kpi_defs))
-        for col, (key, unit, sub, _) in zip(kpi_cols, kpi_defs):
-            r = g_series.get(key, {})
-            cur = r.get("current")
-            d1y = r.get("delta_1y")
-            if cur is None:
-                col.markdown(metric_card(key.split(" (")[0], "N/A", sub), unsafe_allow_html=True)
-                continue
-            if unit == "$M":
-                val_s = f"${cur/1000:.1f}B"
-            elif unit == "$B":
-                val_s = f"${cur:,.0f}B"
-            elif unit == "%":
-                val_s = f"{cur:.1f}%"
-            else:
-                val_s = f"{cur:.1f}"
-            delta_html = ""
-            if d1y is not None:
-                arrow = "▲" if d1y > 0 else "▼"
-                good  = d1y > 0
-                clr   = "#1b5e20" if good else "#b71c1c"
-                if unit == "$M":
-                    d_s = f"{d1y/1000:+.1f}B"
-                elif unit == "$B":
-                    d_s = f"{d1y:+,.0f}B"
-                elif unit == "%":
-                    d_s = f"{d1y:+.1f}pp"
-                else:
-                    d_s = f"{d1y:+.1f}"
-                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {d_s} 1Y</span>"
-            short_key = key.split(" (")[0].replace(" Index", "").replace(" Rate", "")
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{short_key}</div>
-              <div class="value">{val_s}</div>
-              <div class="sub">{delta_html or sub}</div>
-            </div>""", unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── GDP Growth + IPI Trend ──────────────────────────────────────────────
-        col_gdp, col_ipi = st.columns(2)
-
-        with col_gdp:
-            section(" Real GDP Growth Rate (Quarterly)")
-            gdp_s = g_series.get("Real GDP Growth Rate", {}).get("series", [])
-            if gdp_s:
-                dates  = [o["date"] for o in gdp_s]
-                values = [o["value"] for o in gdp_s]
-                bar_clrs = [GOLD if v >= 0 else "#c62828" for v in values]
-                fig_gdp = go.Figure(go.Bar(
-                    x=dates, y=values, marker_color=bar_clrs,
-                    text=[f"{v:+.1f}%" for v in values], textposition="outside",
-                    hovertemplate="Q: %{x}<br>Growth: %{y:+.2f}%<extra></extra>",
-                ))
-                fig_gdp.add_hline(y=0, line_color="#333", line_width=1)
-                fig_gdp.add_hline(y=2, line_dash="dot", line_color="#1b5e20",
-                                   annotation_text="2% trend", annotation_position="top right",
-                                   annotation_font=dict(color="#1b5e20", size=9))
-                fig_gdp.update_layout(
-                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                    yaxis=dict(title="Annualized %", ticksuffix="%", gridcolor="#2a2208",
-                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                    xaxis=dict(tickfont=dict(color="#c8b890")),
-                    margin=dict(t=30, b=40), height=320,
-                    font=dict(family="Source Sans Pro", color="#c8b890"),
-                )
-                st.plotly_chart(fig_gdp, use_container_width=True)
-                st.caption("Quarterly real GDP growth (annualized). Consecutive negative quarters = recession definition.")
-            else:
-                st.info("GDP growth series not yet available.")
-
-        with col_ipi:
-            section(" Industrial Production Index")
-            ipi_s = g_series.get("Industrial Production Index", {}).get("series", [])
-            if ipi_s:
-                dates  = [o["date"] for o in ipi_s]
-                values = [o["value"] for o in ipi_s]
-                fig_ipi = go.Figure(go.Scatter(
-                    x=dates, y=values, mode="lines",
-                    line=dict(color=GOLD, width=2.5),
-                    fill="tozeroy", fillcolor="rgba(207,185,145,0.15)",
-                    hovertemplate="Date: %{x}<br>IPI: %{y:.1f}<extra></extra>",
-                ))
-                fig_ipi.update_layout(
-                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                    yaxis=dict(title="Index (2017=100)", gridcolor="#2a2208",
-                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                    xaxis=dict(tickfont=dict(color="#c8b890")),
-                    margin=dict(t=30, b=40), height=320,
-                    font=dict(family="Source Sans Pro", color="#c8b890"),
-                )
-                st.plotly_chart(fig_ipi, use_container_width=True)
-                st.caption("Industrial Production Index (2017=100). Drives demand for industrial/logistics CRE.")
-            else:
-                st.info("Industrial production series not yet available.")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Consumer Sentiment + Leading Index ─────────────────────────────────
-        col_cs, col_lei = st.columns(2)
-
-        with col_cs:
-            section(" Consumer Sentiment")
-            cs_s = g_series.get("Consumer Sentiment", {}).get("series", [])
-            if cs_s:
-                dates  = [o["date"] for o in cs_s]
-                values = [o["value"] for o in cs_s]
-                fig_cs = go.Figure(go.Scatter(
-                    x=dates, y=values, mode="lines+markers",
-                    line=dict(color="#1565c0", width=2),
-                    marker=dict(size=4, color="#1565c0"),
-                    hovertemplate="Date: %{x}<br>Sentiment: %{y:.1f}<extra></extra>",
-                ))
-                fig_cs.add_hrect(y0=80, y1=max(values) + 5, fillcolor="rgba(27,94,32,0.05)",
-                                  line_width=0, annotation_text="Strong",
-                                  annotation_font=dict(color="#1b5e20", size=9))
-                fig_cs.add_hrect(y0=0, y1=65, fillcolor="rgba(183,28,28,0.05)",
-                                  line_width=0, annotation_text="Weak",
-                                  annotation_font=dict(color="#b71c1c", size=9))
-                fig_cs.update_layout(
-                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                    yaxis=dict(title="Index", gridcolor="#2a2208",
-                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                    xaxis=dict(tickfont=dict(color="#c8b890")),
-                    margin=dict(t=30, b=40), height=300,
-                    font=dict(family="Source Sans Pro", color="#c8b890"),
-                )
-                st.plotly_chart(fig_cs, use_container_width=True)
-                st.caption("U of Michigan Consumer Sentiment. High sentiment → retail & hospitality CRE demand.")
-            else:
-                st.info("Consumer sentiment series not yet available.")
-
-        with col_lei:
-            section(" Chicago Fed National Activity Index (3-Month MA)")
-            lei_s = g_series.get("Chicago Fed Activity Index", {}).get("series", [])
-            if lei_s:
-                dates  = [o["date"] for o in lei_s]
-                values = [o["value"] for o in lei_s]
-                bar_clrs_cfnai = [GOLD if v >= 0 else "#c62828" for v in values]
-                fig_lei = go.Figure(go.Bar(
-                    x=dates, y=values, marker_color=bar_clrs_cfnai,
-                    hovertemplate="Date: %{x}<br>CFNAI-MA3: %{y:.2f}<extra></extra>",
-                ))
-                fig_lei.add_hline(y=0, line_color="#333", line_width=1.5)
-                fig_lei.add_hline(y=-0.7, line_dash="dash", line_color="#b71c1c",
-                                   annotation_text="Recession signal (<−0.7)",
-                                   annotation_font=dict(color="#b71c1c", size=9))
-                fig_lei.update_layout(
-                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                    yaxis=dict(title="Index (0 = trend growth)", gridcolor="#2a2208",
-                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                    xaxis=dict(tickfont=dict(color="#c8b890")),
-                    margin=dict(t=30, b=40), height=300,
-                    font=dict(family="Source Sans Pro", color="#c8b890"),
-                )
-                st.plotly_chart(fig_lei, use_container_width=True)
-                st.caption("Chicago Fed National Activity Index (3-month MA). 0 = trend growth. Below −0.7 historically signals recession onset.")
-            else:
-                st.info("Chicago Fed Activity Index not yet available.")
-
-        # ── CRE Cycle Implications Table ───────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" CRE Property Type Outlook by Cycle Phase")
-        outlook_data = {
-            "Property Type":     ["Office", "Industrial / Logistics", "Multifamily", "Retail", "Healthcare / Life Sci", "Data Centers"],
-            "Expansion":         ["", "", "", "", "", ""],
-            "Slowdown":          ["", "", "", "", "", ""],
-            "Contraction":       ["", "", "", "", "", ""],
-            "Current Outlook":   [
-                "" if cycle_label == "EXPANSION" else ("" if cycle_label == "SLOWDOWN" else ""),
-                "" if cycle_label in ("EXPANSION", "SLOWDOWN") else "",
-                "",
-                "" if cycle_label == "EXPANSION" else ("" if cycle_label == "SLOWDOWN" else ""),
-                "",
-                "" if cycle_label in ("EXPANSION", "SLOWDOWN") else "",
-            ],
-        }
-        outlook_df = pd.DataFrame(outlook_data)
-        st.markdown(_render_generic_table(
-            outlook_df,
-            title="CRE Property Type Outlook by Cycle Phase",
-            count_label=f"{len(outlook_df)} property types",
-            hints={
-                "Property Type":  {"type": "name", "flex": 1.8},
-                "Expansion":      {"type": "text", "flex": 1},
-                "Slowdown":       {"type": "text", "flex": 1},
-                "Contraction":    {"type": "text", "flex": 1},
-                "Current Outlook":{"type": "text", "flex": 1},
-            },
-        ), unsafe_allow_html=True)
-        st.caption(
-            " Favorable · Neutral · Cautious. Based on current economic cycle classification. "
-            "Industrial and Healthcare tend to be more defensive; Office and Retail more cyclical."
-        )
-        st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
-
-        with st.expander("How This Is Calculated"):
-            st.markdown("""
-**Economic Cycle Classification:**
-
-The cycle phase is determined by combining multiple indicators:
-- **Real GDP Growth (GDPC1):** Quarter-over-quarter annualized rate
-- **Industrial Production (INDPRO):** Monthly index of factory, mining, and utility output
-- **Consumer Sentiment (UMCSENT):** University of Michigan survey — leading indicator of consumer spending
-- **Chicago Fed National Activity Index (CFNAI):** 85-indicator composite of national economic activity
-
-**Cycle Phases:**
-- **EXPANSION:** GDP > 2%, Industrial Production rising, Sentiment > 80, CFNAI > 0
-- **SLOWDOWN:** GDP 0-2%, mixed signals, Sentiment declining
-- **CONTRACTION:** GDP < 0%, Industrial Production falling, Sentiment < 60, CFNAI < -0.7
-
-**CRE Impact by Cycle Phase:**
-- *Expansion:* All property types benefit — strongest for Office and Retail
-- *Slowdown:* Industrial and Healthcare more defensive; Office and Retail vulnerable
-- *Contraction:* Multifamily most resilient (people always need housing); Office and Retail face rising vacancies
-
-**Data Source:** FRED (GDPC1, INDPRO, UMCSENT, CFNAI, RSXFS). Updated every 6 hours via Agent 10.
-""")
-
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    #  TAB — INFLATION
-    # ═══════════════════════════════════════════════════════════════════════════
-    with tab_inflation:
-        st.markdown("#### How is inflation affecting CRE valuations, rents, and construction costs?")
-        st.markdown(
-            "Agent 11 tracks **CPI, core inflation, shelter & rent inflation, PPI, and market-implied "
-            "breakeven inflation** to assess real return erosion, rent growth, and replacement cost trends. "
-            "Updates every 6 hours."
-        )
-        agent_last_updated("inflation_data")
-
-        cache_inf = read_cache("inflation_data")
-        idata = cache_inf.get("data") or {}
-        if not idata:
-            st.info(" Inflation agent is fetching data — please refresh in ~30 seconds.")
-            st.stop()
-
-        inf_series = idata.get("series", {})
-        inf_signal = idata.get("signal", {})
-
-        # ── Signal Banner — Segmented Gauge Card ────────────────────────────────
-        inf_label    = inf_signal.get("label", "UNKNOWN")
-        inf_score    = inf_signal.get("score", 50)
-        inf_confidence = inf_signal.get("confidence", "High")
-        _age_inf     = cache_age_label("inflation_data")
-
-        st.markdown(gauge_card(
-            title="INFLATION REGIME",
-            label=inf_label,
-            score=inf_score,
-            summary=inf_signal.get("summary", ""),
-            agent_num=11,
-            age_label=_age_inf,
-            confidence=inf_confidence,
-            low_good=True,
-            scale_labels=("COOLING", "25", "MODERATE", "75", "HOT"),
-        ), unsafe_allow_html=True)
-        with st.expander("How to read this indicator"):
-            st.markdown("""
-**What it measures:** The current inflation environment and its impact on CRE construction costs, cap rates, and real returns.
-
-| Signal | Score | What it means for CRE |
-|--------|-------|----------------------|
-| **COOLING** | 0–35 | CPI falling toward 2% target. Fed likely cutting rates → cap rate compression, rising valuations, easier financing. |
-| **MODERATE** | 36–74 | Inflation in the 2–4% range. Mixed — some replacement cost support for values, but rate uncertainty limits cap rate compression. |
-| **HOT** | 75–100 | CPI well above target. Fed holds rates high → higher cap rates, value pressure on stabilized assets. Construction cost inflation eats development margins. |
-
-**Key inputs:** CPI All Items, Core CPI (ex food & energy), CPI Shelter, CPI Rent, 5-Year Breakeven Inflation, 1-Year Inflation Expectations (U of Michigan) — from FRED.
-            """)
-
-        # ── KPI Strip ──────────────────────────────────────────────────────────
-        section(" Inflation Dashboard")
-        inf_kpis = [
-            ("CPI All Items",           "YoY %", "Headline"),
-            ("Core CPI",                "YoY %", "Ex food & energy"),
-            ("CPI Shelter",             "YoY %", "Housing costs"),
-            ("CPI Rent",                "YoY %", "Primary residence"),
-            ("5Y Breakeven Inflation",  "%",      "Market expectation"),
-            ("1Y Inflation Expectations","%",     "U of Michigan"),
-        ]
-        inf_cols = st.columns(len(inf_kpis))
-        for col, (key, unit_label, sub) in zip(inf_cols, inf_kpis):
-            r = inf_series.get(key, {})
-            # Use YoY for CPI/PPI index series, current for breakeven/expectations
-            val = r.get("yoy_pct") if r.get("yoy_pct") is not None else r.get("current")
-            d1m = r.get("delta_1m")
-            if val is None:
-                col.markdown(metric_card(key.replace(" All Items", "").replace(" Inflation", ""), "N/A", sub), unsafe_allow_html=True)
-                continue
-            val_s = f"{val:.1f}%"
-            delta_html = ""
-            if d1m is not None:
-                arrow = "▲" if d1m > 0 else "▼"
-                # For inflation, up = bad (hot), down = good (cooling)
-                clr = "#b71c1c" if d1m > 0 else "#1b5e20"
-                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {abs(d1m):.3f} 1M</span>"
-            short = key.replace(" All Items", "").replace(" Inflation", "").replace(" Expectations", " Exp.")
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{short}</div>
-              <div class="value">{val_s}</div>
-              <div class="sub">{delta_html or sub}</div>
-            </div>""", unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── CPI Components Chart ────────────────────────────────────────────────
-        col_cpi, col_ppi = st.columns(2)
-
-        with col_cpi:
-            section(" CPI Trends — Headline vs Core vs Shelter")
-            cpi_keys   = ["CPI All Items", "Core CPI", "CPI Shelter", "CPI Rent"]
-            cpi_colors = ["#1565c0", "#e65100", GOLD, "#6a1b9a"]
-            fig_cpi = go.Figure()
-            for ckey, clr in zip(cpi_keys, cpi_colors):
-                s = inf_series.get(ckey, {}).get("series", [])
-                if not s:
-                    continue
-                # Compute rolling YoY from index series
-                if len(s) >= 13:
-                    yoy_pts = [{"date": s[i]["date"],
-                                "value": round((s[i]["value"] - s[i-12]["value"]) / s[i-12]["value"] * 100, 2)}
-                               for i in range(12, len(s))]
-                else:
-                    yoy_pts = s
-                dates  = [o["date"] for o in yoy_pts]
-                values = [o["value"] for o in yoy_pts]
-                fig_cpi.add_trace(go.Scatter(
-                    x=dates, y=values, name=ckey,
-                    mode="lines", line=dict(color=clr, width=2),
-                    hovertemplate=f"{ckey}: %{{y:.2f}}% YoY<br>%{{x}}<extra></extra>",
-                ))
-            fig_cpi.add_hline(y=2, line_dash="dot", line_color="#1b5e20",
-                               annotation_text="Fed 2% target",
-                               annotation_font=dict(color="#1b5e20", size=9))
-            fig_cpi.update_layout(
-                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                yaxis=dict(title="YoY %", ticksuffix="%", gridcolor="#2a2208",
-                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                xaxis=dict(tickfont=dict(color="#c8b890")),
-                legend=dict(orientation="h", y=1.1, font=dict(color="#c8b890", size=10)),
-                margin=dict(t=40, b=40), height=340,
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-            )
-            st.plotly_chart(fig_cpi, use_container_width=True)
-            st.caption(
-                "CPI Shelter and CPI Rent measure housing cost inflation — directly relevant to multifamily NOI growth. "
-                "Core CPI (ex food & energy) is the Fed's primary policy target."
-            )
-
-        with col_ppi:
-            section(" PPI — Producer & Construction Input Costs")
-            ppi_keys   = ["PPI All Commodities", "PPI Manufacturing"]
-            ppi_colors = ["#c62828", "#e65100"]
-            fig_ppi = go.Figure()
-            for pkey, clr in zip(ppi_keys, ppi_colors):
-                s = inf_series.get(pkey, {}).get("series", [])
-                if not s or len(s) < 13:
-                    continue
-                yoy_pts = [{"date": s[i]["date"],
-                            "value": round((s[i]["value"] - s[i-12]["value"]) / s[i-12]["value"] * 100, 2)}
-                           for i in range(12, len(s))]
-                dates  = [o["date"] for o in yoy_pts]
-                values = [o["value"] for o in yoy_pts]
-                fig_ppi.add_trace(go.Scatter(
-                    x=dates, y=values, name=pkey,
-                    mode="lines", line=dict(color=clr, width=2),
-                    hovertemplate=f"{pkey}: %{{y:.2f}}% YoY<br>%{{x}}<extra></extra>",
-                ))
-            fig_ppi.add_hline(y=0, line_color="#333", line_width=1)
-            fig_ppi.update_layout(
-                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                yaxis=dict(title="YoY %", ticksuffix="%", gridcolor="#2a2208",
-                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                xaxis=dict(tickfont=dict(color="#c8b890")),
-                legend=dict(orientation="h", y=1.1, font=dict(color="#c8b890", size=10)),
-                margin=dict(t=40, b=40), height=340,
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-            )
-            st.plotly_chart(fig_ppi, use_container_width=True)
-            st.caption(
-                "Rising PPI increases replacement cost of new CRE — supporting values of existing assets. "
-                "Elevated construction input costs also deter new supply, tightening vacancy."
-            )
-
-        # ── Breakeven Inflation Chart ───────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Market-Implied Inflation Expectations (Breakeven Rates)")
-        be_keys   = ["5Y Breakeven Inflation", "10Y Breakeven Inflation"]
-        be_colors = ["#1565c0", "#6a1b9a"]
-        fig_be = go.Figure()
-        for bkey, clr in zip(be_keys, be_colors):
-            s = inf_series.get(bkey, {}).get("series", [])
-            if not s:
-                continue
-            dates  = [o["date"] for o in s]
-            values = [o["value"] for o in s]
-            fig_be.add_trace(go.Scatter(
-                x=dates, y=values, name=bkey,
-                mode="lines", line=dict(color=clr, width=2),
-                hovertemplate=f"{bkey}: %{{y:.2f}}%<br>%{{x}}<extra></extra>",
-            ))
-        fig_be.add_hline(y=2.0, line_dash="dot", line_color="#1b5e20",
-                          annotation_text="Fed 2% target",
-                          annotation_font=dict(color="#1b5e20", size=9))
-        fig_be.add_hline(y=2.5, line_dash="dash", line_color="#b71c1c",
-                          annotation_text="Concern threshold",
-                          annotation_font=dict(color="#b71c1c", size=9))
-        fig_be.update_layout(
-            paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-            yaxis=dict(title="Implied Inflation (%)", ticksuffix="%", gridcolor="#2a2208",
-                       tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-            xaxis=dict(tickfont=dict(color="#c8b890")),
-            legend=dict(orientation="h", y=1.08, font=dict(color="#c8b890", size=11)),
-            margin=dict(t=40, b=40), height=320,
-            font=dict(family="Source Sans Pro", color="#c8b890"),
-        )
-        st.plotly_chart(fig_be, use_container_width=True)
-        st.caption(
-            "Breakeven inflation = nominal Treasury yield minus TIPS yield — the market's consensus inflation forecast. "
-            "Elevated breakevens signal that the Fed is unlikely to cut rates soon, keeping cap rates elevated "
-            "and compressing CRE asset values."
-        )
-        st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
-
-        with st.expander("How This Is Calculated"):
-            st.markdown("""
-**Inflation Regime Classification:**
-
-- **HOT:** Headline CPI > 4% YoY or Core CPI > 3.5% YoY — erosion of real returns, Fed likely tightening
-- **MODERATE:** Headline CPI 2-4% YoY — manageable inflation, favorable for CRE with rent escalators
-- **COOLING:** Headline CPI < 2% YoY — disinflation, potential rate cuts ahead (positive for asset values)
-
-**Key Series Tracked:**
-- **CPI Headline (CPIAUCSL):** All items, urban consumers — broadest inflation measure
-- **CPI Core (CPILFESL):** Excludes food & energy — underlying inflation trend
-- **CPI Shelter (CUSR0000SAH1):** Largest CPI component (~35% weight) — directly reflects rent/housing costs
-- **CPI Rent (CUSR0000SEHA):** Rent of primary residence — most direct CRE inflation indicator
-- **PPI Construction (WPUIP2311001):** Producer prices for construction inputs — signals replacement cost pressure
-- **5Y & 10Y Breakeven Inflation (T5YIE, T10YIE):** Market-implied inflation expectations from TIPS spreads
-
-**Why It Matters for CRE:**
-- Rising shelter/rent CPI validates rent growth assumptions in underwriting
-- Elevated PPI signals higher replacement costs — supporting existing asset values
-- Breakeven inflation above 2.5% suggests the Fed won't cut rates soon — keeping cap rates elevated
-
-**Data Source:** FRED (BLS CPI/PPI series, Treasury breakevens). Updated every 6 hours via Agent 11.
-""")
-
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    #  TAB — CREDIT & CAPITAL MARKETS
-    # ═══════════════════════════════════════════════════════════════════════════
-    with tab_credit:
-        st.markdown("#### Is capital available for CRE — and at what cost?")
-        st.markdown(
-            "Agent 12 monitors **corporate credit spreads, bank lending standards, VIX volatility, "
-            "and the BAA–AAA spread** to gauge whether debt capital is flowing into or out of CRE. "
-            "Updates every 6 hours."
-        )
-        agent_last_updated("credit_data")
-
-        cache_cr = read_cache("credit_data")
-        crdata = cache_cr.get("data") or {}
-        if not crdata:
-            st.info(" Credit agent is fetching data — please refresh in ~30 seconds.")
-            st.stop()
-
-        cr_series = crdata.get("series", {})
-        cr_signal = crdata.get("signal", {})
-
-        # ── Signal Banner — Segmented Gauge Card ────────────────────────────────
-        cr_label      = cr_signal.get("label", "UNKNOWN")
-        cr_score      = cr_signal.get("score", 50)
-        cr_confidence = cr_signal.get("confidence", "High")
-        _age_cr       = cache_age_label("credit_data")
-
-        st.markdown(gauge_card(
-            title="CREDIT CONDITIONS",
-            label=cr_label,
-            score=cr_score,
-            summary=cr_signal.get("summary", ""),
-            agent_num=12,
-            age_label=_age_cr,
-            confidence=cr_confidence,
-            low_good=False,
-            scale_labels=("TIGHT", "25", "NEUTRAL", "75", "LOOSE"),
-        ), unsafe_allow_html=True)
-        with st.expander("How to read this indicator"):
-            st.markdown("""
-**What it measures:** Whether debt capital is flowing freely into CRE or being restricted — tracking corporate credit spreads, bank lending standards, and market volatility.
-
-| Signal | Score | What it means for CRE |
-|--------|-------|----------------------|
-| **LOOSE** | 65–100 | Spreads narrow, banks easing standards, VIX low → debt is cheap and available. Strong deal volume, high leverage possible. |
-| **NEUTRAL** | 25–74 | Normal credit access. Standard underwriting prevails. Selective lenders; moderate leverage recommended. |
-| **TIGHT** | 0–24 | Spreads wide, banks tightening, VIX elevated → lenders pulling back. Higher equity requirements, fewer loans closing. Distressed deals may emerge. |
-
-**Key inputs:** IG & HY Corporate Spreads, BBB Spread (CRE proxy), BAA–AAA Quality Spread, VIX Volatility Index, Fed Senior Loan Officer Survey (CRE tightening %) — from FRED.
-            """)
-
-        # ── KPI Strip ──────────────────────────────────────────────────────────
-        section(" Credit Market Snapshot")
-        cr_kpis = [
-            ("IG Corporate Spread",  "bps", "Investment grade"),
-            ("HY Corporate Spread",  "bps", "High yield"),
-            ("BBB Corporate Spread", "bps", "BBB-rated (CRE proxy)"),
-            ("BAA-AAA Spread",       "%",   "Credit quality gap"),
-            ("VIX",                  "pts", "Market fear gauge"),
-            ("CRE Loan Tightening",  "%",   "Net % banks tightening"),
-        ]
-        cr_cols = st.columns(len(cr_kpis))
-        for col, (key, unit, sub) in zip(cr_cols, cr_kpis):
-            r = cr_series.get(key, {})
-            cur = r.get("current")
-            d1m = r.get("delta_1m")
-            if cur is None:
-                col.markdown(metric_card(key, "N/A", sub), unsafe_allow_html=True)
-                continue
-            val_s = f"{cur:.0f}{unit}" if unit == "bps" else (f"{cur:.1f}" if unit == "pts" else f"{cur:.2f}%")
-            delta_html = ""
-            if d1m is not None:
-                arrow = "▲" if d1m > 0 else "▼"
-                # Wide spreads / high VIX = bad; tightening lending = bad
-                clr = "#b71c1c" if d1m > 0 else "#1b5e20"
-                d_s = f"{d1m:+.0f}{unit}" if unit == "bps" else f"{d1m:+.2f}"
-                delta_html = f"<span style='color:{clr};font-size:0.78rem;'>{arrow} {d_s} 1M</span>"
-            short = key.replace(" Corporate", "").replace(" Spread", " Sprd")
-            col.markdown(f"""
-            <div class="metric-card">
-              <div class="label">{short}</div>
-              <div class="value">{val_s}</div>
-              <div class="sub">{delta_html or sub}</div>
-            </div>""", unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Spread History Charts ───────────────────────────────────────────────
-        col_spreads, col_vix = st.columns([3, 2])
-
-        with col_spreads:
-            section(" Credit Spread History — IG, HY & BBB")
-            fig_sp = go.Figure()
-            spread_keys   = ["IG Corporate Spread", "HY Corporate Spread", "BBB Corporate Spread"]
-            spread_colors = ["#1565c0", "#c62828", GOLD]
-            spread_axis   = [1, 2, 1]  # HY on secondary axis
-            for skey, clr, ax in zip(spread_keys, spread_colors, spread_axis):
-                s = cr_series.get(skey, {}).get("series", [])
-                if not s:
-                    continue
-                dates  = [o["date"] for o in s]
-                values = [o["value"] for o in s]
-                fig_sp.add_trace(go.Scatter(
-                    x=dates, y=values, name=skey,
-                    mode="lines", line=dict(color=clr, width=2),
-                    yaxis=f"y{ax}" if ax == 2 else "y",
-                    hovertemplate=f"{skey}: %{{y:.0f}}bps<br>%{{x}}<extra></extra>",
-                ))
-            fig_sp.update_layout(
-                paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                yaxis=dict(title="IG / BBB Spread (bps)", gridcolor="#2a2208",
-                           tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                yaxis2=dict(title="HY Spread (bps)", overlaying="y", side="right",
-                            tickfont=dict(color="#c62828"), title_font=dict(color="#c62828")),
-                xaxis=dict(tickfont=dict(color="#c8b890")),
-                legend=dict(orientation="h", y=1.1, font=dict(color="#c8b890", size=10)),
-                margin=dict(t=40, b=40), height=360,
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-            )
-            st.plotly_chart(fig_sp, use_container_width=True)
-            st.caption(
-                "IG (Investment Grade) and BBB spreads track the cost of the debt that finances most CRE. "
-                "HY spreads (right axis) are a leading risk-sentiment indicator — sharp spikes precede transaction freezes."
-            )
-
-        with col_vix:
-            section(" VIX — Market Volatility")
-            vix_s = cr_series.get("VIX", {}).get("series", [])
-            if vix_s:
-                dates  = [o["date"] for o in vix_s]
-                values = [o["value"] for o in vix_s]
-                bar_clrs_vix = ["#b71c1c" if v > 30 else (GOLD if v > 20 else "#1b5e20") for v in values]
-                fig_vix = go.Figure(go.Bar(
-                    x=dates, y=values, marker_color=bar_clrs_vix,
-                    hovertemplate="Date: %{x}<br>VIX: %{y:.1f}<extra></extra>",
-                ))
-                fig_vix.add_hline(y=20, line_dash="dot", line_color=GOLD,
-                                   annotation_text="Elevated (>20)",
-                                   annotation_font=dict(color=GOLD_DARK, size=9))
-                fig_vix.add_hline(y=30, line_dash="dash", line_color="#b71c1c",
-                                   annotation_text="Stress (>30)",
-                                   annotation_font=dict(color="#b71c1c", size=9))
-                fig_vix.update_layout(
-                    paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-                    yaxis=dict(title="VIX Level", gridcolor="#2a2208",
-                               tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-                    xaxis=dict(tickfont=dict(color="#c8b890")),
-                    margin=dict(t=30, b=40), height=360,
-                    font=dict(family="Source Sans Pro", color="#c8b890"),
-                )
-                st.plotly_chart(fig_vix, use_container_width=True)
-                st.caption("VIX > 20 = elevated uncertainty. VIX > 30 = stress — CRE deal pipelines freeze as buyers demand higher risk premiums.")
-            else:
-                st.info("VIX series not yet available.")
-
-        # ── Lending Standards Chart ─────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Bank Lending Standards — C&I and CRE Loans (Net % Tightening)")
-        fig_ls = go.Figure()
-        ls_keys   = ["C&I Loan Tightening", "CRE Loan Tightening"]
-        ls_colors = ["#1565c0", GOLD]
-        for lkey, clr in zip(ls_keys, ls_colors):
-            s = cr_series.get(lkey, {}).get("series", [])
-            if not s:
-                continue
-            dates  = [o["date"] for o in s]
-            values = [o["value"] for o in s]
-            fig_ls.add_trace(go.Scatter(
-                x=dates, y=values, name=lkey,
-                mode="lines+markers", line=dict(color=clr, width=2),
-                marker=dict(size=5),
-                hovertemplate=f"{lkey}: %{{y:.1f}}%<br>%{{x}}<extra></extra>",
-            ))
-        fig_ls.add_hline(y=0, line_color="#333", line_width=1.5)
-        fig_ls.add_hrect(y0=20, y1=100, fillcolor="rgba(183,28,28,0.05)",
-                          line_width=0, annotation_text="Tightening territory",
-                          annotation_font=dict(color="#b71c1c", size=9))
-        fig_ls.add_hrect(y0=-100, y1=-10, fillcolor="rgba(27,94,32,0.05)",
-                          line_width=0, annotation_text="Easing territory",
-                          annotation_font=dict(color="#1b5e20", size=9))
-        fig_ls.update_layout(
-            paper_bgcolor="#1a1208", plot_bgcolor="#1e1a0a",
-            yaxis=dict(title="Net % Tightening", ticksuffix="%", gridcolor="#2a2208",
-                       zeroline=True, zerolinecolor="#ccc",
-                       tickfont=dict(color="#c8b890"), title_font=dict(color="#c8b890")),
-            xaxis=dict(tickfont=dict(color="#c8b890")),
-            legend=dict(orientation="h", y=1.08, font=dict(color="#c8b890", size=11)),
-            margin=dict(t=40, b=40), height=340,
-            font=dict(family="Source Sans Pro", color="#c8b890"),
-        )
-        st.plotly_chart(fig_ls, use_container_width=True)
-        st.caption(
-            "Fed Senior Loan Officer Survey (quarterly). Positive = banks tightening loan standards (less credit supply). "
-            "Negative = easing (more credit supply). CRE loan tightening directly restricts acquisition and development financing."
-        )
-        st.caption("Data: Federal Reserve Bank of St. Louis (FRED). This is research, not financial advice.")
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    #  TAB — CMBS & DISTRESSED ASSET MONITOR
-    # ═══════════════════════════════════════════════════════════════════════════
-    with tab_distressed:
-        st.markdown("#### Where is CRE distress concentrated — and where are the opportunities?")
-        st.markdown(
-            "Agent 17 tracks CMBS delinquency rates by property type, the known distressed "
-            "asset pipeline, national distress signals, and live CRE loan conditions from FRED. "
-            "Powered by Groq AI analysis when API key is configured. Updates every 6 hours."
-        )
-        agent_last_updated("distressed")
-
-        _dst_cache = read_cache("distressed")
-        _dst_data  = _dst_cache.get("data") or {}
-
-        if not _dst_data:
-            st.info(" Distressed Asset agent is fetching data — refresh in ~30 seconds.")
-        else:
-            _dst_dlq    = _dst_data.get("cmbs_delinquency", {})
-            _dst_pipe   = _dst_data.get("distressed_pipeline", [])
-            _dst_sigs   = _dst_data.get("distress_signals", {})
-            _dst_intel  = _dst_data.get("market_intelligence", {})
-            _dst_fred   = _dst_data.get("fred_cre_delinquency", [])
-            _dst_bbb    = _dst_data.get("fred_bbb_spread", [])
-
-            _dst_ta = {"rising": "↑", "falling": "↓", "stable": "→"}
-            _dst_tc = {"rising": "#ef5350", "falling": "#66bb6a", "stable": "#d4a843"}
-            _dst_status_c = {
-                "REO":               "#ef5350",
-                "Maturity Default":  "#ef5350",
-                "Special Servicing": "#d4a843",
-                "Watchlist":         "#42a5f5",
-                "Modified":          "#66bb6a",
-            }
-
-            # ── AI Brief ──────────────────────────────────────────────────────
-            if _dst_intel.get("summary"):
-                section(" Agent 17 — CMBS & Distressed Intelligence")
-                _dst_groq_lbl = "Groq AI" if _dst_intel.get("groq_used") else "Static Brief"
-                st.markdown(f"""
-                <div class="agent-card">
-                  <div class="agent-label">Agent 17 &nbsp;·&nbsp; CMBS & Distressed Monitor &nbsp;·&nbsp; {_dst_groq_lbl}</div>
-                  <div class="agent-text">{_dst_intel['summary']}</div>
-                  {"<div style='margin-top:12px;padding:8px 12px;background:#1e1a0a;border-radius:6px;border-left:3px solid #66bb6a;'><span style='color:#66bb6a;font-weight:700;'>Best Opportunity:</span> <span style='color:#c8bfa8;'>" + _dst_intel.get('top_opportunity','') + "</span></div>" if _dst_intel.get('top_opportunity') else ""}
-                  {"<div style='margin-top:8px;padding:8px 12px;background:#1e1a0a;border-radius:6px;border-left:3px solid #ef5350;'><span style='color:#ef5350;font-weight:700;'>Key Risk:</span> <span style='color:#c8bfa8;'>" + _dst_intel.get('key_risk','') + "</span></div>" if _dst_intel.get('key_risk') else ""}
-                </div>""", unsafe_allow_html=True)
-
-            # ── Distress explainer ────────────────────────────────────────────
-            with st.expander("How to read CMBS delinquency & distress signals"):
-                st.markdown("""
-**CMBS (Commercial Mortgage-Backed Securities)** are bonds backed by commercial real estate loans. The delinquency rate measures what percentage of those loans are 30+ days past due.
-
-| Rate | Severity | Context |
-|------|----------|---------|
-| < 2% | Low | Normal/healthy — minimal stress |
-| 2–5% | Moderate | Elevated — watch for loan modifications and maturity extensions |
-| 5–10% | High | Significant distress — expect special servicing, discounted sales |
-| > 10% | Crisis | GFC-level stress (office/retail peaked ~10–12% in 2020) |
-
-**Distress statuses:**
-- **REO** (Real Estate Owned) — Lender has taken back the property; available at steep discount
-- **Maturity Default** — Borrower couldn't refinance at loan maturity; often the first step toward REO
-- **Special Servicing** — Loan transferred to a workout specialist; active negotiation underway
-- **Watchlist** — Flagged for potential stress; borrower still current but at risk
-
-**Opportunity:** Distressed assets often trade at 30–60% below peak value, creating entry points for repositioning or conversion plays.
-                """)
-
-            # ── National distress signals ──────────────────────────────────────
-            section(" National Distress Signals")
-            _dst_sig_cols = st.columns(min(len(_dst_sigs), 5))
-            for _dst_sc, (_dst_sk, _dst_sv) in zip(_dst_sig_cols, _dst_sigs.items()):
-                _dst_lbl   = _dst_sk.replace("_", " ").title()
-                _dst_val   = f"${_dst_sv['amount_bn']}B" if "amount_bn" in _dst_sv else f"{_dst_sv.get('rate_pct','—')}%"
-                _dst_trend = _dst_sv.get("trend", "stable")
-                _dst_ta_   = _dst_ta.get(_dst_trend, "")
-                _dst_tc_   = _dst_tc.get(_dst_trend, "#d4a843")
-                _dst_note  = _dst_sv.get("note", "")[:70]
-                _dst_sc.markdown(
-                    f"<div class='metric-card' style='border-top:2px solid {_dst_tc_};'>"
-                    f"<div class='label' style='font-size:0.72rem;'>{_dst_lbl}</div>"
-                    f"<div class='value' style='font-size:1.4rem;color:{_dst_tc_};'>{_dst_val}</div>"
-                    f"<div class='sub' style='color:{_dst_tc_};'>{_dst_ta_} {_dst_trend}</div>"
-                    f"<div style='color:#6a6a5a;font-size:0.71rem;margin-top:4px;'>{_dst_note}</div>"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-
-            # ── CMBS delinquency table & bar chart ────────────────────────────
-            section(" CMBS Delinquency Rates by Property Type")
-            _dst_col_table, _dst_col_chart = st.columns([1, 1])
-            with _dst_col_table:
-                _dst_dlq_rows = []
-                for _dst_pt, _dst_d in _dst_dlq.items():
-                    _dst_dlq_rows.append({
-                        "Property Type": _dst_pt,
-                        "Rate":          f"{_dst_d['rate_pct']}%",
-                        "Prior Year":    f"{_dst_d['prior_year']}%",
-                        "YoY":           f"{_dst_d['rate_pct'] - _dst_d['prior_year']:+.1f}pp",
-                        "Trend":         f"{_dst_ta.get(_dst_d['trend'],'')} {_dst_d['trend']}",
-                    })
-                if _dst_dlq_rows:
-                    st.markdown(_render_generic_table(
-                        pd.DataFrame(_dst_dlq_rows),
-                        title="CMBS Delinquency Rates by Property Type",
-                        count_label=f"{len(_dst_dlq_rows)} property types",
-                        hints={
-                            "Property Type": {"type": "name",    "flex": 1.2},
-                            "Rate":          {"type": "pct_bar", "flex": 1},
-                            "Prior Year":    {"type": "text",    "flex": 0.8},
-                            "YoY":           {"type": "colored", "flex": 0.8},
-                            "Trend":         {"type": "tag",     "flex": 1},
-                        },
-                    ), unsafe_allow_html=True)
-                for _dst_pt, _dst_d in _dst_dlq.items():
-                    _dst_t_c = _dst_tc.get(_dst_d["trend"], "#d4a843")
-                    _dst_t_a = _dst_ta.get(_dst_d["trend"], "")
-                    st.markdown(
-                        f"<div style='background:#171309;border-left:3px solid {_dst_t_c};"
-                        f"padding:6px 14px;border-radius:4px;margin-bottom:6px;font-size:0.8rem;'>"
-                        f"<b style='color:#e8dfc4;'>{_dst_pt}</b> "
-                        f"<span style='color:{_dst_t_c};'>{_dst_t_a} {_dst_d['rate_pct']}%</span>"
-                        f" &nbsp;·&nbsp; <span style='color:#a09880;'>{_dst_d['note']}</span></div>",
-                        unsafe_allow_html=True,
-                    )
-            with _dst_col_chart:
-                if _dst_dlq:
-                    _dst_bar_types  = list(_dst_dlq.keys())
-                    _dst_bar_rates  = [_dst_dlq[t]["rate_pct"] for t in _dst_bar_types]
-                    _dst_bar_colors = ["#ef5350" if r > 6 else ("#d4a843" if r > 3 else "#66bb6a") for r in _dst_bar_rates]
-                    fig_dlq = go.Figure(go.Bar(
-                        x=_dst_bar_types, y=_dst_bar_rates,
-                        marker_color=_dst_bar_colors,
-                        text=[f"{r}%" for r in _dst_bar_rates],
-                        textposition="outside",
-                        hovertemplate="<b>%{x}</b><br>Delinquency: %{y}%<extra></extra>",
-                    ))
-                    fig_dlq.update_layout(
-                        xaxis=dict(color="#8a7040"),
-                        yaxis=dict(title="Delinquency Rate (%)", gridcolor="#2a2208", color="#8a7040", range=[0, 12]),
-                        plot_bgcolor="#0d0b04", paper_bgcolor="#0d0b04",
-                        font=dict(family="Source Sans Pro", color="#c8b890"),
-                        margin=dict(t=20, b=40), height=340,
-                    )
-                    st.plotly_chart(fig_dlq, use_container_width=True)
-
-            # ── Distressed pipeline ───────────────────────────────────────────
-            section(" Known Distressed Asset Pipeline")
-            if _dst_pipe:
-                _dst_pipe_rows = []
-                for _dst_a in _dst_pipe:
-                    _dst_status = _dst_a.get("status", "")
-                    _dst_s_c    = _dst_status_c.get(_dst_status, "#a09880")
-                    _dst_pipe_rows.append({
-                        "Asset":       _dst_a["asset"],
-                        "Type":        _dst_a["type"],
-                        "Loan":        f"${_dst_a['loan_amount'] / 1_000_000:.0f}M",
-                        "Status":      _dst_status,
-                        "Market":      _dst_a["market"],
-                        "Opportunity": _dst_a["opportunity"],
-                    })
-                st.markdown(_render_generic_table(
-                    pd.DataFrame(_dst_pipe_rows),
-                    title="Known Distressed Asset Pipeline",
-                    count_label=f"{len(_dst_pipe_rows)} assets",
-                    scrollable=True, max_height=360,
-                    hints={
-                        "Asset":       {"type": "name",  "flex": 2},
-                        "Type":        {"type": "tag",   "flex": 0.8},
-                        "Loan":        {"type": "price", "flex": 0.8},
-                        "Status":      {"type": "badge", "flex": 1, "badge_map": {
-                            "Matured / Non-Performing": "background:#2a0d0d;color:#ef5350",
-                            "90+ Days Delinquent":      "background:#2a0d0d;color:#ef5350",
-                            "REO":                      "background:#2a0d2a;color:#ce93d8",
-                            "Watchlist":                "background:#2a1500;color:#ffa726",
-                            "Performing":               "background:#0d2a12;color:#4a9e58",
-                        }},
-                        "Market":      {"type": "text",  "flex": 1},
-                        "Opportunity": {"type": "text",  "flex": 2},
-                    },
-                ), unsafe_allow_html=True)
-
-            # ── FRED live credit indicators ───────────────────────────────────
-            if _dst_fred or _dst_bbb:
-                section(" FRED Live Credit Indicators")
-                _dst_fc1, _dst_fc2 = st.columns(2)
-                with _dst_fc1:
-                    if _dst_fred:
-                        fig_fd = go.Figure(go.Scatter(
-                            x=[o["date"] for o in _dst_fred],
-                            y=[o["value"] for o in _dst_fred],
-                            name="CRE Delinquency Rate",
-                            line=dict(color="#ef5350", width=2),
-                            fill="tozeroy", fillcolor="rgba(239,83,80,0.08)",
-                        ))
-                        fig_fd.update_layout(
-                            title="Bank CRE Loan Delinquency Rate (DRCRELEXBS)",
-                            plot_bgcolor="#0d0b04", paper_bgcolor="#0d0b04",
-                            font=dict(family="Source Sans Pro", color="#c8b890", size=11),
-                            xaxis=dict(gridcolor="#2a2208", color="#8a7040"),
-                            yaxis=dict(gridcolor="#2a2208", color="#8a7040", title="Rate %"),
-                            margin=dict(t=40, b=40), height=280,
-                        )
-                        st.plotly_chart(fig_fd, use_container_width=True)
-                with _dst_fc2:
-                    if _dst_bbb:
-                        fig_bbb = go.Figure(go.Scatter(
-                            x=[o["date"] for o in _dst_bbb],
-                            y=[o["value"] for o in _dst_bbb],
-                            name="BBB Corp Spread",
-                            line=dict(color=GOLD, width=2),
-                            fill="tozeroy", fillcolor="rgba(207,185,145,0.08)",
-                        ))
-                        fig_bbb.update_layout(
-                            title="BBB Corporate Spread — CMBS Proxy (BAMLC0A4CBBB)",
-                            plot_bgcolor="#0d0b04", paper_bgcolor="#0d0b04",
-                            font=dict(family="Source Sans Pro", color="#c8b890", size=11),
-                            xaxis=dict(gridcolor="#2a2208", color="#8a7040"),
-                            yaxis=dict(gridcolor="#2a2208", color="#8a7040", title="Spread (bps)"),
-                            margin=dict(t=40, b=40), height=280,
-                        )
-                        st.plotly_chart(fig_bbb, use_container_width=True)
-
-            st.caption(
-                "Source: Trepp, MSCI Real Capital Analytics Q1 2025, FRED (DRCRELEXBS, BAMLC0A4CBBB). "
-                "Not financial advice. Distressed assets listed are representative examples, not a complete universe."
-            )
-
-        with st.expander("How This Is Calculated"):
-            st.markdown("""
-**Credit Conditions Classification:**
-
-- **LOOSE:** IG spreads < 100bp, VIX < 15, bank lending easing — abundant capital, aggressive CRE lending
-- **NEUTRAL:** IG spreads 100-200bp, VIX 15-25 — normal market conditions
-- **TIGHT:** IG spreads > 200bp, VIX > 25, bank lending tightening — restricted capital, higher borrowing costs
-
-**Key Indicators:**
-- **Investment Grade (IG) Spread (BAMLC0A4CBBB):** BBB corporate bond yield minus Treasury — cost of corporate borrowing
-- **High Yield (HY) Spread (BAMLH0A0HYM2):** Junk bond spread — risk appetite measure
-- **VIX (VIXCLS):** CBOE Volatility Index — market uncertainty and risk aversion
-- **Moody's BAA-AAA Spread:** Credit quality premium — widening signals deteriorating credit conditions
-- **Fed Senior Loan Officer Survey:** Quarterly survey on bank lending standards for C&I and CRE loans
-
-**PnL Impact:**
-- A 100bp widening in IG spreads typically adds 75-100bp to CRE mortgage rates
-- On a $10M property with 65% LTV, a 100bp rate increase adds ~$65K/year to debt service
-- Tightening lending standards reduce available acquisition financing, cooling transaction volume and prices
-
-**Data Source:** FRED (corporate spreads, VIX, lending surveys), updated every 6 hours via Agent 12.
-""")
-
-with main_tab_about:
-    tab_about_team, tab_about_monitor = st.tabs(["Meet the Team", "System Monitor"])
-
-    # ── Meet the Team ─────────────────────────────────────────────────────────
-    with tab_about_team:
-        import base64 as _b64
-
-        # ── Team config — drop a photo file in app/assets/team/ named exactly
-        #    as the "photo" field below (e.g. aayman.jpg) and it auto-appears.
-        #    Supported formats: jpg, jpeg, png, webp
-        _TEAM = [
-            {
-                "name":     "Aayman Afzal",
-                "role":     "MSF Candidate",
-                "linkedin": "https://www.linkedin.com/in/aayman-afzal",
-                "photo":    "aayman.jpg",
-            },
-            {
-                "name":     "Ajinkya Kodnikar",
-                "role":     "MSF Candidate",
-                "linkedin": "https://www.linkedin.com/in/ajinkyakodnikar",
-                "photo":    "ajinkya.jpg",
-            },
-            {
-                "name":     "Oyu Amar",
-                "role":     "MSF Candidate",
-                "linkedin": "https://www.linkedin.com/in/oyu-amar/",
-                "photo":    "oyu.jpg",
-            },
-            {
-                "name":     "Ricardo Ruiz",
-                "role":     "MSF Candidate",
-                "linkedin": "https://www.linkedin.com/in/ricardo-ruiz1",
-                "photo":    "ricardo.jpg",
-            },
-        ]
-
-        from pathlib import Path as _Path
-        _ASSETS_DIR = _Path(__file__).parent / "assets" / "team"
-
-        def _photo_html(filename: str) -> str:
-            """Return an <img> tag if the photo file exists, else a fallback avatar."""
-            for ext in [filename, filename.replace(".jpg", ".jpeg"),
-                        filename.replace(".jpg", ".png"), filename.replace(".jpg", ".webp")]:
-                p = _ASSETS_DIR / ext
-                if p.exists():
-                    mime = "image/jpeg" if ext.endswith((".jpg", ".jpeg")) else (
-                           "image/png" if ext.endswith(".png") else "image/webp")
-                    data = _b64.b64encode(p.read_bytes()).decode()
-                    return (
-                        f'<img src="data:{mime};base64,{data}" '
-                        f'style="width:96px;height:96px;border-radius:50%;'
-                        f'object-fit:cover;border:2px solid #a07830;margin-bottom:10px;" />'
-                    )
-            return '<div style="font-size:3rem;margin-bottom:10px;">&#128100;</div>'
-
-        st.markdown("""
-<div style="background:linear-gradient(135deg,#1a1208 0%,#2a1e08 100%);
-            border:1px solid #a07830; border-top:3px solid #d4a843;
-            border-radius:10px; padding:28px 36px; margin-bottom:28px;">
-  <div style="color:#d4a843;font-size:1.45rem;font-weight:700;letter-spacing:1px;">
-    CRE Intelligence Platform
-  </div>
-  <div style="color:#a09880;font-size:0.92rem;margin-top:6px;max-width:720px;">
-    Built by the Purdue Daniels School of Business MSF cohort for MGMT 690: AI Leadership.
-    A real-time commercial real estate intelligence system powered by 20 background agents,
-    live market data, and AI-driven investment analysis.
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-        st.markdown("""
-<div style="text-align:center; margin-bottom:20px;">
-  <span style="color:#d4a843; font-size:1.3rem; font-weight:700; letter-spacing:2px;
-               text-transform:uppercase;">Meet the Team</span>
-  <div style="color:#a09880; font-size:0.85rem; margin-top:6px;">
-    MGMT 690: AI Leadership &nbsp;&middot;&nbsp; Purdue Daniels School of Business &nbsp;&middot;&nbsp; MSF Program
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-        # Render each card in its own column so HTML is isolated per st.markdown call
-        _tm_cols = st.columns(len(_TEAM), gap="medium")
-        for _col, _tm in zip(_tm_cols, _TEAM):
-            _photo = _photo_html(_tm["photo"])
-            _col.markdown(
-                f'<div style="background:#1e1a0a;border:1px solid #a07830;border-radius:8px;'
-                f'padding:24px 16px;text-align:center;">'
-                f'{_photo}'
-                f'<div style="color:#e8dfc4;font-weight:700;font-size:0.95rem;margin-bottom:4px;">{_tm["name"]}</div>'
-                f'<div style="color:#6a5228;font-size:0.75rem;margin-bottom:10px;">{_tm["role"]}</div>'
-                f'<a href="{_tm["linkedin"]}" target="_blank" '
-                f'style="color:#d4a843;font-size:0.8rem;text-decoration:none;">&#128279; LinkedIn</a>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Platform Overview")
-        _ov_cols = st.columns(3)
-        _ov_cols[0].markdown(metric_card("Background Agents", "20", "Auto-updating data sources"), unsafe_allow_html=True)
-        _ov_cols[1].markdown(metric_card("Data Sources", "30+", "APIs, RSS feeds, government data"), unsafe_allow_html=True)
-        _ov_cols[2].markdown(metric_card("Update Frequency", "30 min", "Fastest agent refresh cycle"), unsafe_allow_html=True)
-
-        st.markdown("""
-<div style="background:#16140a;border:1px solid #2a2208;border-radius:8px;
-            padding:20px 24px;margin-top:16px;color:#a09880;font-size:0.9rem;line-height:1.8;">
-  <div style="color:#d4a843;font-weight:600;margin-bottom:10px;">What This Platform Does</div>
-  The CRE Intelligence Platform continuously monitors 20+ commercial real estate market signals —
-  population migration, REIT pricing, interest rates, labor markets, inflation, GDP, credit conditions,
-  cap rates, rent growth, vacancy, climate risk, and more — and synthesizes them into actionable
-  investment intelligence. The AI Investment Advisor combines all live data to score every US metro
-  market and generate personalized investment briefs in plain English.
-</div>
-""", unsafe_allow_html=True)
-
-    # ── System Monitor ────────────────────────────────────────────────────────
-    with tab_about_monitor:
-        st.markdown("#### Background Agent Monitor")
-        st.markdown(
-            "20 agents run continuously in background threads, writing to JSON cache files. "
-            "Data survives Streamlit reruns. Agents restart automatically if the app restarts."
-        )
-
-        section(" Agent Status")
-        _about_status = get_status()
-
-        _about_agent_labels = {
-            "migration":       ("Agent 1",  "Population & Migration",    "Every 6h"),
-            "pricing":         ("Agent 2",  "REIT Pricing",              "Every 1h"),
-            "predictions":     ("Agent 3",  "Company Predictions",       "Every 24h"),
-            "debugger":        ("Agent 4",  "Debugger / Monitor",        "Every 30min"),
-            "news":            ("Agent 5",  "Industry Announcements",    "Every 4h"),
-            "rates":           ("Agent 6",  "Interest Rate & Debt",      "Every 1h"),
-            "energy":          ("Agent 7",  "Energy & Construction",     "Every 6h"),
-            "sustainability":  ("Agent 8",  "Sustainability & ESG",      "Every 6h"),
-            "labor_market":    ("Agent 9",  "Labor Market & Demand",     "Every 6h"),
-            "gdp":             ("Agent 10", "GDP & Economic Growth",     "Every 6h"),
-            "inflation":       ("Agent 11", "Inflation Monitor",         "Every 6h"),
-            "credit":          ("Agent 12", "Credit & Capital Markets",  "Every 6h"),
-            "vacancy":         ("Agent 13", "Vacancy Monitor",           "Every 12h"),
-            "climate_risk":    ("Agent 14", "Climate Risk",              "Every 24h"),
-            "cap_rate":        ("Agent 15", "Cap Rate Monitor",          "Every 6h"),
-            "rent_growth":     ("Agent 16", "Rent Growth",               "Every 6h"),
-            "land_market":     ("Agent 17", "Land & Development",        "Every 12h"),
-            "opportunity_zone":("Agent 18", "Opportunity Zones",         "Every 24h"),
-            "distressed":      ("Agent 19", "CMBS & Distressed",         "Every 6h"),
-            "market_score":    ("Agent 20", "Market Score Composite",    "Every 6h"),
-            "rentcast":        ("Agent 21", "RentCast Property DB",      "Every 24h"),
-            "forecast":        ("Agent 22", "Economic Forecast (FRED)",  "Every 6h"),
-            "manager":         ("Manager",  "System Health Supervisor",  "Every 15min"),
-        }
-
-        _cache_key_map = {
-            "credit": "credit_data", "energy": "energy_data",
-            "gdp": "gdp_data", "inflation": "inflation_data",
-            "sustainability": "sustainability_data",
-            "manager": "manager_report",
-        }
-
-        _about_rows = []
-        for _ak, (_anum, _aname, _afreq) in _about_agent_labels.items():
-            _as  = _about_status.get(_ak, {})
-            _mem_status = _as.get("status", "")   # in-memory (resets on restart)
-            _ar  = _as.get("runs", 0)
-            _ae  = _as.get("last_error") or ""
-            _ck  = _cache_key_map.get(_ak, _ak)
-            _cache_age = cache_age_label(_ck)
-            _cc  = read_cache(_ck)
-            _has_data = _cc.get("data") is not None
-            _is_stale = _cc.get("stale", False)
-
-            # Derive status: cache truth takes precedence over stale in-memory flags
-            if _mem_status == "running":
-                _ast = "RUNNING"                    # always trust live running signal
-            elif _has_data and not _is_stale:
-                _ast = "OK"                         # fresh cache = healthy regardless of past errors
-            elif _mem_status == "error" and (_is_stale or not _has_data):
-                _ast = "ERROR"                      # error + bad cache = real problem
-            elif _has_data and _is_stale:
-                _ast = "STALE"
-            else:
-                _ast = "MISSING"
-
-            _about_rows.append({
-                "key":      _ak,
-                "label":    _aname,
-                "num":      _anum,
-                "name":     _aname,
-                "schedule": _afreq,
-                "status":   _ast,
-                "runs":     _ar,
-                "cache_age":_cache_age,
-                "has_data": _has_data,
-                "error":    _ae[:60] if _ae else "",
-            })
-
-        # ── KPI summary strip ──────────────────────────────────────────────────
-        _n_total   = len(_about_rows)
-        _n_ok      = sum(1 for r in _about_rows if r["status"] in ("OK", "RUNNING"))
-        _n_error   = sum(1 for r in _about_rows if r["status"] == "ERROR")
-        _n_cached  = sum(1 for r in _about_rows if r["has_data"])
-        _health_pct = round(_n_cached / _n_total * 100)
-
-        _kpi_cols = st.columns(4)
-        for _kc, (_kl, _kv, _kc2) in zip(_kpi_cols, [
-            ("Total Agents",    str(_n_total),              "#c8a040"),
-            ("Active / OK",     str(_n_ok),                 "#4caf50"),
-            ("Errors",          str(_n_error),              "#f44336" if _n_error else "#4caf50"),
-            ("Cache Health",    f"{_health_pct}%",          "#4caf50" if _health_pct >= 80 else "#ff9800"),
-        ]):
-            _kc.markdown(
-                f'<div class="metric-card"><div class="label">{_kl}</div>'
-                f'<div class="value" style="color:{_kc2};font-size:1.6rem;font-weight:700;">{_kv}</div></div>',
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ── Chart row: runs bar + status donut ────────────────────────────────
-        _ch_left, _ch_right = st.columns([2, 1], gap="large")
-
-        with _ch_left:
-            _status_color_map = {
-                "OK":      "#4caf50",
-                "RUNNING": "#ff9800",
-                "ERROR":   "#f44336",
-                "STALE":   "#d4a843",
-                "MISSING": "#f44336",
-                "IDLE":    "#555544",
-            }
-            _bar_labels  = [r["label"] for r in _about_rows]
-            _bar_runs    = [max(r["runs"], 1) for r in _about_rows]   # min 1 so bar is visible
-            _bar_colors  = [_status_color_map.get(r["status"], "#555544") for r in _about_rows]
-            _bar_hover   = [
-                f"<b>{r['label']}</b><br>Runs: {r['runs']}<br>Status: {r['status']}<br>Schedule: {r['schedule']}<br>Cache: {r['cache_age']}<extra></extra>"
-                for r in _about_rows
-            ]
-
-            _fig_runs = go.Figure(go.Bar(
-                y=_bar_labels,
-                x=_bar_runs,
-                orientation="h",
-                marker=dict(color=_bar_colors, opacity=0.88),
-                text=[str(r["runs"]) for r in _about_rows],
-                textposition="outside",
-                textfont=dict(color="#c8b890", size=10),
-                hovertemplate=_bar_hover,
-            ))
-            _fig_runs.update_layout(
-                title=dict(text="Agent Run Count", font=dict(color="#c8a040", size=13), x=0),
-                plot_bgcolor="#0d0b04", paper_bgcolor="#13110a",
-                margin=dict(t=36, b=20, l=200, r=60),
-                height=560,
-                xaxis=dict(
-                    title="Total Runs Since Last Restart",
-                    title_font=dict(color="#7a7050", size=11),
-                    tickfont=dict(color="#c8b890", size=10),
-                    gridcolor="#1e1c0e",
-                ),
-                yaxis=dict(tickfont=dict(color="#c8b890", size=10), autorange="reversed"),
-                font=dict(family="Source Sans Pro", color="#c8b890"),
-            )
-            st.plotly_chart(_fig_runs, use_container_width=True, config={"displayModeBar": False})
-
-        with _ch_right:
-            _status_counts = {"OK": 0, "RUNNING": 0, "STALE": 0, "ERROR": 0, "MISSING": 0}
-            for r in _about_rows:
-                _s = r["status"] if r["status"] in _status_counts else "OK"
-                _status_counts[_s] += 1
-            # Drop zero-count entries so donut isn't cluttered
-            _status_counts = {k: v for k, v in _status_counts.items() if v > 0}
-
-            _donut_labels = list(_status_counts.keys())
-            _donut_vals   = list(_status_counts.values())
-            _donut_colors = [_status_color_map[s] for s in _donut_labels]
-
-            _fig_donut = go.Figure(go.Pie(
-                labels=_donut_labels,
-                values=_donut_vals,
-                hole=0.62,
-                marker=dict(colors=_donut_colors, line=dict(color="#0d0b04", width=2)),
-                textfont=dict(color="#c8b890", size=12),
-                hovertemplate="<b>%{label}</b><br>%{value} agents<br>%{percent}<extra></extra>",
-            ))
-            _fig_donut.add_annotation(
-                text=f"<b>{_health_pct}%</b><br><span style='font-size:10px'>Healthy</span>",
-                x=0.5, y=0.5, showarrow=False,
-                font=dict(color="#c8a040", size=16),
-            )
-            _fig_donut.update_layout(
-                title=dict(text="Status Breakdown", font=dict(color="#c8a040", size=13), x=0),
-                plot_bgcolor="#0d0b04", paper_bgcolor="#13110a",
-                margin=dict(t=36, b=20, l=10, r=10),
-                height=300,
-                legend=dict(font=dict(color="#c8b890", size=11), bgcolor="rgba(0,0,0,0)",
-                            orientation="h", y=-0.08),
-                font=dict(family="Source Sans Pro"),
-            )
-            st.plotly_chart(_fig_donut, use_container_width=True, config={"displayModeBar": False})
-
-            # ── Cache data presence bar ────────────────────────────────────────
-            _cache_labels  = [r["num"] for r in _about_rows]
-            _cache_present = [1 if r["has_data"] else 0 for r in _about_rows]
-            _cache_colors  = ["#4caf50" if v else "#f44336" for v in _cache_present]
-
-            _fig_cache = go.Figure(go.Bar(
-                x=_cache_labels,
-                y=_cache_present,
-                marker=dict(color=_cache_colors, opacity=0.85),
-                hovertemplate=[
-                    f"<b>{r['label']}</b><br>Cache: {'OK' if r['has_data'] else 'MISSING'}<br>{r['cache_age']}<extra></extra>"
-                    for r in _about_rows
-                ],
-            ))
-            _fig_cache.update_layout(
-                title=dict(text="Cache Data Present", font=dict(color="#c8a040", size=13), x=0),
-                plot_bgcolor="#0d0b04", paper_bgcolor="#13110a",
-                margin=dict(t=36, b=40, l=10, r=10),
-                height=220,
-                xaxis=dict(tickfont=dict(color="#c8b890", size=9), tickangle=-45),
-                yaxis=dict(visible=False),
-                font=dict(family="Source Sans Pro"),
-                showlegend=False,
-            )
-            st.plotly_chart(_fig_cache, use_container_width=True, config={"displayModeBar": False})
-
-        # ── Agent Leadership Tree (all 21 agents, 6 tiers) ───────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Agent Leadership Tree")
-
-        _td = {r["key"]: r for r in _about_rows}
-
-        def _get_nd(k):
-            r = _td.get(k, {})
-            return {
-                "name":   r.get("name", k.title()),
-                "sched":  r.get("schedule", "\u2014"),
-                "runs":   r.get("runs", 0),
-                "status": r.get("status", "MISSING"),
-                "age":    r.get("cache_age", "\u2014"),
-            }
-
-        def _svg_node(x, y, w, h, fill, stroke, title, sub1, status, age, ts=11, rr=10):
-            sc = {"OK": "#4caf50", "RUNNING": "#ff9800", "ERROR": "#f44336",
-                  "STALE": "#d4a843", "MISSING": "#888"}.get(status, "#888")
-            cx = x + w // 2
-            # Split long titles onto 2 lines at nearest word boundary to middle
-            if len(title) > 16 and " " in title:
-                mid = len(title) // 2
-                sl = title.rfind(" ", 0, mid)
-                sr = title.find(" ", mid)
-                if sl == -1:   split = sr
-                elif sr == -1: split = sl
-                else:          split = sl if (mid - sl) <= (sr - mid) else sr
-                l1, l2 = title[:split], title[split + 1:]
-                ttl_svg = (
-                    f'<text x="{cx}" y="{y + int(h * 0.28)}" text-anchor="middle" fill="{stroke}" '
-                    f'font-size="{ts}" font-weight="700" font-family="sans-serif">{l1}</text>'
-                    f'<text x="{cx}" y="{y + int(h * 0.46)}" text-anchor="middle" fill="{stroke}" '
-                    f'font-size="{ts}" font-weight="700" font-family="sans-serif">{l2}</text>'
-                )
-                sub_y, st_y = y + int(h * 0.66), y + int(h * 0.84)
-            else:
-                ttl_svg = (
-                    f'<text x="{cx}" y="{y + int(h * 0.38)}" text-anchor="middle" fill="{stroke}" '
-                    f'font-size="{ts}" font-weight="700" font-family="sans-serif">{title}</text>'
-                )
-                sub_y, st_y = y + int(h * 0.60), y + int(h * 0.80)
-            return (
-                f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rr}" ry="{rr}" '
-                f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
-                + ttl_svg +
-                f'<text x="{cx}" y="{sub_y}" text-anchor="middle" fill="#6a6050" '
-                f'font-size="9" font-family="sans-serif">{sub1}</text>'
-                f'<text x="{cx}" y="{st_y}" text-anchor="middle" fill="{sc}" '
-                f'font-size="9" font-family="sans-serif">\u25cf {status} \u00b7 {age}</text>'
-            )
-
-        def _bus(upper_cx, lower_cx, y_top, y_bot, lc):
-            """Vertical stubs + horizontal bus between two tiers."""
-            yb = (y_top + y_bot) // 2
-            all_x = sorted(set(upper_cx) | set(lower_cx))
-            segs = [f'<line x1="{min(all_x)}" y1="{yb}" x2="{max(all_x)}" y2="{yb}" '
-                    f'stroke="{lc}" stroke-width="1.5"/>']
-            for x in upper_cx:
-                segs.append(f'<line x1="{x}" y1="{y_top}" x2="{x}" y2="{yb}" '
-                             f'stroke="{lc}" stroke-width="1.5"/>')
-            for x in lower_cx:
-                segs.append(f'<line x1="{x}" y1="{yb}" x2="{x}" y2="{y_bot}" '
-                             f'stroke="{lc}" stroke-width="1.5"/>')
-            return "".join(segs)
-
-        # ── Layout constants ──────────────────────────────────────────────────
-        _NW, _NH = 138, 65          # node width / height
-        # 5-node tier: margin=61, step=150 → centers 130,280,430,580,730
-        _CX5 = [130, 280, 430, 580, 730]
-        _NX5 = [61,  211, 361, 511, 661]
-        # 2-node tier aligned with T3 positions 1 and 3
-        _CX2 = [280, 580]
-        _NX2 = [211, 511]
-        # Tier Y-tops (T1..T6) with 45px gaps
-        _LY  = [10, 120, 230, 340, 450, 560]
-        _TB  = [y + _NH for y in _LY]   # tier bottoms
-        _lc  = "#5a4818"
-
-        # ── Tier color pairs (fill, stroke) ───────────────────────────────────
-        _CA = ("#3a1a00", "#b87020")   # amber     — T1 Infrastructure
-        _CT = ("#051e1e", "#1a7870")   # teal      — T2 Real-time
-        _CG = ("#161610", "#404038")   # gray      — T3 Periodic
-        _CB = ("#080c18", "#283060")   # dark blue — T4 Macro
-        _CO = ("#101808", "#405020")   # olive     — T5 CRE Metrics
-        _CP = ("#140820", "#483890")   # purple    — T6 Synthesis
-
-        # ── Fetch live data for all 21 agents ─────────────────────────────────
-        _nds = {k: _get_nd(k) for k in [
-            "manager", "debugger",
-            "pricing", "rates",
-            "news", "migration", "energy", "sustainability", "labor_market",
-            "gdp", "inflation", "credit", "vacancy", "climate_risk",
-            "cap_rate", "rent_growth", "land_market", "opportunity_zone", "distressed",
-            "market_score", "predictions",
-        ]}
-
-        def _n(key, x, y, fill, stroke, ts=11):
-            nd = _nds[key]
-            return _svg_node(x, y, _NW, _NH, fill, stroke,
-                             nd["name"],
-                             f"{nd['sched']} \u00b7 {nd['runs']} runs",
-                             nd["status"], nd["age"], ts=ts)
-
-        # ── Build all 21 node SVGs ─────────────────────────────────────────────
-        _svg_nodes = (
-            # T1 — Infrastructure (amber, 2 nodes)
-            _n("manager",          _NX2[0], _LY[0], *_CA, ts=12) +
-            _n("debugger",         _NX2[1], _LY[0], *_CA, ts=12) +
-            # T2 — Real-time (teal, 2 nodes)
-            _n("pricing",          _NX2[0], _LY[1], *_CT) +
-            _n("rates",            _NX2[1], _LY[1], *_CT) +
-            # T3 — Periodic/Contextual (gray, 5 nodes)
-            _n("news",             _NX5[0], _LY[2], *_CG) +
-            _n("migration",        _NX5[1], _LY[2], *_CG) +
-            _n("energy",           _NX5[2], _LY[2], *_CG) +
-            _n("sustainability",   _NX5[3], _LY[2], *_CG) +
-            _n("labor_market",     _NX5[4], _LY[2], *_CG) +
-            # T4 — Macro (dark blue, 5 nodes)
-            _n("gdp",              _NX5[0], _LY[3], *_CB) +
-            _n("inflation",        _NX5[1], _LY[3], *_CB) +
-            _n("credit",           _NX5[2], _LY[3], *_CB) +
-            _n("vacancy",          _NX5[3], _LY[3], *_CB) +
-            _n("climate_risk",     _NX5[4], _LY[3], *_CB) +
-            # T5 — CRE Metrics (olive, 5 nodes)
-            _n("cap_rate",         _NX5[0], _LY[4], *_CO) +
-            _n("rent_growth",      _NX5[1], _LY[4], *_CO) +
-            _n("land_market",      _NX5[2], _LY[4], *_CO) +
-            _n("opportunity_zone", _NX5[3], _LY[4], *_CO) +
-            _n("distressed",       _NX5[4], _LY[4], *_CO) +
-            # T6 — Synthesis (purple, 2 nodes)
-            _n("market_score",     _NX2[0], _LY[5], *_CP, ts=12) +
-            _n("predictions",      _NX2[1], _LY[5], *_CP, ts=12)
-        )
-
-        # ── Build connector lines (bus-style between each tier) ───────────────
-        _svg_lines = (
-            _bus(_CX2, _CX2, _TB[0], _LY[1], _lc) +   # T1 → T2  (same 2 centers)
-            _bus(_CX2, _CX5, _TB[1], _LY[2], _lc) +   # T2 → T3  (fan out)
-            _bus(_CX5, _CX5, _TB[2], _LY[3], _lc) +   # T3 → T4
-            _bus(_CX5, _CX5, _TB[3], _LY[4], _lc) +   # T4 → T5
-            _bus(_CX5, _CX2, _TB[4], _LY[5], _lc)     # T5 → T6  (fan in)
-        )
-
-        # ── Legend ────────────────────────────────────────────────────────────
-        _leg_items = [
-            (_CA, "Infrastructure"), (_CT, "Real-time"),  (_CG, "Periodic"),
-            (_CB, "Macro"),          (_CO, "CRE Metrics"), (_CP, "Synthesis"),
-        ]
-        _leg_svg = ""
-        _lx = 100
-        for (_lf, _ls), _ll in _leg_items:
-            _leg_svg += (
-                f'<rect x="{_lx}" y="640" width="11" height="11" rx="2" '
-                f'fill="{_lf}" stroke="{_ls}" stroke-width="1"/>'
-                f'<text x="{_lx + 15}" y="650" fill="#6a6050" font-size="10" '
-                f'font-family="sans-serif">{_ll}</text>'
-            )
-            _lx += 15 + int(len(_ll) * 6.5) + 18
-
-        _tree_svg = (
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 665" width="100%"'
-            ' style="display:block;margin:0 auto;">'
-            + _svg_lines + _svg_nodes + _leg_svg +
-            '</svg>'
-        )
-        st.markdown(
-            f'<div style="background:#13110a;border-radius:10px;padding:20px 24px;'
-            f'margin-bottom:12px;overflow-x:auto;">'
-            f'{_tree_svg}</div>',
-            unsafe_allow_html=True,
-        )
-
-        # ── Styled agent status table ──────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Agent Detail")
-
-        _st_hcells = "".join(
-            f'<th style="padding:10px 12px 13px;color:#c8a040;font-size:0.76rem;font-weight:700;'
-            f'letter-spacing:0.09em;text-align:{al};border-bottom:1px solid #2a2410;">{h}</th>'
-            for h, al in [("AGENT","left"),("SCHEDULE","center"),("STATUS","center"),
-                          ("RUNS","right"),("CACHE AGE","right"),("LAST ERROR","left")]
-        )
-        _st_rows_html = ""
-        for _r in _about_rows:
-            _sc   = _status_color_map.get(_r["status"], "#888")
-            _sep  = "border-bottom:1px solid #1e1c0e;"
-            _dot  = f'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{_sc};margin-right:6px;vertical-align:middle;"></span>'
-            _st_rows_html += (
-                f'<tr>'
-                f'<td style="padding:10px 12px;{_sep}color:#c8b890;font-size:0.88rem;white-space:nowrap;">{_r["label"]}</td>'
-                f'<td style="padding:10px 12px;{_sep}text-align:center;color:#7a7050;font-size:0.82rem;">{_r["schedule"]}</td>'
-                f'<td style="padding:10px 12px;{_sep}text-align:center;">'
-                f'{_dot}<span style="color:{_sc};font-size:0.82rem;font-weight:700;">{_r["status"]}</span></td>'
-                f'<td style="padding:10px 12px;{_sep}text-align:right;color:#c8a040;font-size:0.88rem;">{_r["runs"]}</td>'
-                f'<td style="padding:10px 12px;{_sep}text-align:right;color:#a09070;font-size:0.82rem;white-space:nowrap;">{_r["cache_age"]}</td>'
-                f'<td style="padding:10px 12px;{_sep}color:#ef5350;font-size:0.8rem;">{_r["error"]}</td>'
-                f'</tr>'
-            )
-
-        _sm_html = f"""
-<div style="background:#13110a;border-radius:10px;padding:24px 28px 16px;margin-bottom:8px;">
-  <div style="overflow-x:auto;">
-    <table style="border-collapse:collapse;width:100%;font-family:'Source Sans Pro',sans-serif;">
-      <thead><tr>{_st_hcells}</tr></thead>
-      <tbody>{_st_rows_html}</tbody>
-    </table>
-  </div>
-</div>
-"""
-        st.markdown(_sm_html, unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" Cache Health")
-        _cache_check_keys = [
-            ("migration",           "Every 6h"),
-            ("pricing",             "Every 1h"),
-            ("rates",               "Every 1h"),
-            ("energy_data",         "Every 6h"),
-            ("credit_data",         "Every 6h"),
-            ("gdp_data",            "Every 6h"),
-            ("inflation_data",      "Every 6h"),
-            ("labor_market",        "Every 6h"),
-            ("cap_rate",            "Every 6h"),
-            ("rent_growth",         "Every 6h"),
-            ("vacancy",             "Every 12h"),
-            ("climate_risk",        "Every 24h"),
-            ("market_score",        "Every 6h"),
-            ("opportunity_zone",    "Every 24h"),
-            ("forecast",            "Every 6h"),
-            ("news",                "Every 4h"),
-        ]
-        _cc_cols = st.columns(5)
-        for _ci, (_ck, _cf) in enumerate(_cache_check_keys):
-            _cc = read_cache(_ck)
-            _has = _cc["data"] is not None
-            _stale = _cc.get("stale", True)
-            _label = "OK" if _has and not _stale else ("STALE" if _has else "MISSING")
-            _clr   = "#4caf50" if _label == "OK" else ("#ff9800" if _label == "STALE" else "#f44336")
-            _cc_cols[_ci % 5].markdown(
-                f'<div class="metric-card">'
-                f'<div class="label" style="font-size:0.72rem;">{_ck.replace("_", " ").title()}</div>'
-                f'<div class="value" style="color:{_clr};font-size:1rem;">{_label}</div>'
-                f'<div class="sub">{cache_age_label(_ck)}</div>'
-                f'<div style="font-size:0.68rem;color:#555;margin-top:2px;">{_cf}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-        st.caption(
-            "All agents run in APScheduler background threads. Caches are JSON files in cache/. "
-            "Status reflects the in-memory agent_status dict — resets on app restart."
-        )
-
-        # ── Manager Agent Report ───────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        section(" System Health Supervisor — Last Report")
-
-        _mgr_col, _mgr_btn_col = st.columns([5, 1])
-        with _mgr_btn_col:
-            if st.button("Run Now", key="run_manager_now"):
-                from src.cre_agents import force_run as _force_run
-                _force_run("manager")
-                st.toast("Manager agent triggered — refresh in ~10 seconds", icon="✅")
-
-        _mgr_cache = read_cache("manager_report")
-        _mgr_data  = _mgr_cache.get("data") or {}
-
-        if not _mgr_data:
-            with _mgr_col:
-                st.info("No manager report yet — click 'Run Now' or wait up to 15 minutes for the first scheduled run.")
-        else:
-            with _mgr_col:
-                _mgr_age = cache_age_label("manager_report")
-                _mgr_pct = _mgr_data.get("health_pct", 0)
-                _mgr_ok  = _mgr_data.get("ok", 0)
-                _mgr_tot = _mgr_data.get("total_agents", 0)
-                _mgr_heal= _mgr_data.get("healed", 0)
-                _mgr_iss = _mgr_data.get("issues", 0)
-                _mgr_keys= _mgr_data.get("key_issues", 0)
-
-                _pct_clr = "#4caf50" if _mgr_pct >= 80 else ("#ff9800" if _mgr_pct >= 50 else "#f44336")
-                st.markdown(f"""
-<div style="background:#13110a;border:1px solid #2a2208;border-radius:10px;padding:18px 24px;margin-bottom:12px;">
-  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
-    <div style="font-size:2.2rem;font-weight:700;color:{_pct_clr};font-family:monospace;">{_mgr_pct}%</div>
-    <div>
-      <div style="color:#c8b890;font-size:0.95rem;font-weight:600;">System Health</div>
-      <div style="color:#5a4820;font-size:0.78rem;">Last checked: {_mgr_age} · {_mgr_ok}/{_mgr_tot} agents OK</div>
-    </div>
-    <div style="margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;">
-      <div style="text-align:center;"><div style="color:#4caf50;font-size:1.3rem;font-weight:700;">{_mgr_heal}</div><div style="color:#5a4820;font-size:0.72rem;">Auto-healed</div></div>
-      <div style="text-align:center;"><div style="color:{"#f44336" if _mgr_iss else "#4caf50"};font-size:1.3rem;font-weight:700;">{_mgr_iss}</div><div style="color:#5a4820;font-size:0.72rem;">Unresolved</div></div>
-      <div style="text-align:center;"><div style="color:{"#f44336" if _mgr_keys else "#4caf50"};font-size:1.3rem;font-weight:700;">{_mgr_keys}</div><div style="color:#5a4820;font-size:0.72rem;">Missing API keys</div></div>
-    </div>
-  </div>
-""", unsafe_allow_html=True)
-
-                # API key status
-                _api_keys = _mgr_data.get("api_keys", [])
-                if _api_keys:
-                    _key_rows = "".join([
-                        f'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e1a08;">'
-                        f'<span style="width:8px;height:8px;border-radius:50%;background:{"#4caf50" if k["status"]=="OK" else "#f44336"};display:inline-block;flex-shrink:0;"></span>'
-                        f'<span style="color:#c8b890;font-size:0.82rem;font-family:monospace;">{k["key"]}</span>'
-                        f'<span style="color:#5a4820;font-size:0.78rem;margin-left:4px;">{k["description"]}</span>'
-                        f'<span style="margin-left:auto;color:{"#4caf50" if k["status"]=="OK" else "#f44336"};font-size:0.78rem;font-weight:600;">{k["status"]}</span>'
-                        f'</div>'
-                        for k in _api_keys
-                    ])
-                    st.markdown(f'<div style="margin-top:8px;"><div style="color:#6a5228;font-size:0.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">API Keys</div>{_key_rows}</div></div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-                # Healed / issue agents
-                _healed_agents = _mgr_data.get("healed_agents", [])
-                _unresolved    = _mgr_data.get("unresolved", [])
-                if _healed_agents:
-                    st.markdown(
-                        f'<div style="background:#0d2a12;border:1px solid #1a5020;border-radius:8px;padding:10px 14px;margin-top:8px;">'
-                        f'<span style="color:#4caf50;font-size:0.78rem;font-weight:600;">Auto-healed: </span>'
-                        f'<span style="color:#c8b890;font-size:0.82rem;">{", ".join(_healed_agents)}</span></div>',
-                        unsafe_allow_html=True,
-                    )
-                if _unresolved:
-                    st.markdown(
-                        f'<div style="background:#2a0d0d;border:1px solid #5a1010;border-radius:8px;padding:10px 14px;margin-top:6px;">'
-                        f'<span style="color:#f44336;font-size:0.78rem;font-weight:600;">Unresolved: </span>'
-                        f'<span style="color:#c8b890;font-size:0.82rem;">{", ".join(_unresolved)}</span></div>',
-                        unsafe_allow_html=True,
-                    )
-
-                # Backed-off agents
-                _backed_off_agents = _mgr_data.get("backed_off_agents", [])
-                if _backed_off_agents:
-                    st.markdown(
-                        f'<div style="background:#2a1a00;border:1px solid #7a4000;border-radius:8px;padding:10px 14px;margin-top:6px;">'
-                        f'<span style="color:#ff9800;font-size:0.78rem;font-weight:600;">Needs manual fix (failed 3x): </span>'
-                        f'<span style="color:#c8b890;font-size:0.82rem;">{", ".join(_backed_off_agents)}</span>'
-                        f'<div style="color:#7a5820;font-size:0.74rem;margin-top:4px;">Check your API keys in .env or verify network access, then click Run Now.</div>'
-                        f'</div>',
-                        unsafe_allow_html=True,
-                    )
-
-                # Restart verification results
-                _verif = _mgr_data.get("verification", {})
-                if _verif:
-                    _conf  = [k for k, v in _verif.items() if v == "CONFIRMED"]
-                    _unconf = [k for k, v in _verif.items() if v != "CONFIRMED"]
-                    if _conf:
-                        st.markdown(
-                            f'<div style="background:#0d2a12;border:1px solid #1a5020;border-radius:8px;padding:8px 14px;margin-top:6px;">'
-                            f'<span style="color:#4caf50;font-size:0.76rem;font-weight:600;">Restart verified: </span>'
-                            f'<span style="color:#a09880;font-size:0.78rem;">{", ".join(_conf)}</span></div>',
-                            unsafe_allow_html=True,
-                        )
-                    if _unconf:
-                        st.markdown(
-                            f'<div style="background:#1a1400;border:1px solid #3a3000;border-radius:8px;padding:8px 14px;margin-top:4px;">'
-                            f'<span style="color:#ffb74d;font-size:0.76rem;font-weight:600;">Restart unconfirmed: </span>'
-                            f'<span style="color:#a09880;font-size:0.78rem;">{", ".join(_unconf)} — may still be running</span></div>',
-                            unsafe_allow_html=True,
-                        )
-
-                # Investment Advisor dependency chain
-                _adv_dep_checks = _mgr_data.get("advisor_dependencies", [])
-                _adv_ok_count   = _mgr_data.get("advisor_ok", 0)
-                if _adv_dep_checks:
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown(
-                        f'<div style="color:#6a5228;font-size:0.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">'
-                        f'Investment Advisor Data Sources ({_adv_ok_count}/{len(_adv_dep_checks)} healthy)</div>',
-                        unsafe_allow_html=True,
-                    )
-                    _dep_rows = ""
-                    for _dep in _adv_dep_checks:
-                        _dh  = _dep.get("health", "?")
-                        _dot_c = "#4caf50" if _dh == "OK" else ("#ff9800" if _dh in ("STALE", "RUNNING") else "#f44336")
-                        _hint  = _dep.get("hint", "")
-                        _dep_rows += (
-                            f'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e1a08;">'
-                            f'<span style="width:8px;height:8px;border-radius:50%;background:{_dot_c};display:inline-block;flex-shrink:0;"></span>'
-                            f'<span style="color:#c8b890;font-size:0.82rem;">{_dep["agent"].replace("_"," ").title()}</span>'
-                            f'<span style="margin-left:auto;color:{_dot_c};font-size:0.76rem;font-weight:600;">{_dh}</span>'
-                            + (f'<span style="color:#7a5820;font-size:0.72rem;margin-left:8px;">{_hint}</span>' if _hint else '')
-                            + '</div>'
-                        )
-                    st.markdown(
-                        f'<div style="background:#13110a;border:1px solid #2a2208;border-radius:8px;padding:12px 16px;">'
-                        f'{_dep_rows}</div>',
-                        unsafe_allow_html=True,
-                    )
-
-                # Per-agent detail: show any with hints or consecutive failures
-                _problem_agents = [a for a in _mgr_data.get("agents", [])
-                                   if a.get("consecutive_failures", 0) > 0 or a.get("missing_fields") or a.get("hint")]
-                if _problem_agents:
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown(
-                        '<div style="color:#6a5228;font-size:0.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Agent Diagnostics</div>',
-                        unsafe_allow_html=True,
-                    )
-                    for _pa in _problem_agents:
-                        _pa_c = "#ff9800" if _pa.get("consecutive_failures", 0) < 3 else "#f44336"
-                        _mf   = ", ".join(_pa.get("missing_fields", []))
-                        _hint = _pa.get("hint", "")
-                        _cf   = _pa.get("consecutive_failures", 0)
-                        _detail = []
-                        if _cf:   _detail.append(f"{_cf} consecutive failure{'s' if _cf>1 else ''}")
-                        if _mf:   _detail.append(f"missing fields: {_mf}")
-                        if _hint: _detail.append(_hint)
-                        st.markdown(
-                            f'<div style="background:#1a1208;border-left:3px solid {_pa_c};border-radius:4px;'
-                            f'padding:7px 12px;margin-bottom:4px;font-size:0.8rem;">'
-                            f'<span style="color:{_pa_c};font-weight:600;">{_pa["agent"].replace("_"," ").title()}</span>'
-                            f'<span style="color:#7a6040;margin-left:10px;">{" · ".join(_detail)}</span>'
-                            f'</div>',
-                            unsafe_allow_html=True,
-                        )
