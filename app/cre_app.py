@@ -1183,688 +1183,228 @@ if not st.session_state.onboarding_complete:
           <div style="display:flex;flex-wrap:wrap;gap:8px;">{_rs_items}</div>
         </div>"""
 
-    # ── Houston migration map as dim fullscreen background ────────────────────
-    # Pull the same neighborhood data the metro drill-down uses so the welcome
-    # screen previews exactly what the user sees after they search "Houston Texas".
+    # ── Single fullscreen welcome iframe (map + UI in one DOM) ────────────────
     try:
         from src.zip_migration import _METRO_DATA as _BG_METRO_DATA
-        _bg_zones = _BG_METRO_DATA["Houston"]["zones"]
+        _bg_zones  = _BG_METRO_DATA["Houston"]["zones"]
         _bg_lats   = [z[1] for z in _bg_zones]
         _bg_lons   = [z[2] for z in _bg_zones]
         _bg_scores = [z[3] for z in _bg_zones]
-        _bg_names  = [z[0] for z in _bg_zones]
     except Exception:
-        _bg_lats, _bg_lons, _bg_scores, _bg_names = [29.76], [-95.37], [70], ["Houston"]
+        _bg_lats, _bg_lons, _bg_scores = [29.76], [-95.37], [70]
 
-    import json as _bg_json
-    _bg_payload = _bg_json.dumps({
-        "lat":    _bg_lats,
-        "lon":    _bg_lons,
-        "score":  _bg_scores,
-        "name":   _bg_names,
-    })
+    import json as _bj
+    _map_data = _bj.dumps({"lat": _bg_lats, "lon": _bg_lons, "score": _bg_scores})
 
-    # The Houston map renders inside an iframe and pins ITSELF as a fullscreen
-    # backdrop via window.parent — CSS :has() selectors don't reliably win over
-    # Streamlit's container layout, so we let the iframe re-style its own host.
-    _BG_MAP_TAG = "home-bg-map-marker-7f3c"
-    components.html(
-        f"""
-<!doctype html><html><head>
-<!-- {_BG_MAP_TAG} -->
-<script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script>
+    _rs_json = _bj.dumps(st.session_state.recent_searches[:4]
+                         if st.session_state.recent_searches else [])
+
+    GOLD = "#c8a040"
+
+    components.html(f"""<!doctype html><html><head>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
-  html, body {{ margin:0; padding:0; height:100vh; width:100vw;
-                background:#0d0b04; overflow:hidden; }}
-  /* Dark fallback so the dots stay readable if tiles fail to load */
-  #m {{ width:100vw; height:100vh; background:#0d0b04; }}
-  /* Tint the bright OSM raster tiles toward our dark/gold palette without a
-     custom style URL — light enough that road grid + city labels stay visible
-     as a wallpaper. */
-  #m .mapboxgl-canvas-container,
-  #m .maplibregl-canvas-container {{
-    filter: invert(0.88) hue-rotate(180deg) brightness(1.05) saturate(0.45) contrast(0.85);
-  }}
+  *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+  html,body{{width:100%;height:100%;overflow:hidden;background:#0d0b04;
+    font-family:'DM Sans',system-ui,sans-serif;color:#c8b890}}
+  #map-bg{{position:fixed;inset:0;z-index:0}}
+  #vig{{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at center,rgba(13,11,4,.08) 0%,rgba(13,11,4,.40) 55%,rgba(13,11,4,.72) 100%)}}
+  #app{{position:relative;z-index:10;height:100vh;display:flex;flex-direction:column;overflow:hidden}}
+
+  /* Navbar */
+  .nav{{background:rgba(13,11,4,.97);backdrop-filter:blur(10px);
+    border-bottom:1px solid rgba(200,160,64,.18);
+    padding:0 32px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}}
+  .nav-logo{{width:26px;height:26px;border-radius:6px;background:{GOLD};
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:.65rem;font-weight:800;color:#0d0b04;margin-right:10px;
+    font-family:'JetBrains Mono',monospace}}
+  .nav-brand{{color:#e8e4d8;font-size:.9rem;font-weight:600}}
+  .nav-sep{{color:rgba(200,160,64,.25);margin:0 10px}}
+  .nav-school{{color:#4a3820;font-size:.62rem;font-weight:500;letter-spacing:1.5px}}
+  .nav-cta{{background:transparent;border:1.5px solid {GOLD};color:{GOLD};
+    padding:5px 14px;border-radius:6px;font-size:.76rem;font-weight:600;cursor:default}}
+
+  /* Ticker */
+  .ticker{{background:#090700;border-bottom:1px solid rgba(200,160,64,.1);
+    height:36px;display:flex;align-items:center;overflow:hidden;flex-shrink:0}}
+  .t-item{{display:flex;align-items:center;gap:6px;padding:0 20px;
+    border-right:1px solid rgba(200,160,64,.08);height:100%;white-space:nowrap}}
+  .t-lbl{{color:#3a3020;font-size:.58rem;font-weight:600;letter-spacing:1px;text-transform:uppercase}}
+  .t-val{{color:#d8d0b8;font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600}}
+  .t-up{{color:#4caf50;font-size:.6rem}}.t-dn{{color:#ef5350;font-size:.6rem}}
+
+  /* Hero */
+  .hero{{flex:1;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;padding:12px 20px;text-align:center}}
+  .eyebrow{{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px}}
+  .ey-line{{flex:0 0 56px;height:1px;background:linear-gradient(90deg,transparent,rgba(200,160,64,.4))}}
+  .ey-line-r{{background:linear-gradient(270deg,transparent,rgba(200,160,64,.4))}}
+  .ey-text{{color:{GOLD};font-size:.75rem;font-weight:500;letter-spacing:3px}}
+  .hero-title{{font-size:clamp(2.4rem,5vw,4.2rem);font-weight:700;color:{GOLD};
+    line-height:1.08;margin-bottom:10px;letter-spacing:-.5px}}
+
+  /* Search */
+  .search-wrap{{width:100%;max-width:760px;margin:0 auto 10px}}
+  .search-row{{display:flex;height:54px}}
+  .search-input{{flex:1;background:rgba(13,11,4,.92);
+    border:1.5px solid rgba(200,160,64,.32);border-right:none;
+    border-radius:8px 0 0 8px;color:#e0d8c0;font-size:.95rem;
+    padding:0 20px 0 48px;font-family:'DM Sans',sans-serif;outline:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%234a3820' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:left 16px center;caret-color:{GOLD}}}
+  .search-input::placeholder{{color:#a89260;opacity:.85}}
+  .search-input:focus{{border-color:rgba(200,160,64,.55)}}
+  .search-btn{{background:{GOLD};color:#0d0b04;border:none;
+    border-radius:0 8px 8px 0;padding:0 28px;font-weight:700;
+    font-size:.82rem;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0}}
+  .search-btn:hover{{background:#e8c060}}
+  .examples{{color:#a89260;font-size:.75rem;margin-bottom:14px}}
+  .s-ex{{color:{GOLD};font-weight:500}}
+
+  /* Property cards */
+  .prop-section{{width:100%;max-width:900px;margin:0 auto}}
+  .prop-hdr{{text-align:center;color:#3a2e1a;font-size:.72rem;font-weight:600;
+    letter-spacing:3px;text-transform:uppercase;margin-bottom:12px}}
+  .prop-grid{{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}}
+  .prop-card{{background:rgba(255,255,255,.018);border:1px solid rgba(200,160,64,.15);
+    border-radius:10px;padding:18px 8px 14px;text-align:center;cursor:pointer;
+    transition:all .2s;color:#5a4820}}
+  .prop-card:hover{{background:rgba(200,160,64,.06);border-color:rgba(200,160,64,.38);color:{GOLD}}}
+  .prop-card svg{{display:block;margin:0 auto 8px;color:inherit}}
+  .prop-card-lbl{{font-size:.58rem;font-weight:600;letter-spacing:2px;text-transform:uppercase}}
+
+  /* Recent searches */
+  .recent{{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}}
+  .rs-item{{display:inline-flex;align-items:center;gap:5px;
+    background:rgba(255,255,255,.018);border:1px solid rgba(200,160,64,.1);
+    border-radius:20px;color:#5a4820;font-size:.68rem;padding:4px 12px;cursor:pointer}}
+  .rs-item:hover{{border-color:rgba(200,160,64,.3);color:{GOLD}}}
 </style>
-</head><body><div id='m'></div>
-<script>
-const d = {_bg_payload};
-Plotly.newPlot('m', [{{
-  type: 'scattermapbox',
-  lat: d.lat, lon: d.lon, mode: 'markers',
-  marker: {{
-    size: d.score.map(s => Math.max(10, s/2.8)),
-    color: d.score,
-    colorscale: [
-      [0.0, '#7f0000'], [0.35, '#c62828'], [0.55, '#d4a843'],
-      [0.80, '#4caf50'], [1.00, '#1b5e20']
-    ],
-    cmin: 0, cmax: 100, opacity: 0.95,
-  }},
-  hoverinfo: 'skip'
-}}], {{
-  mapbox: {{
-    /* open-street-map uses standard OSM raster tiles — no Mapbox token,
-       no CartoDB CORS issue. The CSS filter above re-tints them dark. */
-    style: 'open-street-map',
-    center: {{ lat: 29.78, lon: -95.45 }},
-    zoom: 8.6
-  }},
-  paper_bgcolor: '#0d0b04',
-  plot_bgcolor:  '#0d0b04',
-  margin: {{ t: 0, b: 0, l: 0, r: 0 }},
-  showlegend: false
-}}, {{ displayModeBar: false, staticPlot: true, responsive: true }});
-
-// ── Promote this iframe to a fullscreen backdrop ──────────────────────────
-function pinAsBackdrop() {{
-  try {{
-    const pdoc = window.parent.document;
-    // Find THIS iframe in the parent doc by the marker tag in its srcdoc
-    const frames = pdoc.querySelectorAll('iframe');
-    let me = null;
-    for (const f of frames) {{
-      const s = f.getAttribute('srcdoc') || '';
-      if (s.indexOf('{_BG_MAP_TAG}') !== -1) {{ me = f; break; }}
-    }}
-    if (!me) return false;
-    Object.assign(me.style, {{
-      position: 'fixed', top: '0', left: '0',
-      width: '100vw', height: '100vh',
-      border: 'none', zIndex: '0',
-      opacity: '0.85', pointerEvents: 'none'
-    }});
-    // Collapse every wrapper between iframe and the block-container so nothing
-    // pushes the rest of the page down.
-    let p = me.parentElement;
-    while (p && !p.classList.contains('block-container')) {{
-      p.style.height = '0';
-      p.style.minHeight = '0';
-      p.style.margin = '0';
-      p.style.padding = '0';
-      p.style.overflow = 'visible';
-      p = p.parentElement;
-    }}
-    // Add a one-time vignette overlay so foreground text stays legible
-    if (!pdoc.getElementById('home-bg-vignette')) {{
-      const v = pdoc.createElement('div');
-      v.id = 'home-bg-vignette';
-      Object.assign(v.style, {{
-        position: 'fixed', inset: '0',
-        background: 'radial-gradient(ellipse at center,'
-                  + ' rgba(13,11,4,0.10) 0%,'
-                  + ' rgba(13,11,4,0.35) 55%,'
-                  + ' rgba(13,11,4,0.70) 100%)',
-        zIndex: '1', pointerEvents: 'none'
-      }});
-      pdoc.body.appendChild(v);
-    }}
-    return true;
-  }} catch (e) {{ return false; }}
-}}
-// Retry until Streamlit has finished injecting the iframe wrapper
-let tries = 0;
-const iv = setInterval(() => {{
-  if (pinAsBackdrop() || ++tries > 40) clearInterval(iv);
-}}, 80);
-// Trigger a resize once pinned so Plotly redraws into the new viewport size
-window.addEventListener('resize', () => {{
-  try {{ Plotly.Plots.resize('m'); }} catch (e) {{}}
-}});
-setTimeout(() => {{
-  try {{ Plotly.Plots.resize('m'); }} catch (e) {{}}
-}}, 500);
-</script></body></html>
-        """,
-        height=1,
-    )
-
-    # ── Full-page HTML + CSS ──────────────────────────────────────────────────
-    st.markdown(f"""
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
-      html, body {{
-        scrollbar-width: none !important;
-        overscroll-behavior: none !important;
-      }}
-      html::-webkit-scrollbar, body::-webkit-scrollbar {{
-        display: none !important;
-        width: 0 !important;
-      }}
-      [class*="css"],
-      [data-testid="stAppViewContainer"],
-      [data-testid="stApp"],
-      section[data-testid="stMain"] {{
-        font-family: 'DM Sans', -apple-system, sans-serif !important;
-        background: #0d0b04 !important;
-        color: #c8b890 !important;
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-      }}
-      section[data-testid="stMain"] > div:first-child {{
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-      }}
-      .main .block-container {{
-        max-width: 100% !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        position: relative !important;
-        z-index: 100 !important;
-      }}
-      header[data-testid="stHeader"],
-      [data-testid="stDecoration"],
-      footer, #MainMenu {{ display: none !important; }}
-
-      /* ── Houston map as fullscreen background ──────────────────────────── */
-      /* Find the iframe directly after the .home-bg-map-anchor marker and
-         pin it as a dimmed full-viewport backdrop. Foreground content gets
-         z-index:10 so the form, hero, and CTAs all sit on top. */
-      [data-testid="element-container"]:has(.home-bg-map-anchor) {{
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }}
-      [data-testid="element-container"]:has(.home-bg-map-anchor)
-        + [data-testid="element-container"] {{
-        position: fixed !important;
-        inset: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        z-index: 0 !important;
-        pointer-events: none !important;
-      }}
-      [data-testid="element-container"]:has(.home-bg-map-anchor)
-        + [data-testid="element-container"] iframe {{
-        position: fixed !important;
-        top: 0 !important; left: 0 !important;
-        width: 100vw !important; height: 100vh !important;
-        border: none !important;
-        opacity: 0.32 !important;
-        pointer-events: none !important;
-      }}
-      /* Dark vignette over the map so foreground text stays legible */
-      [data-testid="element-container"]:has(.home-bg-map-anchor)
-        + [data-testid="element-container"]::after {{
-        content: '';
-        position: fixed; inset: 0;
-        background: radial-gradient(ellipse at center,
-                    rgba(13,11,4,0.55) 0%,
-                    rgba(13,11,4,0.85) 70%,
-                    rgba(13,11,4,0.95) 100%);
-        z-index: 1;
-        pointer-events: none;
-      }}
-      /* Foreground welcome content sits above the map */
-      .cre-nav, .cre-ticker, .cre-hero, .cre-wrap,
-      [data-testid="stForm"], .s-examples,
-      [data-testid="stColumn"] {{
-        position: relative;
-        z-index: 200;
-      }}
-
-      /* ── Navbar ─────────────────────────────────────────────────────────── */
-      .cre-nav {{
-        background: rgba(13,11,4,.97);
-        backdrop-filter: blur(10px);
-        border-bottom: 1px solid rgba(200,160,64,.18);
-        padding: 0 32px;
-        height: 52px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }}
-      .nav-logo {{
-        width:28px; height:28px; border-radius:6px;
-        background:{GOLD}; display:inline-flex;
-        align-items:center; justify-content:center;
-        font-size:.7rem; font-weight:800; color:#0d0b04;
-        margin-right:10px; vertical-align:middle;
-        font-family:'JetBrains Mono',monospace;
-      }}
-      .nav-brand {{ color:#e8e4d8; font-size:.93rem; font-weight:600; vertical-align:middle; }}
-      .nav-sep   {{ color:rgba(200,160,64,.25); margin:0 10px; vertical-align:middle; }}
-      .nav-school {{ color:#4a3820; font-size:.67rem; font-weight:500; letter-spacing:1.5px; vertical-align:middle; }}
-      .nav-links {{ display:flex; align-items:center; gap:28px; }}
-      .nav-link  {{ color:#6a5228; font-size:.8rem; }}
-      .nav-cta {{
-        background:transparent; border:1.5px solid {GOLD}; color:{GOLD};
-        padding:6px 16px; border-radius:6px; font-size:.78rem; font-weight:600;
-        cursor:default; font-family:'DM Sans',sans-serif; margin-left:24px;
-      }}
-
-      /* ── Ticker ─────────────────────────────────────────────────────────── */
-      .cre-ticker {{
-        background:#090700;
-        border-bottom:1px solid rgba(200,160,64,.1);
-        height:38px; display:flex; align-items:center; overflow:hidden;
-      }}
-      .t-item {{
-        display:flex; align-items:center; gap:7px;
-        padding:0 22px;
-        border-right:1px solid rgba(200,160,64,.08);
-        height:100%; white-space:nowrap;
-      }}
-      .t-lbl {{ color:#3a3020; font-size:.62rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; }}
-      .t-val {{ color:#d8d0b8; font-family:'JetBrains Mono',monospace; font-size:.8rem; font-weight:600; }}
-      .t-up  {{ color:#4caf50; font-size:.64rem; }}
-      .t-dn  {{ color:#ef5350; font-size:.64rem; }}
-      .t-badge {{
-        background:rgba(76,175,80,.15); border:1px solid rgba(76,175,80,.3);
-        color:#4caf50; font-size:.6rem; padding:1px 8px; border-radius:10px; font-weight:600;
-      }}
-
-      /* ── Hero ───────────────────────────────────────────────────────────── */
-      .cre-hero {{ text-align:center; padding:28px 20px 14px; }}
-      .hero-eyebrow {{
-        display:flex; align-items:center; justify-content:center;
-        gap:14px; margin-bottom:14px;
-      }}
-      .ey-line   {{ flex:0 0 64px; height:1px; background:linear-gradient(90deg,transparent,rgba(200,160,64,.4)); }}
-      .ey-line-r {{ background:linear-gradient(270deg,transparent,rgba(200,160,64,.4)); }}
-      .ey-text   {{ color:{GOLD}; font-size:.8rem; font-weight:500; letter-spacing:3.5px; }}
-      .hero-title {{
-        font-size:4.2rem; font-weight:700; color:{GOLD};
-        line-height:1.08; margin-bottom:10px; letter-spacing:-.5px;
-      }}
-      .hero-sub {{
-        font-size:1.2rem; color:#7a6840; line-height:1.65;
-        max-width:620px; margin:0 auto 14px;
-      }}
-
-      /* ── Feature chips ──────────────────────────────────────────────────── */
-      .f-chips {{
-        display:flex; flex-wrap:wrap; justify-content:center;
-        gap:8px; max-width:820px; margin:0 auto 14px;
-      }}
-      .f-chip {{
-        background:transparent; border:1px solid rgba(200,160,64,.22);
-        color:#7a6840; font-size:.72rem; padding:6px 14px; border-radius:4px;
-        display:inline-flex; align-items:center; gap:7px;
-      }}
-      .f-check {{ color:{GOLD}; font-weight:700; }}
-
-      /* ── Search input override ──────────────────────────────────────────── */
-      /* Nuke every border/background on Streamlit's nested form containers
-         so only the input/button styles render — fixes the cut-off outer box */
-      [data-testid="stForm"],
-      [data-testid="stForm"] > div,
-      [data-testid="stForm"] [data-testid="stVerticalBlock"],
-      [data-testid="stForm"] [data-testid="stHorizontalBlock"] {{
-        border:none !important;
-        box-shadow:none !important;
-        background:transparent !important;
-        outline:none !important;
-      }}
-      [data-testid="stForm"] {{ padding:0 !important; }}
-      [data-testid="stForm"] > div {{ max-width:780px; margin:0 auto !important; }}
-      [data-testid="stHorizontalBlock"] {{ gap:0 !important; }}
-
-      [data-testid="stTextInput"] input {{
-        background: rgba(13,11,4,.92)
-          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%234a3820' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E")
-          no-repeat left 18px center !important;
-        border:1.5px solid rgba(200,160,64,.32) !important;
-        border-right:none !important;
-        border-radius:8px 0 0 8px !important;
-        color:#e0d8c0 !important;
-        font-size:.97rem !important;
-        padding:18px 20px 18px 52px !important;
-        height:58px !important;
-        font-family:'DM Sans',sans-serif !important;
-        caret-color:{GOLD};
-      }}
-      [data-testid="stTextInput"] input:focus {{
-        border-color:rgba(200,160,64,.55) !important;
-        box-shadow:0 0 0 3px rgba(200,160,64,.07) !important;
-        outline:none !important;
-      }}
-      [data-testid="stTextInput"] input::placeholder {{
-        color:#a89260 !important;
-        opacity:0.85 !important;
-      }}
-      [data-testid="stTextInput"] > div {{ border:none !important; background:transparent !important; }}
-      [data-testid="InputInstructions"] {{ display:none !important; }}
-
-      /* Breathing room below the search row */
-      [data-testid="stForm"] {{ margin-bottom:18px !important; }}
-
-      [data-testid="stFormSubmitButton"] > button {{
-        background:{GOLD} !important; color:#0d0b04 !important;
-        border:none !important;
-        border-radius:0 8px 8px 0 !important;
-        padding:0 26px !important; height:58px !important;
-        font-weight:700 !important; font-size:.85rem !important;
-        font-family:'DM Sans',sans-serif !important;
-        width:100% !important; letter-spacing:.3px;
-      }}
-      [data-testid="stFormSubmitButton"] > button:hover {{
-        background:#e8c060 !important;
-      }}
-
-      /* Override Streamlit's salmon primary-button color → gold theme */
-      .stButton > button[kind="primary"],
-      [data-testid="stBaseButton-primary"] {{
-        background:{GOLD} !important;
-        color:#0d0b04 !important;
-        border:1px solid {GOLD} !important;
-        font-weight:700 !important;
-      }}
-      .stButton > button[kind="primary"]:hover,
-      [data-testid="stBaseButton-primary"]:hover {{
-        background:#e8c060 !important;
-        border-color:#e8c060 !important;
-        color:#0d0b04 !important;
-      }}
-
-      /* ── Search examples ────────────────────────────────────────────────── */
-      .s-examples {{
-        text-align:center; color:#a89260; font-size:.78rem; margin-bottom:20px;
-      }}
-      .s-ex {{
-        color:{GOLD}; cursor:pointer;
-        text-decoration:underline; text-decoration-color:rgba(200,160,64,.5);
-      }}
-      .s-ex-static {{ color:{GOLD}; font-weight:500; }}
-
-      /* ── Property type section ──────────────────────────────────────────── */
-      .cre-wrap {{ max-width:1160px; margin:0 auto; padding:0 48px; }}
-      .prop-hdr {{
-        text-align:center; color:#3a2e1a; font-size:.8rem; font-weight:600;
-        letter-spacing:3px; text-transform:uppercase; margin-bottom:18px;
-      }}
-      .prop-grid {{
-        display:grid; grid-template-columns:repeat(6,1fr);
-        gap:12px; margin-bottom:52px;
-      }}
-      .prop-card {{
-        background:rgba(255,255,255,.018);
-        border:1px solid rgba(200,160,64,.15);
-        border-radius:10px; padding:24px 12px 18px;
-        text-align:center; cursor:pointer;
-        transition:all .2s; color:#5a4820;
-      }}
-      .prop-card:hover {{
-        background:rgba(200,160,64,.06);
-        border-color:rgba(200,160,64,.38); color:{GOLD};
-      }}
-      .prop-card svg {{ display:block; margin:0 auto 12px; color:inherit; }}
-      .prop-card-lbl {{ font-size:.6rem; font-weight:600; letter-spacing:2.5px; text-transform:uppercase; }}
-
-      /* ── Recent searches ────────────────────────────────────────────────── */
-      .rs-item {{
-        display:inline-flex; align-items:center; gap:6px;
-        background:rgba(255,255,255,.018);
-        border:1px solid rgba(200,160,64,.1);
-        border-radius:20px; color:#5a4820;
-        font-size:.72rem; padding:5px 14px;
-        cursor:pointer; white-space:nowrap;
-        transition:border-color .2s;
-      }}
-      .rs-item:hover {{ border-color:rgba(200,160,64,.3); color:{GOLD}; }}
-
-    </style>
-
-    <!-- NAVBAR -->
-    <div class="cre-nav">
-      <div>
-        <span class="nav-logo">&#9650;</span>
-        <span class="nav-brand">CRE Intelligence Platform</span>
-        <span class="nav-sep">|</span>
-        <span class="nav-school">PURDUE &middot; DANIELS MSF</span>
-      </div>
-      <div style="display:flex;align-items:center;">
-        <button class="nav-cta">New Analysis</button>
-      </div>
+</head>
+<body>
+<div id="map-bg"></div>
+<div id="vig"></div>
+<div id="app">
+  <nav class="nav">
+    <div>
+      <span class="nav-logo">&#9650;</span>
+      <span class="nav-brand">CRE Intelligence Platform</span>
+      <span class="nav-sep">|</span>
+      <span class="nav-school">PURDUE &middot; DANIELS MSF</span>
     </div>
-
-    <!-- TICKER BAR -->
-    <div class="cre-ticker">
-      <div class="t-item">
-        <span class="t-lbl">Ind. Cap Rate</span>
-        <span class="t-val">{_cap_str}</span>
-        <span class="t-dn">&#9660; 20bps</span>
-      </div>
-      <div class="t-item">
-        <span class="t-lbl">Rent Growth</span>
-        <span class="t-val">+8.0%</span>
-        <span class="t-up">&#9650; YoY</span>
-      </div>
-      <div class="t-item">
-        <span class="t-lbl">Nat. Vacancy</span>
-        <span class="t-val">4.5%</span>
-        <span class="t-up">&#9650; 60bps</span>
-      </div>
-      <div class="t-item">
-        <span class="t-lbl">Top Market</span>
-        <span class="t-val">{_top_mkt}</span>
-        <span class="t-badge">High</span>
-      </div>
-      <div class="t-item">
-        <span class="t-lbl">10Y Treasury</span>
-        <span class="t-val">{_tsy}</span>
-      </div>
-      <div class="t-item">
-        <span class="t-lbl">DSCR Min</span>
-        <span class="t-val">1.25x</span>
-      </div>
+    <button class="nav-cta">New Analysis</button>
+  </nav>
+  <div class="ticker">
+    <div class="t-item"><span class="t-lbl">Ind. Cap Rate</span><span class="t-val">{_cap_str}</span><span class="t-dn">&#9660; 20bps</span></div>
+    <div class="t-item"><span class="t-lbl">Rent Growth</span><span class="t-val">+8.0%</span><span class="t-up">&#9650; YoY</span></div>
+    <div class="t-item"><span class="t-lbl">Nat. Vacancy</span><span class="t-val">4.5%</span><span class="t-up">&#9650; 60bps</span></div>
+    <div class="t-item"><span class="t-lbl">Top Market</span><span class="t-val">{_top_mkt}</span></div>
+    <div class="t-item"><span class="t-lbl">10Y Treasury</span><span class="t-val">{_tsy}</span></div>
+  </div>
+  <div class="hero">
+    <div class="eyebrow">
+      <div class="ey-line"></div>
+      <span class="ey-text">AI-POWERED &middot; INSTITUTIONAL GRADE &middot; REAL-TIME</span>
+      <div class="ey-line ey-line-r"></div>
     </div>
-
-    <!-- HERO -->
-    <div class="cre-hero">
-      <div class="hero-eyebrow">
-        <div class="ey-line"></div>
-        <span class="ey-text">AI-POWERED &middot; INSTITUTIONAL GRADE &middot; REAL-TIME</span>
-        <div class="ey-line ey-line-r"></div>
-      </div>
-      <div class="hero-title">CRE Intelligence Platform</div>
+    <div class="hero-title">CRE Intelligence Platform</div>
+    <div class="search-wrap">
+      <form id="sf">
+        <div class="search-row">
+          <input id="si" class="search-input" type="text"
+            placeholder="e.g., Industrial warehouse in Austin, TX" autocomplete="off"/>
+          <button type="submit" class="search-btn">Analyze</button>
+        </div>
+      </form>
     </div>
-
-    """, unsafe_allow_html=True)
-
-    # ── Search bar (form keeps input+button connected; Enter or click submits) ─
-    with st.form("home_search_form", clear_on_submit=False):
-        _sc, _bc = st.columns([7, 1.4])
-        with _sc:
-            user_input = st.text_input(
-                "Search",
-                placeholder="e.g., Industrial warehouse in Austin, TX",
-                label_visibility="collapsed",
-                key="home_search",
-            )
-        with _bc:
-            submitted = st.form_submit_button("Analyze")
-        if submitted and user_input:
-            _NAV_KEYWORDS = {
-                "team":                "About",
-                "meet the team":       "About",
-                "about":               "About",
-                "our team":            "About",
-                "system monitor":      "About",
-                "monitor":             "About",
-                "investment advisor":  "Investment Advisor",
-                "advisor":             "Investment Advisor",
-                "energy":              "Energy",
-                "macro":               "Macro Environment",
-                "economy":             "Macro Environment",
-                "gdp":                 "Macro Environment",
-            }
-            _ui = user_input.lower().strip()
-            _nav = next((v for k, v in _NAV_KEYWORDS.items() if k == _ui or _ui == k), None)
-            if _nav:
-                st.session_state.nav_to_tab = _nav
-                _complete_onboarding()   # no raw_input → won't pollute recent searches
-            elif _is_advisor_query(user_input):
-                _complete_onboarding(raw_input=user_input)
-                st.session_state.adv_home_prompt   = user_input
-                st.session_state.adv_auto_generate = True
-                st.session_state.adv_navigate      = True
-            else:
-                # Show Quick Brief first — user picks a CTA to navigate
-                _intent = _parse_intent(user_input)
-                _intent["raw_input"] = user_input
-                st.session_state.show_brief_for = _intent
-            st.rerun()
-
-    # ── Quick Investment Brief (inline, after query) ──────────────────────────
-    if st.session_state.get("show_brief_for"):
-        _render_quick_brief(st.session_state.show_brief_for, context_key="welcome")
-
-    # ── Example queries ───────────────────────────────────────────────────────
-    st.markdown("""
-    <div class="s-examples">
-      Try:&nbsp;
-      <span class="s-ex-static">&ldquo;Multifamily in Nashville&rdquo;</span>
-      &nbsp;&middot;&nbsp;
-      <span class="s-ex-static">&ldquo;Office cap rates Chicago&rdquo;</span>
-      &nbsp;&middot;&nbsp;
-      <span class="s-ex-static">&ldquo;Best Sunbelt markets 2026&rdquo;</span>
+    <div class="examples">Try: <span class="s-ex">&ldquo;Multifamily in Nashville&rdquo;</span> &middot; <span class="s-ex">&ldquo;Office cap rates Chicago&rdquo;</span> &middot; <span class="s-ex">&ldquo;Best Sunbelt markets 2026&rdquo;</span></div>
+    <div class="prop-section">
+      <div class="prop-hdr">OR SELECT A PROPERTY TYPE</div>
+      <div class="prop-grid" id="prop-grid"></div>
     </div>
-    """, unsafe_allow_html=True)
-
-    # ── Property type cards (native buttons for reliable click handling) ───────
-    import base64 as _b64
-
-    def _svg_uri(s: str) -> str:
-        return "data:image/svg+xml;base64," + _b64.b64encode(s.strip().encode()).decode()
-
-    _SVG_INDUSTRIAL = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="3" y="20" width="38" height="21" rx="1.5"/>
-  <rect x="7" y="24" width="7" height="7"/><rect x="18" y="24" width="7" height="7"/><rect x="29" y="24" width="7" height="7"/>
-  <rect x="7" y="34" width="7" height="7"/><rect x="18" y="34" width="7" height="7"/><rect x="29" y="34" width="7" height="7"/>
-  <path d="M3 20L13 13v7M13 20L23 13v7M23 20L33 13v7"/>
-  <line x1="3" y1="20" x2="41" y2="20"/>
-</svg>''')
-
-    _SVG_MULTIFAMILY = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="3" y="3" width="11" height="11" rx="2"/><rect x="17" y="3" width="11" height="11" rx="2"/><rect x="30" y="3" width="11" height="11" rx="2"/>
-  <rect x="3" y="17" width="11" height="11" rx="2"/><rect x="17" y="17" width="11" height="11" rx="2"/><rect x="30" y="17" width="11" height="11" rx="2"/>
-  <rect x="3" y="30" width="11" height="11" rx="2"/><rect x="17" y="30" width="11" height="11" rx="2"/><rect x="30" y="30" width="11" height="11" rx="2"/>
-</svg>''')
-
-    _SVG_OFFICE = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="5" y="4" width="34" height="36" rx="2.5"/>
-  <line x1="15" y1="4" x2="15" y2="40"/>
-  <line x1="5" y1="15" x2="39" y2="15"/>
-  <line x1="5" y1="25" x2="39" y2="25"/>
-  <line x1="5" y1="35" x2="39" y2="35"/>
-</svg>''')
-
-    _SVG_RETAIL = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="4" y="20" width="36" height="21" rx="1"/>
-  <path d="M2 11h40l2 9H0l4-9z"/>
-  <rect x="17" y="28" width="10" height="13"/>
-  <rect x="6" y="25" width="8" height="7" rx="1"/>
-  <rect x="30" y="25" width="8" height="7" rx="1"/>
-</svg>''')
-
-    _SVG_HEALTHCARE = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="4" y="16" width="36" height="24" rx="3"/>
-  <path d="M15 16v-5a2 2 0 012-2h10a2 2 0 012 2v5"/>
-  <line x1="22" y1="23" x2="22" y2="33"/>
-  <line x1="17" y1="28" x2="27" y2="28"/>
-</svg>''')
-
-    _SVG_GLOBE = _svg_uri('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#a07828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="22" cy="22" r="19"/>
-  <ellipse cx="22" cy="22" rx="9" ry="19"/>
-  <line x1="3" y1="22" x2="41" y2="22"/>
-  <path d="M6 13h32M6 31h32"/>
-</svg>''')
-
-    _PROP_LABELS = {
-        "Industrial":  ("INDUSTRIAL",  _SVG_INDUSTRIAL),
-        "Multifamily": ("MULTIFAMILY", _SVG_MULTIFAMILY),
-        "Office":      ("OFFICE",      _SVG_OFFICE),
-        "Retail":      ("RETAIL",      _SVG_RETAIL),
-        "Healthcare":  ("HEALTHCARE",  _SVG_HEALTHCARE),
-        "Exploring":   ("BROWSE\nALL", _SVG_GLOBE),
-    }
-
-    st.markdown(f"""
-<style>
-  .prop-card-btn > div[data-testid="stButton"] > button {{
-    background: #161006 !important;
-    border: 1px solid rgba(180,145,50,.38) !important;
-    border-radius: 12px !important;
-    padding: 32px 10px 22px !important;
-    color: #a07828 !important;
-    font-size: .58rem !important;
-    font-weight: 500 !important;
-    letter-spacing: 3px !important;
-    text-transform: uppercase !important;
-    width: 100% !important;
-    min-height: 148px !important;
-    transition: border-color .2s, box-shadow .2s, background .2s !important;
-    cursor: pointer !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 0 !important;
-    line-height: 1.5 !important;
-    box-shadow: none !important;
-    position: relative !important;
-  }}
-  .prop-card-btn > div[data-testid="stButton"] > button::before {{
-    content: "" !important;
-    display: block !important;
-    width: 44px !important;
-    height: 44px !important;
-    background-repeat: no-repeat !important;
-    background-position: center !important;
-    background-size: contain !important;
-    flex-shrink: 0 !important;
-    margin-bottom: 18px !important;
-  }}
-  /* Per-card icon injection */
-  .prop-card-Industrial > div[data-testid="stButton"] > button::before {{
-    background-image: url("{_SVG_INDUSTRIAL}") !important;
-  }}
-  .prop-card-Multifamily > div[data-testid="stButton"] > button::before {{
-    background-image: url("{_SVG_MULTIFAMILY}") !important;
-  }}
-  .prop-card-Office > div[data-testid="stButton"] > button::before {{
-    background-image: url("{_SVG_OFFICE}") !important;
-  }}
-  .prop-card-Retail > div[data-testid="stButton"] > button::before {{
-    background-image: url("{_SVG_RETAIL}") !important;
-  }}
-  .prop-card-Healthcare > div[data-testid="stButton"] > button::before {{
-    background-image: url("{_SVG_HEALTHCARE}") !important;
-  }}
-  .prop-card-Exploring > div[data-testid="stButton"] > button::before {{
-    background-image: url("{_SVG_GLOBE}") !important;
-  }}
-  .prop-card-btn > div[data-testid="stButton"] > button:hover,
-  .prop-card-btn > div[data-testid="stButton"] > button:focus {{
-    background: #1e1608 !important;
-    border-color: rgba(200,160,64,.7) !important;
-    color: #c8a040 !important;
-    box-shadow: 0 0 18px rgba(180,145,50,.12) !important;
-    outline: none !important;
-  }}
-</style>
-<div class="cre-wrap" style="padding-bottom:0;">
-  <div class="prop-hdr">OR SELECT A PROPERTY TYPE</div>
+    <div class="recent" id="recent"></div>
+  </div>
 </div>
-""", unsafe_allow_html=True)
 
-    _pcols = st.columns(len(_PROP_LABELS))
-    for _pcol, (_pname, (_plbl, _psvg)) in zip(_pcols, _PROP_LABELS.items()):
-        with _pcol:
-            st.markdown(f'<div class="prop-card-btn prop-card-{_pname}">', unsafe_allow_html=True)
-            if st.button(_plbl, key=f"propcard_{_pname}", use_container_width=True):
-                if _pname == "Exploring":
-                    _complete_onboarding()
-                else:
-                    _complete_onboarding(property_type=_pname)
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+<script>
+// ── Map ───────────────────────────────────────────────────────────────────────
+const d = {_map_data};
+Plotly.newPlot('map-bg',[{{
+  type:'scattermapbox',lat:d.lat,lon:d.lon,mode:'markers',
+  marker:{{
+    size:d.score.map(s=>Math.max(10,s/2.8)),
+    color:d.score,
+    colorscale:[[0,'#7f0000'],[.35,'#c62828'],[.55,'#d4a843'],[.8,'#4caf50'],[1,'#1b5e20']],
+    cmin:0,cmax:100,opacity:.95
+  }},hoverinfo:'skip'
+}}],{{
+  mapbox:{{style:'open-street-map',center:{{lat:29.78,lon:-95.45}},zoom:8.6}},
+  paper_bgcolor:'#0d0b04',plot_bgcolor:'#0d0b04',
+  margin:{{t:0,b:0,l:0,r:0}},showlegend:false
+}},{{displayModeBar:false,staticPlot:true,responsive:true}});
 
-    # ── Recent searches ───────────────────────────────────────────────────────
-    st.markdown(f"{_recent_html}", unsafe_allow_html=True)
+// Tint tiles dark
+const obs=new MutationObserver(()=>{{
+  const c=document.querySelector('.mapboxgl-canvas-container,.maplibregl-canvas-container');
+  if(c){{c.style.filter='invert(0.88) hue-rotate(180deg) brightness(1.05) saturate(0.45) contrast(0.85)';obs.disconnect();}}
+}});
+obs.observe(document.getElementById('map-bg'),{{childList:true,subtree:true}});
+
+// ── Resize iframe to fullscreen ───────────────────────────────────────────────
+try{{
+  const me=window.frameElement;
+  if(me){{
+    me.style.cssText='position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:'+window.parent.innerHeight+'px!important;border:none!important;z-index:10!important;';
+    let p=me.parentElement;
+    while(p&&p!==window.parent.document.body){{
+      p.style.height='0';p.style.overflow='visible';p.style.margin='0';p.style.padding='0';
+      p=p.parentElement;
+    }}
+  }}
+}}catch(e){{}}
+
+// ── Search form ───────────────────────────────────────────────────────────────
+document.getElementById('sf').addEventListener('submit',function(e){{
+  e.preventDefault();
+  const q=document.getElementById('si').value.trim();
+  if(q) window.top.location.href='?q='+encodeURIComponent(q);
+}});
+
+// ── Property cards ────────────────────────────────────────────────────────────
+const PROPS=[
+  {{name:'Industrial',svg:'<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="1"/><path d="M2 11h20M7 7V4M12 7V4M17 7V4"/><rect x="9" y="14" width="6" height="7" rx="0.5"/></svg>'}},
+  {{name:'Multifamily',svg:'<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="2" width="18" height="20" rx="1"/><path d="M3 9h18M3 15h18M9 2v20M15 2v20"/></svg>'}},
+  {{name:'Office',svg:'<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 8h18M8 3v18M8 12h8M8 16h5"/></svg>'}},
+  {{name:'Retail',svg:'<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 9h18l-2 12H5L3 9z"/><path d="M3 9 5.5 3h13L21 9"/><path d="M9 21v-7h6v7"/></svg>'}},
+  {{name:'Healthcare',svg:'<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="1"/><path d="M12 11v6M9 14h6"/><path d="M8 7V5a1 1 0 011-1h6a1 1 0 011 1v2"/></svg>'}},
+  {{name:'Exploring',svg:'<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20M2 12h20"/></svg>'}},
+];
+const grid=document.getElementById('prop-grid');
+PROPS.forEach(p=>{{
+  const d=document.createElement('div');
+  d.className='prop-card';
+  d.innerHTML=p.svg+'<div class="prop-card-lbl">'+(p.name==='Exploring'?'BROWSE ALL':p.name.toUpperCase())+'</div>';
+  d.onclick=()=>window.top.location.href='?select='+encodeURIComponent(p.name);
+  grid.appendChild(d);
+}});
+
+// ── Recent searches ───────────────────────────────────────────────────────────
+const recent={_rs_json};
+const recentEl=document.getElementById('recent');
+if(recent.length){{
+  recent.forEach(r=>{{
+    const s=document.createElement('span');
+    s.className='rs-item';
+    s.textContent=r;
+    s.onclick=()=>window.top.location.href='?q='+encodeURIComponent(r);
+    recentEl.appendChild(s);
+  }});
+}}
+</script>
+</body></html>""", height=900)
 
     st.stop()
 
