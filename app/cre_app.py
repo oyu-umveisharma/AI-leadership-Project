@@ -1336,6 +1336,12 @@ setTimeout(() => {{
         font-family: 'DM Sans', -apple-system, sans-serif !important;
         background: #0d0b04 !important;
         color: #c8b890 !important;
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+      }}
+      section[data-testid="stMain"] > div:first-child {{
+        padding-top: 0 !important;
+        margin-top: 0 !important;
       }}
       .main .block-container {{
         max-width: 100% !important;
