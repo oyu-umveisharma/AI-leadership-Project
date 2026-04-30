@@ -3562,27 +3562,91 @@ with main_tab_advisor:
                     _oz_zones = " · ".join((_oz_info.get("key_zones") or [])[:2])
                     _oz_focus = ", ".join((_oz_info.get("property_focus") or [])[:2])
                     _oz_hi    = (_oz_info.get("highlights") or [""])[0]
-                    _oz_city_slug = _oz_name.lower().replace(", ", "-").replace(" ", "-")
-                    _oz_url = f"https://www.loopnet.com/search/commercial-real-estate/{_oz_city_slug}/for-sale/?sk=opportunityzone"
+
+                    # ── Market header card ─────────────────────────────────────
                     st.markdown(f"""
-<a href="{_oz_url}" target="_blank" style="text-decoration:none;display:block;margin-bottom:8px;">
 <div style="background:#0a1e0a;border:1px solid #2a4a2a;border-left:3px solid #4caf50;
-            border-radius:6px;padding:12px 16px;cursor:pointer;
-            transition:border-color .15s,background .15s;"
-     onmouseover="this.style.background='#0d2a0d';this.style.borderColor='#4caf50';"
-     onmouseout="this.style.background='#0a1e0a';this.style.borderColor='#2a4a2a';">
+            border-radius:6px;padding:12px 16px;margin-bottom:6px;">
   <div style="display:flex;justify-content:space-between;align-items:center;">
     <div style="color:#80c858;font-weight:600;font-size:0.88rem;">{_oz_name}</div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div style="color:{_oz_sc_c};font-weight:700;font-family:monospace;font-size:1rem;">{_oz_sc}</div>
-      <div style="color:#3a6a3a;font-size:0.7rem;">View listings ↗</div>
-    </div>
+    <div style="color:{_oz_sc_c};font-weight:700;font-family:monospace;font-size:1rem;">{_oz_sc}</div>
   </div>
   {"<div style='color:#5a9050;font-size:0.78rem;margin-top:4px;'>Zones: " + _oz_zones + "</div>" if _oz_zones else ""}
   {"<div style='color:#5a9050;font-size:0.78rem;'>Focus: " + _oz_focus + "</div>" if _oz_focus else ""}
   {"<div style='color:#a09880;font-size:0.78rem;margin-top:4px;'>" + _oz_hi + "</div>" if _oz_hi else ""}
-</div>
-</a>""", unsafe_allow_html=True)
+</div>""", unsafe_allow_html=True)
+
+                    # ── Expandable listings panel ──────────────────────────────
+                    _oz_state = _oz_name.split(", ")[-1] if ", " in _oz_name else "TX"
+                    _oz_city  = _oz_name.split(", ")[0] if ", " in _oz_name else _oz_name
+                    _oz_city_slug = _oz_name.lower().replace(", ", "-").replace(" ", "-")
+
+                    with st.expander(f"View properties for sale in {_oz_name}"):
+                        from src.cre_listings import get_cheapest_buildings
+                        _oz_listings = get_cheapest_buildings(_oz_state, n=8)
+
+                        _loopnet_base = f"https://www.loopnet.com/search/commercial-real-estate/{_oz_city_slug}/for-sale/?sk=opportunityzone"
+                        st.caption(f"Showing 8 representative listings · [See all on LoopNet ↗]({_loopnet_base})")
+
+                        _pt_loopnet = {
+                            "Industrial": "industrial-distribution-warehousing",
+                            "Retail":     "retail",
+                            "Office":     "office",
+                            "Multifamily":"apartments",
+                            "Mixed-Use":  "specialty",
+                        }
+
+                        for _lst in _oz_listings:
+                            _lst_pt   = _lst.get("property_type", "Commercial")
+                            _lst_slug = _pt_loopnet.get(_lst_pt, "commercial-real-estate")
+                            _lst_url  = f"https://www.loopnet.com/search/{_lst_slug}/{_oz_city_slug}/for-sale/?sk=opportunityzone"
+                            _lst_dom_c = "#ef5350" if _lst.get("days_on_market",0) > 90 else ("#d4a843" if _lst.get("days_on_market",0) > 30 else "#4caf50")
+
+                            st.markdown(f"""
+<div style="background:#111a0a;border:1px solid #243424;border-radius:6px;
+            padding:14px 16px;margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+    <div>
+      <div style="color:#c8b890;font-weight:600;font-size:0.9rem;">
+        {_lst.get("address","")}, {_oz_city}, {_oz_state}
+      </div>
+      <div style="color:#5a7a5a;font-size:0.75rem;margin-top:2px;">{_lst_pt}</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="color:#d4a843;font-weight:700;font-size:1rem;">${_lst.get("price",0):,.0f}</div>
+      <div style="color:#5a7a5a;font-size:0.72rem;">${_lst.get("price_per_sqft",0):.0f}/sqft</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
+    <div style="background:#0d150d;border-radius:4px;padding:6px 8px;text-align:center;">
+      <div style="color:#5a7a5a;font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;">Size</div>
+      <div style="color:#c8b890;font-size:0.82rem;font-weight:600;">{_lst.get("sqft",0):,} sqft</div>
+    </div>
+    <div style="background:#0d150d;border-radius:4px;padding:6px 8px;text-align:center;">
+      <div style="color:#5a7a5a;font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;">Cap Rate</div>
+      <div style="color:#4caf50;font-size:0.82rem;font-weight:600;">{_lst.get("cap_rate",0):.2f}%</div>
+    </div>
+    <div style="background:#0d150d;border-radius:4px;padding:6px 8px;text-align:center;">
+      <div style="color:#5a7a5a;font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;">NOI / yr</div>
+      <div style="color:#c8b890;font-size:0.82rem;font-weight:600;">${_lst.get("noi_annual",0):,.0f}</div>
+    </div>
+    <div style="background:#0d150d;border-radius:4px;padding:6px 8px;text-align:center;">
+      <div style="color:#5a7a5a;font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;">Days Listed</div>
+      <div style="color:{_lst_dom_c};font-size:0.82rem;font-weight:600;">{_lst.get("days_on_market",0)}d</div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="color:#4a6a4a;font-size:0.73rem;">
+      Built {_lst.get("year_built","")} &nbsp;·&nbsp; {_lst.get("highlights","")}
+    </div>
+    <a href="{_lst_url}" target="_blank"
+       style="background:#0d2a0d;border:1px solid #2a5a2a;color:#4caf50;
+              font-size:0.73rem;font-weight:600;padding:4px 10px;
+              border-radius:4px;text-decoration:none;white-space:nowrap;">
+      Search similar on LoopNet ↗
+    </a>
+  </div>
+</div>""", unsafe_allow_html=True)
 
                 st.markdown(
                     '<div style="background:#16140a;border:1px solid #3a3020;border-radius:6px;'
