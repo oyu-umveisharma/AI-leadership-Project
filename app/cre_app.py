@@ -776,7 +776,22 @@ def _parse_intent(raw: str) -> dict:
                 location = f"{_ucity}, {_US_STATES[_usa]}"
                 break
 
-    # Fallback 3: state name anywhere in input
+    # Fallback 3a: "<city> <state>" combo — e.g., "Houston Texas", "Austin TX",
+    # "Miami Florida". Catches the no-comma case before the state-only fallback
+    # would discard the city.
+    if not location:
+        # Sort cities longest-first so "los angeles" beats "los"
+        for _cn, _ca in sorted(_CITY_TO_STATE.items(), key=lambda x: -len(x[0])):
+            if not _re.search(r'\b' + _re.escape(_cn) + r'\b', raw_lower):
+                continue
+            _state_full = _US_STATES[_ca].lower()
+            # Match either the full state name OR the 2-letter abbr after the city
+            if (_re.search(r'\b' + _re.escape(_state_full) + r'\b', raw_lower)
+                    or _re.search(r'\b' + _ca.lower() + r'\b', raw_lower)):
+                location = _cn.title() + ", " + _ca
+                break
+
+    # Fallback 3b: state name anywhere in input (no city detected)
     if not location:
         for _sn, _sa in _STATE_NAME_TO_ABBR.items():
             if _re.search(r'\b' + _re.escape(_sn) + r'\b', raw_lower):
@@ -1006,35 +1021,35 @@ def _render_quick_brief(intent: dict, context_key: str) -> None:
             f'</div>'
         )
 
+    # ── Header bar — visible immediately after submit, no scroll required ──
     st.markdown(
         f'<div style="background:linear-gradient(135deg,#1a1208 0%,#221a0a 100%);'
-        f'border:1px solid #a07830;border-top:3px solid #d4a843;border-radius:10px;'
-        f'padding:22px 26px;margin-top:20px;">'
+        f'border:1px solid #a07830;border-top:3px solid #d4a843;'
+        f'border-radius:10px 10px 0 0;border-bottom:none;'
+        f'padding:18px 26px 14px 26px;margin-top:20px;">'
         f'  <div style="color:#d4a843;font-size:0.82rem;letter-spacing:0.15em;'
         f'      font-weight:700;margin-bottom:4px;">&#128200; {header}</div>'
-        f'  <div style="color:#a09880;font-size:0.8rem;margin-bottom:14px;">'
-        f'      Top 3 markets ranked on live composite scoring, cap rates, and rent growth.'
+        f'  <div style="color:#a09880;font-size:0.8rem;">'
+        f'      Top 3 markets ranked on live composite scoring, cap rates, and rent growth — '
+        f'      pick an action below or scroll for the AI insight.'
         f'  </div>'
-        f'  <div style="background:#0f0d06;border:1px solid #2a2208;border-radius:6px;'
-        f'      overflow:hidden;">{rows_html}</div>'
-        f'  {insight_html}'
         f'</div>',
         unsafe_allow_html=True,
     )
 
-    # ── CTAs ─────────────────────────────────────────────────────────────────
+    # ── CTAs FIRST — surfaced above the fold so the user never has to scroll ──
     _c1, _c2, _c3 = st.columns([1.2, 1.4, 0.8], gap="small")
     with _c1:
         explore = st.button(
             "Explore Dashboard →",
             use_container_width=True,
-            type="primary",
             key=f"brief_explore_{context_key}",
         )
     with _c2:
         full = st.button(
             "Get Full P&L Analysis →",
             use_container_width=True,
+            type="primary",
             key=f"brief_advisor_{context_key}",
         )
     with _c3:
@@ -1043,6 +1058,18 @@ def _render_quick_brief(intent: dict, context_key: str) -> None:
             use_container_width=True,
             key=f"brief_dismiss_{context_key}",
         )
+
+    # ── Detail panel (markets table + AI insight) — supporting context ───────
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg,#1a1208 0%,#221a0a 100%);'
+        f'border:1px solid #a07830;border-top:none;border-radius:0 0 10px 10px;'
+        f'padding:8px 26px 22px 26px;margin-bottom:20px;">'
+        f'  <div style="background:#0f0d06;border:1px solid #2a2208;border-radius:6px;'
+        f'      overflow:hidden;">{rows_html}</div>'
+        f'  {insight_html}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
     if explore:
         st.session_state.show_brief_for = None
@@ -1156,6 +1183,142 @@ if not st.session_state.onboarding_complete:
           <div style="display:flex;flex-wrap:wrap;gap:8px;">{_rs_items}</div>
         </div>"""
 
+    # ── Houston migration map as dim fullscreen background ────────────────────
+    # Pull the same neighborhood data the metro drill-down uses so the welcome
+    # screen previews exactly what the user sees after they search "Houston Texas".
+    try:
+        from src.zip_migration import _METRO_DATA as _BG_METRO_DATA
+        _bg_zones = _BG_METRO_DATA["Houston"]["zones"]
+        _bg_lats   = [z[1] for z in _bg_zones]
+        _bg_lons   = [z[2] for z in _bg_zones]
+        _bg_scores = [z[3] for z in _bg_zones]
+        _bg_names  = [z[0] for z in _bg_zones]
+    except Exception:
+        _bg_lats, _bg_lons, _bg_scores, _bg_names = [29.76], [-95.37], [70], ["Houston"]
+
+    import json as _bg_json
+    _bg_payload = _bg_json.dumps({
+        "lat":    _bg_lats,
+        "lon":    _bg_lons,
+        "score":  _bg_scores,
+        "name":   _bg_names,
+    })
+
+    # The Houston map renders inside an iframe and pins ITSELF as a fullscreen
+    # backdrop via window.parent — CSS :has() selectors don't reliably win over
+    # Streamlit's container layout, so we let the iframe re-style its own host.
+    _BG_MAP_TAG = "home-bg-map-marker-7f3c"
+    components.html(
+        f"""
+<!doctype html><html><head>
+<!-- {_BG_MAP_TAG} -->
+<script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script>
+<style>
+  html, body {{ margin:0; padding:0; height:100vh; width:100vw;
+                background:#0d0b04; overflow:hidden; }}
+  /* Dark fallback so the dots stay readable if tiles fail to load */
+  #m {{ width:100vw; height:100vh; background:#0d0b04; }}
+  /* Tint the bright OSM raster tiles toward our dark/gold palette without a
+     custom style URL — light enough that road grid + city labels stay visible
+     as a wallpaper. */
+  #m .mapboxgl-canvas-container,
+  #m .maplibregl-canvas-container {{
+    filter: invert(0.88) hue-rotate(180deg) brightness(1.05) saturate(0.45) contrast(0.85);
+  }}
+</style>
+</head><body><div id='m'></div>
+<script>
+const d = {_bg_payload};
+Plotly.newPlot('m', [{{
+  type: 'scattermapbox',
+  lat: d.lat, lon: d.lon, mode: 'markers',
+  marker: {{
+    size: d.score.map(s => Math.max(10, s/2.8)),
+    color: d.score,
+    colorscale: [
+      [0.0, '#7f0000'], [0.35, '#c62828'], [0.55, '#d4a843'],
+      [0.80, '#4caf50'], [1.00, '#1b5e20']
+    ],
+    cmin: 0, cmax: 100, opacity: 0.95,
+  }},
+  hoverinfo: 'skip'
+}}], {{
+  mapbox: {{
+    /* open-street-map uses standard OSM raster tiles — no Mapbox token,
+       no CartoDB CORS issue. The CSS filter above re-tints them dark. */
+    style: 'open-street-map',
+    center: {{ lat: 29.78, lon: -95.45 }},
+    zoom: 8.6
+  }},
+  paper_bgcolor: '#0d0b04',
+  plot_bgcolor:  '#0d0b04',
+  margin: {{ t: 0, b: 0, l: 0, r: 0 }},
+  showlegend: false
+}}, {{ displayModeBar: false, staticPlot: true, responsive: true }});
+
+// ── Promote this iframe to a fullscreen backdrop ──────────────────────────
+function pinAsBackdrop() {{
+  try {{
+    const pdoc = window.parent.document;
+    // Find THIS iframe in the parent doc by the marker tag in its srcdoc
+    const frames = pdoc.querySelectorAll('iframe');
+    let me = null;
+    for (const f of frames) {{
+      const s = f.getAttribute('srcdoc') || '';
+      if (s.indexOf('{_BG_MAP_TAG}') !== -1) {{ me = f; break; }}
+    }}
+    if (!me) return false;
+    Object.assign(me.style, {{
+      position: 'fixed', top: '0', left: '0',
+      width: '100vw', height: '100vh',
+      border: 'none', zIndex: '0',
+      opacity: '0.85', pointerEvents: 'none'
+    }});
+    // Collapse every wrapper between iframe and the block-container so nothing
+    // pushes the rest of the page down.
+    let p = me.parentElement;
+    while (p && !p.classList.contains('block-container')) {{
+      p.style.height = '0';
+      p.style.minHeight = '0';
+      p.style.margin = '0';
+      p.style.padding = '0';
+      p.style.overflow = 'visible';
+      p = p.parentElement;
+    }}
+    // Add a one-time vignette overlay so foreground text stays legible
+    if (!pdoc.getElementById('home-bg-vignette')) {{
+      const v = pdoc.createElement('div');
+      v.id = 'home-bg-vignette';
+      Object.assign(v.style, {{
+        position: 'fixed', inset: '0',
+        background: 'radial-gradient(ellipse at center,'
+                  + ' rgba(13,11,4,0.10) 0%,'
+                  + ' rgba(13,11,4,0.35) 55%,'
+                  + ' rgba(13,11,4,0.70) 100%)',
+        zIndex: '1', pointerEvents: 'none'
+      }});
+      pdoc.body.appendChild(v);
+    }}
+    return true;
+  }} catch (e) {{ return false; }}
+}}
+// Retry until Streamlit has finished injecting the iframe wrapper
+let tries = 0;
+const iv = setInterval(() => {{
+  if (pinAsBackdrop() || ++tries > 40) clearInterval(iv);
+}}, 80);
+// Trigger a resize once pinned so Plotly redraws into the new viewport size
+window.addEventListener('resize', () => {{
+  try {{ Plotly.Plots.resize('m'); }} catch (e) {{}}
+}});
+setTimeout(() => {{
+  try {{ Plotly.Plots.resize('m'); }} catch (e) {{}}
+}}, 500);
+</script></body></html>
+        """,
+        height=900,
+    )
+
     # ── Full-page HTML + CSS ──────────────────────────────────────────────────
     st.markdown(f"""
     <style>
@@ -1177,6 +1340,53 @@ if not st.session_state.onboarding_complete:
       header[data-testid="stHeader"],
       [data-testid="stDecoration"],
       footer, #MainMenu {{ display: none !important; }}
+
+      /* ── Houston map as fullscreen background ──────────────────────────── */
+      /* Find the iframe directly after the .home-bg-map-anchor marker and
+         pin it as a dimmed full-viewport backdrop. Foreground content gets
+         z-index:10 so the form, hero, and CTAs all sit on top. */
+      [data-testid="element-container"]:has(.home-bg-map-anchor) {{
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }}
+      [data-testid="element-container"]:has(.home-bg-map-anchor)
+        + [data-testid="element-container"] {{
+        position: fixed !important;
+        inset: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 0 !important;
+        pointer-events: none !important;
+      }}
+      [data-testid="element-container"]:has(.home-bg-map-anchor)
+        + [data-testid="element-container"] iframe {{
+        position: fixed !important;
+        top: 0 !important; left: 0 !important;
+        width: 100vw !important; height: 100vh !important;
+        border: none !important;
+        opacity: 0.32 !important;
+        pointer-events: none !important;
+      }}
+      /* Dark vignette over the map so foreground text stays legible */
+      [data-testid="element-container"]:has(.home-bg-map-anchor)
+        + [data-testid="element-container"]::after {{
+        content: '';
+        position: fixed; inset: 0;
+        background: radial-gradient(ellipse at center,
+                    rgba(13,11,4,0.55) 0%,
+                    rgba(13,11,4,0.85) 70%,
+                    rgba(13,11,4,0.95) 100%);
+        z-index: 1;
+        pointer-events: none;
+      }}
+      /* Foreground welcome content sits above the map */
+      .cre-nav, .cre-ticker, .cre-hero, .cre-wrap,
+      [data-testid="stForm"], .s-examples,
+      [data-testid="stColumn"] {{
+        position: relative;
+        z-index: 10;
+      }}
 
       /* ── Navbar ─────────────────────────────────────────────────────────── */
       .cre-nav {{
@@ -1260,9 +1470,18 @@ if not st.session_state.onboarding_complete:
       .f-check {{ color:{GOLD}; font-weight:700; }}
 
       /* ── Search input override ──────────────────────────────────────────── */
-      [data-testid="stForm"] {{
-        border:none !important; padding:0 !important; background:transparent !important;
+      /* Nuke every border/background on Streamlit's nested form containers
+         so only the input/button styles render — fixes the cut-off outer box */
+      [data-testid="stForm"],
+      [data-testid="stForm"] > div,
+      [data-testid="stForm"] [data-testid="stVerticalBlock"],
+      [data-testid="stForm"] [data-testid="stHorizontalBlock"] {{
+        border:none !important;
+        box-shadow:none !important;
+        background:transparent !important;
+        outline:none !important;
       }}
+      [data-testid="stForm"] {{ padding:0 !important; }}
       [data-testid="stForm"] > div {{ max-width:780px; margin:0 auto !important; }}
       [data-testid="stHorizontalBlock"] {{ gap:0 !important; }}
 
@@ -1285,9 +1504,15 @@ if not st.session_state.onboarding_complete:
         box-shadow:0 0 0 3px rgba(200,160,64,.07) !important;
         outline:none !important;
       }}
-      [data-testid="stTextInput"] input::placeholder {{ color:#3a2e1a !important; }}
+      [data-testid="stTextInput"] input::placeholder {{
+        color:#a89260 !important;
+        opacity:0.85 !important;
+      }}
       [data-testid="stTextInput"] > div {{ border:none !important; background:transparent !important; }}
       [data-testid="InputInstructions"] {{ display:none !important; }}
+
+      /* Breathing room below the search row */
+      [data-testid="stForm"] {{ margin-bottom:18px !important; }}
 
       [data-testid="stFormSubmitButton"] > button {{
         background:{GOLD} !important; color:#0d0b04 !important;
@@ -1302,14 +1527,30 @@ if not st.session_state.onboarding_complete:
         background:#e8c060 !important;
       }}
 
+      /* Override Streamlit's salmon primary-button color → gold theme */
+      .stButton > button[kind="primary"],
+      [data-testid="stBaseButton-primary"] {{
+        background:{GOLD} !important;
+        color:#0d0b04 !important;
+        border:1px solid {GOLD} !important;
+        font-weight:700 !important;
+      }}
+      .stButton > button[kind="primary"]:hover,
+      [data-testid="stBaseButton-primary"]:hover {{
+        background:#e8c060 !important;
+        border-color:#e8c060 !important;
+        color:#0d0b04 !important;
+      }}
+
       /* ── Search examples ────────────────────────────────────────────────── */
       .s-examples {{
-        text-align:center; color:#3a2e1a; font-size:.77rem; margin-bottom:52px;
+        text-align:center; color:#a89260; font-size:.78rem; margin-bottom:52px;
       }}
       .s-ex {{
         color:{GOLD}; cursor:pointer;
-        text-decoration:underline; text-decoration-color:rgba(200,160,64,.3);
+        text-decoration:underline; text-decoration-color:rgba(200,160,64,.5);
       }}
+      .s-ex-static {{ color:{GOLD}; font-weight:500; }}
 
       /* ── Property type section ──────────────────────────────────────────── */
       .cre-wrap {{ max-width:1160px; margin:0 auto; padding:0 48px; }}
@@ -1358,11 +1599,6 @@ if not st.session_state.onboarding_complete:
         <span class="nav-school">PURDUE &middot; DANIELS MSF</span>
       </div>
       <div style="display:flex;align-items:center;">
-        <div class="nav-links">
-          <span class="nav-link">Markets</span>
-          <span class="nav-link">Watchlist</span>
-          <span class="nav-link">Reports</span>
-        </div>
         <button class="nav-cta">New Analysis</button>
       </div>
     </div>
@@ -1407,18 +1643,6 @@ if not st.session_state.onboarding_complete:
         <div class="ey-line ey-line-r"></div>
       </div>
       <div class="hero-title">CRE Intelligence Platform</div>
-      <div class="hero-sub">
-        Market analysis, 10-year P&amp;L projections, debt structuring, and tax optimization &mdash; delivered in seconds.
-      </div>
-      <div class="f-chips">
-        <span class="f-chip"><span class="f-check">&#10003;</span> Market Scoring</span>
-        <span class="f-chip"><span class="f-check">&#10003;</span> 10-Year P&amp;L Pro Forma</span>
-        <span class="f-chip"><span class="f-check">&#10003;</span> Financing &amp; DSCR</span>
-        <span class="f-chip"><span class="f-check">&#10003;</span> Depreciation Tax Shield</span>
-        <span class="f-chip"><span class="f-check">&#10003;</span> Opportunity Zone Benefits</span>
-        <span class="f-chip"><span class="f-check">&#10003;</span> Climate &amp; Risk Analysis</span>
-        <span class="f-chip"><span class="f-check">&#10003;</span> AI Investment Rationale</span>
-      </div>
     </div>
 
     """, unsafe_allow_html=True)

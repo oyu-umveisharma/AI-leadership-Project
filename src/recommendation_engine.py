@@ -489,7 +489,8 @@ def parse_prompt(text: str) -> dict:
                 result["location_raw"]    = parsed.get("location_raw")
                 result["budget"]          = _parse_number(parsed.get("budget"))
                 result["sqft"]            = _parse_number(parsed.get("sqft"))
-                result["timeline_years"]  = _parse_number(parsed.get("timeline_years"))
+                _ty                       = _parse_number(parsed.get("timeline_years"))
+                result["timeline_years"]  = int(_ty) if _ty is not None else None
                 result["risk_tolerance"]  = parsed.get("risk_tolerance")
                 result["parse_source"]    = "groq"
         except Exception:
@@ -1008,7 +1009,11 @@ def build_recommendation(params: dict) -> dict:
     location_raw   = params.get("location_raw", "")
     budget         = params["budget"]
     sqft           = params["sqft"]
-    timeline_years = params["timeline_years"]
+    # timeline_years is semantically an integer count of years; some parse
+    # paths (Groq JSON) return a float. Normalize once so downstream range()
+    # and list-multiplication sites never crash on "5.0".
+    timeline_years = int(round(params["timeline_years"]))
+    params["timeline_years"] = timeline_years
     risk_tolerance = params.get("risk_tolerance", "moderate")
 
     markets    = resolve_markets(location_raw)
