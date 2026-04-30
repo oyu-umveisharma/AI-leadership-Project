@@ -1350,6 +1350,8 @@ setTimeout(() => {{
         max-width: 100% !important;
         padding: 0 !important;
         margin: 0 !important;
+        position: relative !important;
+        z-index: 100 !important;
       }}
       header[data-testid="stHeader"],
       [data-testid="stDecoration"],
@@ -1399,7 +1401,7 @@ setTimeout(() => {{
       [data-testid="stForm"], .s-examples,
       [data-testid="stColumn"] {{
         position: relative;
-        z-index: 10;
+        z-index: 200;
       }}
 
       /* ── Navbar ─────────────────────────────────────────────────────────── */
