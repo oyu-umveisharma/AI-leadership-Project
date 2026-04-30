@@ -1316,7 +1316,7 @@ setTimeout(() => {{
 }}, 500);
 </script></body></html>
         """,
-        height=900,
+        height=1,
     )
 
     # ── Full-page HTML + CSS ──────────────────────────────────────────────────
