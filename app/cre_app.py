@@ -1324,24 +1324,24 @@ setTimeout(() => {{
     <style>
       @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-      html, body, [class*="css"],
+      html, body {{
+        overflow: hidden !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+      }}
+      [class*="css"],
       [data-testid="stAppViewContainer"],
       [data-testid="stApp"],
       section[data-testid="stMain"] {{
         font-family: 'DM Sans', -apple-system, sans-serif !important;
         background: #0d0b04 !important;
         color: #c8b890 !important;
-        overflow: hidden !important;
-        height: 100vh !important;
-        max-height: 100vh !important;
       }}
       .main .block-container {{
         max-width: 100% !important;
         padding: 0 !important;
         margin: 0 !important;
-        overflow: hidden !important;
-        height: 100vh !important;
-        max-height: 100vh !important;
+        overflow: visible !important;
       }}
       header[data-testid="stHeader"],
       [data-testid="stDecoration"],
