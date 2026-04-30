@@ -2050,10 +2050,10 @@ st.markdown(f"""
   /* ── Sidebar ── */
   [data-testid="stSidebar"] {{ background: #0d0b04 !important; }}
 
-  /* ── Scrollbar ── */
-  ::-webkit-scrollbar {{ width: 4px; height: 4px; }}
-  ::-webkit-scrollbar-track {{ background: #0d0b04; }}
-  ::-webkit-scrollbar-thumb {{ background: #3a2e10; border-radius: 2px; }}
+  /* ── Scrollbar — hidden ── */
+  ::-webkit-scrollbar {{ display: none; }}
+  * {{ scrollbar-width: none; }}
+  html, body {{ overflow-x: hidden; }}
 
   /* ── Footer accent line ── */
   body::after {{
