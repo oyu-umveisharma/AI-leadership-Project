@@ -1325,9 +1325,12 @@ setTimeout(() => {{
       @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
       html, body {{
-        overflow: hidden !important;
-        height: 100vh !important;
-        max-height: 100vh !important;
+        scrollbar-width: none !important;
+        overscroll-behavior: none !important;
+      }}
+      html::-webkit-scrollbar, body::-webkit-scrollbar {{
+        display: none !important;
+        width: 0 !important;
       }}
       [class*="css"],
       [data-testid="stAppViewContainer"],
@@ -1347,7 +1350,6 @@ setTimeout(() => {{
         max-width: 100% !important;
         padding: 0 !important;
         margin: 0 !important;
-        overflow: visible !important;
       }}
       header[data-testid="stHeader"],
       [data-testid="stDecoration"],
@@ -1452,27 +1454,27 @@ setTimeout(() => {{
       }}
 
       /* ── Hero ───────────────────────────────────────────────────────────── */
-      .cre-hero {{ text-align:center; padding:68px 20px 40px; }}
+      .cre-hero {{ text-align:center; padding:28px 20px 14px; }}
       .hero-eyebrow {{
         display:flex; align-items:center; justify-content:center;
-        gap:14px; margin-bottom:26px;
+        gap:14px; margin-bottom:14px;
       }}
       .ey-line   {{ flex:0 0 64px; height:1px; background:linear-gradient(90deg,transparent,rgba(200,160,64,.4)); }}
       .ey-line-r {{ background:linear-gradient(270deg,transparent,rgba(200,160,64,.4)); }}
       .ey-text   {{ color:{GOLD}; font-size:.8rem; font-weight:500; letter-spacing:3.5px; }}
       .hero-title {{
         font-size:4.2rem; font-weight:700; color:{GOLD};
-        line-height:1.08; margin-bottom:22px; letter-spacing:-.5px;
+        line-height:1.08; margin-bottom:10px; letter-spacing:-.5px;
       }}
       .hero-sub {{
         font-size:1.2rem; color:#7a6840; line-height:1.65;
-        max-width:620px; margin:0 auto 36px;
+        max-width:620px; margin:0 auto 14px;
       }}
 
       /* ── Feature chips ──────────────────────────────────────────────────── */
       .f-chips {{
         display:flex; flex-wrap:wrap; justify-content:center;
-        gap:8px; max-width:820px; margin:0 auto 52px;
+        gap:8px; max-width:820px; margin:0 auto 14px;
       }}
       .f-chip {{
         background:transparent; border:1px solid rgba(200,160,64,.22);
@@ -1556,7 +1558,7 @@ setTimeout(() => {{
 
       /* ── Search examples ────────────────────────────────────────────────── */
       .s-examples {{
-        text-align:center; color:#a89260; font-size:.78rem; margin-bottom:52px;
+        text-align:center; color:#a89260; font-size:.78rem; margin-bottom:20px;
       }}
       .s-ex {{
         color:{GOLD}; cursor:pointer;
