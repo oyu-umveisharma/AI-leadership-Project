@@ -3562,17 +3562,27 @@ with main_tab_advisor:
                     _oz_zones = " · ".join((_oz_info.get("key_zones") or [])[:2])
                     _oz_focus = ", ".join((_oz_info.get("property_focus") or [])[:2])
                     _oz_hi    = (_oz_info.get("highlights") or [""])[0]
+                    _oz_search = _oz_name.replace(", ", "+").replace(" ", "+")
+                    _oz_url = f"https://opportunityzones.hud.gov/search?location={_oz_search}"
                     st.markdown(f"""
+<a href="{_oz_url}" target="_blank" style="text-decoration:none;display:block;margin-bottom:8px;">
 <div style="background:#0a1e0a;border:1px solid #2a4a2a;border-left:3px solid #4caf50;
-            border-radius:6px;padding:12px 16px;margin-bottom:8px;">
+            border-radius:6px;padding:12px 16px;cursor:pointer;
+            transition:border-color .15s,background .15s;"
+     onmouseover="this.style.background='#0d2a0d';this.style.borderColor='#4caf50';"
+     onmouseout="this.style.background='#0a1e0a';this.style.borderColor='#2a4a2a';">
   <div style="display:flex;justify-content:space-between;align-items:center;">
     <div style="color:#80c858;font-weight:600;font-size:0.88rem;">{_oz_name}</div>
-    <div style="color:{_oz_sc_c};font-weight:700;font-family:monospace;font-size:1rem;">{_oz_sc}</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="color:{_oz_sc_c};font-weight:700;font-family:monospace;font-size:1rem;">{_oz_sc}</div>
+      <div style="color:#3a6a3a;font-size:0.7rem;">View map ↗</div>
+    </div>
   </div>
   {"<div style='color:#5a9050;font-size:0.78rem;margin-top:4px;'>Zones: " + _oz_zones + "</div>" if _oz_zones else ""}
   {"<div style='color:#5a9050;font-size:0.78rem;'>Focus: " + _oz_focus + "</div>" if _oz_focus else ""}
   {"<div style='color:#a09880;font-size:0.78rem;margin-top:4px;'>" + _oz_hi + "</div>" if _oz_hi else ""}
-</div>""", unsafe_allow_html=True)
+</div>
+</a>""", unsafe_allow_html=True)
 
                 st.markdown(
                     '<div style="background:#16140a;border:1px solid #3a3020;border-radius:6px;'
